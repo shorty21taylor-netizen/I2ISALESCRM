@@ -17,7 +17,7 @@ export default function CloserLeaderboard({ data }) {
           var isTop = rank === 1;
           return (
             <div key={perf.closer.id}>
-              <div className={'flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:bg-white/[0.03] ' + (isTop ? 'bg-white/[0.02] glow-red' : '')}>
+              <div className={'flex items-center gap-3 p-3 rounded-xl transition-all duration-300 hover:bg-white/[0.03] ' + (isTop ? 'leaderboard-row-1 rounded-xl' : '')}>
                 <div className={'rank-circle ' + (isTop ? 'rank-1' : 'rank-default')}>
                   {rank}
                 </div>

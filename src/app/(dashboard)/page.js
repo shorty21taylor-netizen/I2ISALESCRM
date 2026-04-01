@@ -19,20 +19,20 @@ export default function DashboardPage() {
   var todayDials = recentEODs.reduce(function(sum, e) { return sum + e.totalDials; }, 0);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto bg-orbs relative">
       {/* Header */}
-      <div className="flex items-center justify-between stagger-1">
+      <div className="flex items-center justify-between stagger-1 relative z-10">
         <div>
           <h1 className="font-display text-2xl font-bold text-crm-text-bright">Good afternoon, Anthony</h1>
           <p className="text-sm text-crm-muted mt-1">March 31, 2026</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-crm-positive/10 border border-crm-positive/20">
+          <div className="live-indicator">
             <div className="glow-dot-green" />
-            <span className="text-xs font-mono text-crm-positive">n8n Connected</span>
+            <span className="text-crm-positive">n8n Connected</span>
           </div>
           <div className="flex items-center gap-4 glass-surface px-4 py-2">
-            <span className="text-xs font-mono text-crm-muted">Today: <span className="metric-positive">{formatCurrency(todayCash)}</span></span>
+            <span className="text-xs font-mono text-crm-muted">Today: <span className="metric-value-green text-sm">{formatCurrency(todayCash)}</span></span>
             <span className="text-xs font-mono text-crm-muted">{todayCloses} closes</span>
             <span className="text-xs font-mono text-crm-muted">{todayDials} dials</span>
             <span className="text-xs font-mono text-crm-muted">{t.activeClosers} closers</span>
@@ -41,7 +41,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 2 — Primary Revenue KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4 relative z-10">
         <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} icon={DollarSign} accentColor="red" delay={0} />
         <MetricCard label="Total Closes" value={t.totalCloses} trend={t.closesTrend} icon={Target} accentColor="red" delay={50} />
         <MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} accentColor="green" delay={100} />
@@ -49,7 +49,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 3 — Pipeline Health KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4 relative z-10">
         <MetricCard label="Booked This Week" value={t.bookedCallsThisWeek} trend={t.bookedCallsTrend} icon={Calendar} accentColor="default" delay={200} />
         <MetricCard label="Show Rate" value={t.showRate + '%'} trend={t.showRateTrend} icon={UserCheck} accentColor="default" delay={250} />
         <MetricCard label="Pipeline Value" value={formatCurrency(t.pipelineValue)} trend={t.pipelineValueTrend} icon={TrendingUp} accentColor="green" delay={300} />
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 4 — Efficiency KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4 relative z-10">
         <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={0} />
         <MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} accentColor="default" delay={50} />
         <MetricCard label="One-Call Close Rate" value={t.oneCallCloseRate + '%'} trend={t.oneCallCloseTrend} icon={CheckCircle} accentColor="green" delay={100} />
@@ -65,7 +65,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 5 — Quality & Retention KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4 relative z-10">
         <MetricCard label="Refund Rate" value={t.refundRate + '%'} trend={t.refundRateTrend * -1} icon={ShieldCheck} accentColor="green" delay={200} trendLabel="fewer refunds" />
         <MetricCard label="Net Revenue (30d)" value={formatCurrency(t.netRevenueRetained30d)} trend={t.netRetainedTrend} icon={DollarSign} accentColor="green" delay={250} />
         <MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} />
@@ -73,13 +73,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 6 — Charts */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-3">
         <ClientOnly><RevenueChart data={revenueByDay} /></ClientOnly>
         <ClientOnly><DialActivityChart data={dialsByCloser} /></ClientOnly>
       </div>
 
       {/* Row 7 — Pipeline + Leaderboard */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 relative z-10 stagger-4">
         <PipelineSplit inboundRevenue={t.inboundRevenue} outboundRevenue={t.outboundRevenue} />
         <div className="col-span-2">
           <CloserLeaderboard data={closerPerformances} />
@@ -87,10 +87,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 8 — EOD Table */}
-      <EODTable reports={recentEODs} />
+      <div className="relative z-10 stagger-5"><EODTable reports={recentEODs} /></div>
 
       {/* Row 9 — Calls + Insights */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-6">
         <RecentCalls calls={recentCalls} />
         <AIInsights performances={closerPerformances} />
       </div>

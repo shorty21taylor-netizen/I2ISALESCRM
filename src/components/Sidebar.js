@@ -48,7 +48,7 @@ export default function Sidebar() {
           var isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={'nav-link ' + (isActive ? 'active' : '')}>
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="w-5 h-5 flex-shrink-0 nav-icon" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

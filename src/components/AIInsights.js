@@ -7,7 +7,10 @@ export default function AIInsights({ performances }) {
     <div className="glass-card overflow-hidden">
       <div className="section-header">
         <h3>AI Insights</h3>
-        <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+        <div className="flex items-center gap-2">
+          <div className="glow-dot-red" />
+          <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+        </div>
       </div>
       <div className="p-4 space-y-3">
         {performances.map(function(perf) {

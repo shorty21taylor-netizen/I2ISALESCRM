@@ -8,24 +8,21 @@ export default function MetricCard({ label, value, trend, trendLabel, icon: Icon
   var isPositive = trend > 0;
   var isNegative = trend < 0;
 
-  var iconBgMap = {
-    red: 'bg-crm-accent/10 text-crm-accent',
-    green: 'bg-crm-positive/10 text-crm-positive',
-    default: 'bg-white/5 text-crm-muted',
+  var iconBoxMap = {
+    red: 'icon-box-red',
+    green: 'icon-box-green',
+    default: 'icon-box-default',
   };
 
-  var glowMap = {
-    red: 'glow-red',
-    green: 'glow-green',
-    default: '',
-  };
+  var valueClass = accentColor === 'red' ? 'metric-value-red' : accentColor === 'green' ? 'metric-value-green' : 'metric-value';
+  var cardClass = accentColor === 'red' ? 'glass-card-accent shimmer' : 'glass-card shimmer';
 
   var staggerClass = staggerMap[delay] || 'stagger-1';
 
   return (
-    <div className={'glass-card p-5 ' + staggerClass}>
+    <div className={cardClass + ' p-5 ' + staggerClass}>
       <div className="flex items-start justify-between mb-3">
-        <div className={'p-2.5 rounded-xl ' + iconBgMap[accentColor] + ' ' + glowMap[accentColor]}>
+        <div className={iconBoxMap[accentColor]}>
           {Icon && <Icon className="w-5 h-5" />}
         </div>
         {trend !== undefined && trend !== null && (
@@ -35,7 +32,7 @@ export default function MetricCard({ label, value, trend, trendLabel, icon: Icon
           </div>
         )}
       </div>
-      <div className="font-display font-bold text-2xl text-crm-text-bright mb-1">{value}</div>
+      <div className={valueClass + ' text-2xl mb-1'}>{value}</div>
       <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">{label}</div>
       {trendLabel && <div className="text-xs text-crm-muted mt-1">{trendLabel}</div>}
     </div>
