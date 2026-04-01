@@ -2,12 +2,13 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Users, FileText, Phone, PlayCircle, Brain, BarChart3, Settings, ChevronLeft } from 'lucide-react';
+import { Activity, LayoutDashboard, Users, FileText, ClipboardList, Phone, PlayCircle, Brain, BarChart3, Settings, ChevronLeft } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/closers', label: 'Closers', icon: Users },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
+  { href: '/forms', label: 'Forms', icon: ClipboardList },
   { href: '/calls', label: 'Call Center', icon: Phone },
   { href: '/recordings', label: 'Recordings', icon: PlayCircle },
   { href: '/reports', label: 'AI Reports', icon: Brain },
