@@ -7,8 +7,8 @@ import { Activity, LayoutDashboard, Users, FileText, ClipboardList, Phone, PlayC
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/closers', label: 'Closers', icon: Users },
+  { href: '/submit', label: 'Submit', icon: ClipboardList },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
-  { href: '/forms', label: 'Forms', icon: ClipboardList },
   { href: '/calls', label: 'Call Center', icon: Phone },
   { href: '/recordings', label: 'Recordings', icon: PlayCircle },
   { href: '/reports', label: 'AI Reports', icon: Brain },
