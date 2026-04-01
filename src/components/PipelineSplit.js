@@ -1,8 +1,23 @@
 'use client';
+import { GitBranch } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 export default function PipelineSplit({ inboundRevenue, outboundRevenue }) {
   var total = inboundRevenue + outboundRevenue;
+
+  if (total === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>Pipeline Split</h3>
+          <span className="section-tag">Revenue</span>
+        </div>
+        <EmptyState icon={GitBranch} title="No revenue split data yet" subtitle="Will populate as inbound and outbound deals close" />
+      </div>
+    );
+  }
+
   var inPct = ((inboundRevenue / total) * 100).toFixed(1);
   var outPct = ((outboundRevenue / total) * 100).toFixed(1);
 

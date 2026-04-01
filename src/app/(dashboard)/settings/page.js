@@ -220,21 +220,29 @@ export default function SettingsPage() {
             <span className="section-tag">{closers.length} members</span>
           </div>
           <div className="p-5 space-y-2">
-            {closers.map(function(c) {
-              return (
-                <div key={c.id} className="flex items-center gap-3 p-3 glass-surface">
-                  <div className="avatar avatar-md text-crm-text">
-                    {getInitials(c.name)}
+            {closers.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-5 h-5 text-crm-muted mx-auto mb-2" />
+                <p className="text-sm text-crm-muted">No team members yet</p>
+                <p className="text-xs text-crm-muted/50 mt-1">Closers will appear here when added via webhooks</p>
+              </div>
+            ) : (
+              closers.map(function(c) {
+                return (
+                  <div key={c.id} className="flex items-center gap-3 p-3 glass-surface">
+                    <div className="avatar avatar-md text-crm-text">
+                      {getInitials(c.name)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-crm-text-bright">{c.name}</div>
+                      <div className="text-xs text-crm-muted">{c.email}</div>
+                    </div>
+                    <span className="badge-neutral capitalize">{c.role}</span>
+                    <span className="badge-positive">{c.status}</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-crm-text-bright">{c.name}</div>
-                    <div className="text-xs text-crm-muted">{c.email}</div>
-                  </div>
-                  <span className="badge-neutral capitalize">{c.role}</span>
-                  <span className="badge-positive">{c.status}</span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 

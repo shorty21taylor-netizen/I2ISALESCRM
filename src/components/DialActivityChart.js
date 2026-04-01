@@ -1,6 +1,7 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Phone } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 
 var closerNames = ['Marcus', 'Aisha', 'Jordan', 'Derek', 'Tanya'];
 
@@ -57,6 +58,21 @@ function DialTooltip({ active, payload, label }) {
 }
 
 export default function DialActivityChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>
+            <Phone className="w-4 h-4 text-crm-accent" />
+            Dials by closer (7 days)
+          </h3>
+          <span className="section-tag">Grouped</span>
+        </div>
+        <EmptyState icon={Phone} title="No dial data yet" subtitle="Dial activity will appear from JustCall sync" />
+      </div>
+    );
+  }
+
   var totalDials = data.reduce(function(sum, day) {
     return sum + closerNames.reduce(function(s, name) { return s + (day[name] || 0); }, 0);
   }, 0);

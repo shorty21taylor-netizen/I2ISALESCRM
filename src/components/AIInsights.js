@@ -1,8 +1,24 @@
 'use client';
-import { Lightbulb, AlertTriangle } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Brain } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 export default function AIInsights({ performances }) {
+  if (!performances || performances.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>AI Insights</h3>
+          <div className="flex items-center gap-2">
+            <div className="glow-dot-red" />
+            <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+          </div>
+        </div>
+        <EmptyState icon={Brain} title="No AI insights yet" subtitle="Diagnostics generate after closers have enough call and performance data" />
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card overflow-hidden">
       <div className="section-header">

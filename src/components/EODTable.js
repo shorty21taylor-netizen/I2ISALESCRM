@@ -1,5 +1,7 @@
 'use client';
+import { FileText } from 'lucide-react';
 import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 function StatusBadge({ status }) {
   var map = {
@@ -25,6 +27,18 @@ function ConfidenceBar({ score }) {
 }
 
 export default function EODTable({ reports }) {
+  if (!reports || reports.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>Today&apos;s EOD Reports</h3>
+          <span className="section-tag">0 reports</span>
+        </div>
+        <EmptyState icon={FileText} title="No EOD reports yet" subtitle="Reports appear when closers submit their end-of-day" />
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card overflow-hidden">
       <div className="section-header">

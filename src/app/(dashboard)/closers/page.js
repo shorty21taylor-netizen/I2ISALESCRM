@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { Search, TrendingUp, TrendingDown, AlertTriangle, Lightbulb } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Users } from 'lucide-react';
 import { formatCurrency, formatPercent, getInitials } from '@/lib/utils';
 import { closers, closerPerformances, recentCalls } from '@/lib/mock-data';
+import EmptyState from '@/components/EmptyState';
 
 export default function ClosersPage() {
   var s1 = useState(''), search = s1[0], setSearch = s1[1];
-  var s2 = useState(closers[0].id), selectedId = s2[0], setSelectedId = s2[1];
+  var s2 = useState(closers.length > 0 ? closers[0].id : null), selectedId = s2[0], setSelectedId = s2[1];
 
   var filtered = closers.filter(function(c) { return c.name.toLowerCase().includes(search.toLowerCase()); });
   var selectedPerf = closerPerformances.find(function(p) { return p.closer.id === selectedId; });
@@ -31,29 +32,33 @@ export default function ClosersPage() {
                 className="input-field pl-10"
               />
             </div>
-            <div className="space-y-1">
-              {filtered.map(function(c) {
-                var perf = closerPerformances.find(function(p) { return p.closer.id === c.id; });
-                return (
-                  <button
-                    key={c.id}
-                    onClick={function() { setSelectedId(c.id); }}
-                    className={'w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200 ' + (selectedId === c.id ? 'bg-crm-accent/10 border border-crm-accent/20' : 'hover:bg-white/[0.03]')}
-                  >
-                    <div className={'avatar avatar-md ' + (selectedId === c.id ? 'bg-crm-accent/10 text-crm-accent' : 'text-crm-text')}>
-                      {getInitials(c.name)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-crm-text-bright truncate">{c.name}</div>
-                      <div className="text-xs text-crm-muted capitalize">{c.role}</div>
-                    </div>
-                    {perf && (
-                      <span className="text-xs font-mono text-crm-positive">{formatCurrency(perf.totalRevenue)}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {filtered.length > 0 ? (
+              <div className="space-y-1">
+                {filtered.map(function(c) {
+                  var perf = closerPerformances.find(function(p) { return p.closer.id === c.id; });
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={function() { setSelectedId(c.id); }}
+                      className={'w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200 ' + (selectedId === c.id ? 'bg-crm-accent/10 border border-crm-accent/20' : 'hover:bg-white/[0.03]')}
+                    >
+                      <div className={'avatar avatar-md ' + (selectedId === c.id ? 'bg-crm-accent/10 text-crm-accent' : 'text-crm-text')}>
+                        {getInitials(c.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-crm-text-bright truncate">{c.name}</div>
+                        <div className="text-xs text-crm-muted capitalize">{c.role}</div>
+                      </div>
+                      {perf && (
+                        <span className="text-xs font-mono text-crm-positive">{formatCurrency(perf.totalRevenue)}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState icon={Users} title="No closers yet" subtitle="Closers appear when team members sign up and submit data" />
+            )}
           </div>
         </div>
 
@@ -164,7 +169,9 @@ export default function ClosersPage() {
               )}
             </>
           ) : (
-            <div className="glass-card p-10 text-center text-crm-muted">Select a closer to view details</div>
+            <div className="glass-card p-10 text-center text-crm-muted">
+              {closers.length === 0 ? 'No closers in the system yet. Data will appear when team members join.' : 'Select a closer to view details'}
+            </div>
           )}
         </div>
       </div>

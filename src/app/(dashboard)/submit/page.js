@@ -7,14 +7,7 @@ import { getFormConfig } from '@/lib/form-config';
 
 var SUBMISSIONS_KEY = 'summit-crm-submissions';
 
-var sampleSubmissions = [
-  { id: 's1', type: 'close-deal', closerName: 'Marcus Johnson', detail: 'Sarah Mitchell \u2014 $5,500', submittedAt: '2026-03-31T18:30:00Z' },
-  { id: 's2', type: 'book-call', closerName: 'Aisha Williams', detail: 'James Taylor \u2014 Apr 2, 2:00 PM', submittedAt: '2026-03-31T16:45:00Z' },
-  { id: 's3', type: 'eod-report', closerName: 'Marcus Johnson', detail: '34 dials, 2 closes, $8,500', submittedAt: '2026-03-31T18:12:00Z' },
-  { id: 's4', type: 'book-call', closerName: 'Jordan Rivera', detail: 'Kevin Wright \u2014 Apr 1, 1:00 PM', submittedAt: '2026-03-31T14:20:00Z' },
-  { id: 's5', type: 'close-deal', closerName: 'Tanya Brooks', detail: 'David Kim \u2014 $3,750', submittedAt: '2026-03-31T16:05:00Z' },
-  { id: 's6', type: 'eod-report', closerName: 'Aisha Williams', detail: '38 dials, 1 close, $3,800', submittedAt: '2026-03-31T18:45:00Z' },
-];
+var sampleSubmissions = [];
 
 var typeBadge = {
   'book-call': { label: 'Booked Call', cls: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20' },

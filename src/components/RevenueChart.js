@@ -2,8 +2,24 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 export default function RevenueChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>
+            <TrendingUp className="w-4 h-4 text-crm-accent" />
+            Revenue (14 days)
+          </h3>
+          <span className="section-tag">Daily</span>
+        </div>
+        <EmptyState icon={TrendingUp} title="No revenue data yet" subtitle="Revenue will appear as deals close" />
+      </div>
+    );
+  }
+
   var totalRevenue = data.reduce(function(sum, d) { return sum + d.revenue; }, 0);
   var workingDays = data.filter(function(d) { return d.revenue > 0; });
   var avgRevenue = workingDays.length > 0 ? Math.round(totalRevenue / workingDays.length) : 0;

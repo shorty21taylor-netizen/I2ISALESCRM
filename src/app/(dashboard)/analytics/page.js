@@ -1,6 +1,8 @@
 'use client';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ScatterChart, Scatter, ZAxis, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, BarChart3 } from 'lucide-react';
 import ClientOnly from '@/components/ClientOnly';
+import EmptyState from '@/components/EmptyState';
 import { formatCurrency } from '@/lib/utils';
 import { revenueByDay, dialsByCloser, closerPerformances, teamOverview } from '@/lib/mock-data';
 
@@ -44,13 +46,17 @@ var sourceData = [
 ];
 var SOURCE_COLORS = ['#22c55e', '#dc2626'];
 
-var funnelData = [
+var funnelData = teamOverview.totalDials > 0 ? [
   { stage: 'Dials', value: teamOverview.totalDials },
   { stage: 'Connects', value: Math.round(teamOverview.totalDials * 0.28) },
   { stage: 'Booked', value: Math.round(teamOverview.totalDials * 0.08) },
   { stage: 'Shows', value: Math.round(teamOverview.totalDials * 0.06) },
   { stage: 'Closes', value: teamOverview.totalCloses },
-];
+] : [];
+
+function ChartEmpty({ title, subtitle }) {
+  return <EmptyState icon={BarChart3} title={title} subtitle={subtitle} />;
+}
 
 export default function AnalyticsPage() {
   return (
@@ -64,25 +70,29 @@ export default function AnalyticsPage() {
             <h3>Revenue Trend</h3>
             <span className="section-tag">14 Days</span>
           </div>
-          <div className="p-5 h-[280px]">
-            <ClientOnly>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueByDay}>
-                  <defs>
-                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="date" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} tickFormatter={function(v) { return '$' + (v / 1000).toFixed(0) + 'k'; }} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={2} fill="url(#revGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ClientOnly>
-          </div>
+          {revenueByDay.length === 0 ? (
+            <ChartEmpty title="No revenue data yet" subtitle="Revenue will appear as deals close" />
+          ) : (
+            <div className="p-5 h-[280px]">
+              <ClientOnly>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueByDay}>
+                    <defs>
+                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="date" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
+                    <YAxis tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} tickFormatter={function(v) { return '$' + (v / 1000).toFixed(0) + 'k'; }} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Area type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={2} fill="url(#revGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ClientOnly>
+            </div>
+          )}
         </div>
 
         {/* Close Rate Bar Chart */}
@@ -91,20 +101,24 @@ export default function AnalyticsPage() {
             <h3>Close Rate by Closer</h3>
             <span className="section-tag">Comparison</span>
           </div>
-          <div className="p-5 h-[280px]">
-            <ClientOnly>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={closeRateData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="name" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} unit="%" />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="closeRate" fill="#dc2626" radius={[4, 4, 0, 0]} name="Close Rate" />
-                  <Bar dataKey="teamAvg" fill="#404040" radius={[4, 4, 0, 0]} name="Team Avg" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ClientOnly>
-          </div>
+          {closeRateData.length === 0 ? (
+            <ChartEmpty title="No close rate data yet" subtitle="Appears when closers have performance data" />
+          ) : (
+            <div className="p-5 h-[280px]">
+              <ClientOnly>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={closeRateData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="name" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
+                    <YAxis tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} unit="%" />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="closeRate" fill="#dc2626" radius={[4, 4, 0, 0]} name="Close Rate" />
+                    <Bar dataKey="teamAvg" fill="#404040" radius={[4, 4, 0, 0]} name="Team Avg" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ClientOnly>
+            </div>
+          )}
         </div>
       </div>
 
@@ -115,20 +129,24 @@ export default function AnalyticsPage() {
             <h3>Dials vs Revenue</h3>
             <span className="section-tag">Scatter</span>
           </div>
-          <div className="p-5 h-[280px]">
-            <ClientOnly>
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="dials" name="Dials" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
-                  <YAxis dataKey="revenue" name="Revenue" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} tickFormatter={function(v) { return '$' + (v / 1000).toFixed(0) + 'k'; }} />
-                  <ZAxis dataKey="closeRate" range={[100, 500]} name="Close Rate" />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Scatter data={scatterData} fill="#dc2626" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </ClientOnly>
-          </div>
+          {scatterData.length === 0 ? (
+            <ChartEmpty title="No dial/revenue data yet" subtitle="Appears when closers have performance data" />
+          ) : (
+            <div className="p-5 h-[280px]">
+              <ClientOnly>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="dials" name="Dials" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
+                    <YAxis dataKey="revenue" name="Revenue" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} tickFormatter={function(v) { return '$' + (v / 1000).toFixed(0) + 'k'; }} />
+                    <ZAxis dataKey="closeRate" range={[100, 500]} name="Close Rate" />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Scatter data={scatterData} fill="#dc2626" />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </ClientOnly>
+            </div>
+          )}
         </div>
 
         {/* Source Breakdown */}
@@ -137,20 +155,24 @@ export default function AnalyticsPage() {
             <h3>Revenue by Source</h3>
             <span className="section-tag">Split</span>
           </div>
-          <div className="p-5 h-[280px]">
-            <ClientOnly>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={sourceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={function(d) { return d.name + ' ' + (d.percent * 100).toFixed(0) + '%'; }}>
-                    {sourceData.map(function(entry, index) {
-                      return <Cell key={'cell-' + index} fill={SOURCE_COLORS[index]} />;
-                    })}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </ClientOnly>
-          </div>
+          {sourceData[0].value === 0 && sourceData[1].value === 0 ? (
+            <ChartEmpty title="No revenue source data yet" subtitle="Appears as inbound and outbound deals close" />
+          ) : (
+            <div className="p-5 h-[280px]">
+              <ClientOnly>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={sourceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={function(d) { return d.name + ' ' + (d.percent * 100).toFixed(0) + '%'; }}>
+                      {sourceData.map(function(entry, index) {
+                        return <Cell key={'cell-' + index} fill={SOURCE_COLORS[index]} />;
+                      })}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ClientOnly>
+            </div>
+          )}
         </div>
       </div>
 
@@ -160,19 +182,23 @@ export default function AnalyticsPage() {
           <h3>Conversion Funnel</h3>
           <span className="section-tag">Full Pipeline</span>
         </div>
-        <div className="p-5 h-[200px]">
-          <ClientOnly>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={funnelData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis type="number" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
-                <YAxis type="category" dataKey="stage" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} width={70} />
-                <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="value" fill="#dc2626" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ClientOnly>
-        </div>
+        {funnelData.length === 0 ? (
+          <ChartEmpty title="No funnel data yet" subtitle="Funnel stages populate as dials and closes are recorded" />
+        ) : (
+          <div className="p-5 h-[200px]">
+            <ClientOnly>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={funnelData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis type="number" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} />
+                  <YAxis type="category" dataKey="stage" tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} width={70} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="value" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ClientOnly>
+          </div>
+        )}
       </div>
     </div>
   );

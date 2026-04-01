@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle, PhoneCall } from 'lucide-react';
 import { formatCurrency, formatDuration, getInitials, getScoreColor, getScoreBg } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 function getScoreClass(score) {
   if (score >= 80) return 'score-high';
@@ -11,6 +12,18 @@ function getScoreClass(score) {
 
 export default function RecentCalls({ calls }) {
   var s = useState(null), expandedId = s[0], setExpandedId = s[1];
+
+  if (!calls || calls.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>Recent Calls</h3>
+          <span className="section-tag">0 calls</span>
+        </div>
+        <EmptyState icon={PhoneCall} title="No calls recorded yet" subtitle="Call data flows in from JustCall and Fathom" />
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card overflow-hidden">

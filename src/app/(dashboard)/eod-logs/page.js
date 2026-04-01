@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, FileText } from 'lucide-react';
 import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
 import { recentEODs, closers } from '@/lib/mock-data';
+import EmptyState from '@/components/EmptyState';
 
 function StatusBadge({ status }) {
   var map = { submitted: 'badge-positive', late: 'badge-warning', missing: 'badge-negative' };
@@ -41,7 +42,7 @@ export default function EODLogsPage() {
           { label: 'Total Cash', value: formatCurrency(totalCash), color: 'metric-positive' },
           { label: 'Total Closes', value: totalCloses, color: 'text-crm-text-bright' },
           { label: 'Total Dials', value: totalDials, color: 'text-crm-text-bright' },
-          { label: 'Submitted', value: submitted + '/' + recentEODs.length, color: submitted === recentEODs.length ? 'metric-positive' : 'text-crm-warning' },
+          { label: 'Submitted', value: recentEODs.length > 0 ? submitted + '/' + recentEODs.length : '0', color: submitted === recentEODs.length && recentEODs.length > 0 ? 'metric-positive' : 'text-crm-muted' },
         ].map(function(s, idx) {
           return (
             <div key={s.label} className={'glass-card p-4 stagger-' + (idx + 1)}>
@@ -68,68 +69,74 @@ export default function EODLogsPage() {
       </div>
 
       {/* EOD Cards */}
-      <div className="space-y-4">
-        {filtered.map(function(eod) {
-          return (
-            <div key={eod.id} className="glass-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="avatar avatar-md text-crm-text">
-                    {getInitials(eod.closerName)}
-                  </div>
-                  <div>
-                    <div className="font-medium text-crm-text-bright">{eod.closerName}</div>
-                    <div className="text-xs text-crm-muted">Submitted {formatTime(eod.submittedAt)}</div>
-                  </div>
-                </div>
-                <StatusBadge status={eod.status} />
-              </div>
-
-              {eod.status !== 'missing' ? (
-                <>
-                  <div className="grid grid-cols-6 gap-3 mb-4">
-                    {[
-                      { label: 'Dials', value: eod.totalDials },
-                      { label: 'Connects', value: eod.connects },
-                      { label: 'Booked', value: eod.callsBooked },
-                      { label: 'Taken', value: eod.callsTaken },
-                      { label: 'Closes', value: eod.closes },
-                      { label: 'Cash', value: formatCurrency(eod.cashCollected), color: 'text-crm-positive' },
-                    ].map(function(m) {
-                      return (
-                        <div key={m.label} className="glass-surface p-2 text-center">
-                          <div className="text-xs text-crm-muted mb-1">{m.label}</div>
-                          <div className={'font-mono font-bold ' + (m.color || 'text-crm-text-bright')}>{m.value}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {eod.pipelineNotes && (
-                    <div className="text-sm text-crm-text mb-2"><span className="text-crm-muted">Pipeline:</span> {eod.pipelineNotes}</div>
-                  )}
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    {eod.biggestWin && (
-                      <div className="text-sm"><span className="text-crm-positive">Win:</span> <span className="text-crm-text">{eod.biggestWin}</span></div>
-                    )}
-                    {eod.biggestLoss && (
-                      <div className="text-sm"><span className="text-crm-negative">Loss:</span> <span className="text-crm-text">{eod.biggestLoss}</span></div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-crm-muted">Confidence:</span>
-                    <div className="progress-bar w-24">
-                      <div className={'progress-fill ' + (eod.confidenceScore >= 7 ? 'progress-fill-green' : eod.confidenceScore >= 5 ? 'progress-fill-amber' : 'progress-fill-red')} style={{ width: (eod.confidenceScore * 10) + '%' }} />
+      {filtered.length === 0 ? (
+        <div className="glass-card overflow-hidden">
+          <EmptyState icon={FileText} title="No EOD reports yet" subtitle="Reports will appear when closers submit their end-of-day" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map(function(eod) {
+            return (
+              <div key={eod.id} className="glass-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="avatar avatar-md text-crm-text">
+                      {getInitials(eod.closerName)}
                     </div>
-                    <span className="text-xs font-mono text-crm-muted">{eod.confidenceScore}/10</span>
+                    <div>
+                      <div className="font-medium text-crm-text-bright">{eod.closerName}</div>
+                      <div className="text-xs text-crm-muted">Submitted {formatTime(eod.submittedAt)}</div>
+                    </div>
                   </div>
-                </>
-              ) : (
-                <div className="text-sm text-crm-negative py-4 text-center">No EOD report submitted</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  <StatusBadge status={eod.status} />
+                </div>
+
+                {eod.status !== 'missing' ? (
+                  <>
+                    <div className="grid grid-cols-6 gap-3 mb-4">
+                      {[
+                        { label: 'Dials', value: eod.totalDials },
+                        { label: 'Connects', value: eod.connects },
+                        { label: 'Booked', value: eod.callsBooked },
+                        { label: 'Taken', value: eod.callsTaken },
+                        { label: 'Closes', value: eod.closes },
+                        { label: 'Cash', value: formatCurrency(eod.cashCollected), color: 'text-crm-positive' },
+                      ].map(function(m) {
+                        return (
+                          <div key={m.label} className="glass-surface p-2 text-center">
+                            <div className="text-xs text-crm-muted mb-1">{m.label}</div>
+                            <div className={'font-mono font-bold ' + (m.color || 'text-crm-text-bright')}>{m.value}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {eod.pipelineNotes && (
+                      <div className="text-sm text-crm-text mb-2"><span className="text-crm-muted">Pipeline:</span> {eod.pipelineNotes}</div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      {eod.biggestWin && (
+                        <div className="text-sm"><span className="text-crm-positive">Win:</span> <span className="text-crm-text">{eod.biggestWin}</span></div>
+                      )}
+                      {eod.biggestLoss && (
+                        <div className="text-sm"><span className="text-crm-negative">Loss:</span> <span className="text-crm-text">{eod.biggestLoss}</span></div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-crm-muted">Confidence:</span>
+                      <div className="progress-bar w-24">
+                        <div className={'progress-fill ' + (eod.confidenceScore >= 7 ? 'progress-fill-green' : eod.confidenceScore >= 5 ? 'progress-fill-amber' : 'progress-fill-red')} style={{ width: (eod.confidenceScore * 10) + '%' }} />
+                      </div>
+                      <span className="text-xs font-mono text-crm-muted">{eod.confidenceScore}/10</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-crm-negative py-4 text-center">No EOD report submitted</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,21 @@
 'use client';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy } from 'lucide-react';
 import { formatCurrency, formatPercent, getInitials } from '@/lib/utils';
+import EmptyState from '@/components/EmptyState';
 
 export default function CloserLeaderboard({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="section-header">
+          <h3>Closer Leaderboard</h3>
+          <span className="section-tag">0 closers</span>
+        </div>
+        <EmptyState icon={Trophy} title="No closer data yet" subtitle="Data will appear when closers submit their first reports" />
+      </div>
+    );
+  }
+
   var sorted = data.slice().sort(function(a, b) { return b.totalRevenue - a.totalRevenue; });
 
   return (
