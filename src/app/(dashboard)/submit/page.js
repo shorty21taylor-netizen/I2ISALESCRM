@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { Phone, DollarSign, ClipboardCheck, X, Clock, Settings as SettingsIcon, ExternalLink } from 'lucide-react';
+
+import { useState, useEffect } from 'react';
+import { Phone, DollarSign, ClipboardCheck, ExternalLink, AlertTriangle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { getFormConfig } from '@/lib/form-config';
 
@@ -14,51 +15,6 @@ var sampleSubmissions = [
   { id: 's5', type: 'close-deal', closerName: 'Tanya Brooks', detail: 'David Kim \u2014 $3,750', submittedAt: '2026-03-31T16:05:00Z' },
   { id: 's6', type: 'eod-report', closerName: 'Aisha Williams', detail: '38 dials, 1 close, $3,800', submittedAt: '2026-03-31T18:45:00Z' },
 ];
-
-var formCards = [
-  {
-    id: 'book-call',
-    configKey: 'bookCallFormUrl',
-    title: 'Book a call',
-    description: 'Log a new booked sales call with lead details, source, and scheduled time.',
-    notification: 'Sends notification to team WhatsApp',
-    notificationDot: 'bg-crm-positive',
-    icon: Phone,
-    iconBg: 'bg-crm-accent/10 border border-crm-accent/20',
-    iconColor: 'text-crm-accent',
-    btnClass: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20',
-  },
-  {
-    id: 'close-deal',
-    configKey: 'closeDealFormUrl',
-    title: 'Close a deal',
-    description: 'Record a closed deal with revenue amount, payment method, and Fathom recording link.',
-    notification: 'Sends celebration to team WhatsApp',
-    notificationDot: 'bg-crm-positive',
-    icon: DollarSign,
-    iconBg: 'bg-crm-positive/10 border border-crm-positive/20',
-    iconColor: 'text-crm-positive',
-    btnClass: 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20 hover:bg-crm-positive/20',
-  },
-  {
-    id: 'eod-report',
-    configKey: 'eodReportFormUrl',
-    title: 'End-of-day report',
-    description: 'Submit your daily numbers \u2014 dials, connects, closes, cash collected, pipeline notes, and confidence score.',
-    notification: 'Data sent to CRM only',
-    notificationDot: 'bg-crm-muted',
-    icon: ClipboardCheck,
-    iconBg: 'bg-white/5 border border-crm-border',
-    iconColor: 'text-crm-muted',
-    btnClass: 'bg-white/5 text-crm-text border border-crm-border hover:bg-white/[0.08]',
-  },
-];
-
-var overlayTitles = {
-  'book-call': 'Book a call',
-  'close-deal': 'Close a deal',
-  'eod-report': 'End-of-day report',
-};
 
 var typeBadge = {
   'book-call': { label: 'Booked Call', cls: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20' },
@@ -74,40 +30,33 @@ function loadSubmissions() {
       var parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch(e) {}
+  } catch (e) {}
   localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(sampleSubmissions));
   return sampleSubmissions;
 }
 
 export default function SubmitPage() {
-  var s1 = useState({ bookCallFormUrl: '', closeDealFormUrl: '', eodReportFormUrl: '' }), config = s1[0], setConfig = s1[1];
-  var s2 = useState(null), activeForm = s2[0], setActiveForm = s2[1];
-  var s3 = useState(false), iframeLoaded = s3[0], setIframeLoaded = s3[1];
-  var s4 = useState([]), submissions = s4[0], setSubmissions = s4[1];
+  var s1 = useState(false), showAlert = s1[0], setShowAlert = s1[1];
+  var s2 = useState([]), submissions = s2[0], setSubmissions = s2[1];
 
-  useEffect(function() {
-    setConfig(getFormConfig());
+  useEffect(function () {
     setSubmissions(loadSubmissions());
   }, []);
 
-  var closeOverlay = useCallback(function() {
-    setActiveForm(null);
-    setIframeLoaded(false);
-  }, []);
+  function handleOpenForm(formType) {
+    var config = getFormConfig();
+    var url = '';
+    if (formType === 'book-call') url = config.bookCallFormUrl;
+    if (formType === 'close-deal') url = config.closeDealFormUrl;
+    if (formType === 'eod-report') url = config.eodReportFormUrl;
 
-  useEffect(function() {
-    if (!activeForm) return;
-    var handler = function(e) { if (e.key === 'Escape') closeOverlay(); };
-    window.addEventListener('keydown', handler);
-    return function() { window.removeEventListener('keydown', handler); };
-  }, [activeForm, closeOverlay]);
-
-  function openForm(formId, configKey) {
-    setIframeLoaded(false);
-    setActiveForm({ id: formId, url: config[configKey] });
+    if (url && url.trim()) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      setShowAlert(true);
+      setTimeout(function () { setShowAlert(false); }, 5000);
+    }
   }
-
-  var activeUrl = activeForm ? activeForm.url || '' : '';
 
   return (
     <div>
@@ -120,41 +69,96 @@ export default function SubmitPage() {
         </div>
       </header>
 
-      <div className="px-8 py-8 space-y-8">
+      <div className="px-8 py-8 space-y-6">
         {/* Three Form Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {formCards.map(function(card, idx) {
-            return (
-              <div
-                key={card.id}
-                onClick={function() { openForm(card.id, card.configKey); }}
-                className={'glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.02] stagger-' + (idx + 1)}
-              >
-                <div className={'w-16 h-16 rounded-2xl ' + card.iconBg + ' flex items-center justify-center'}>
-                  <card.icon className={'w-7 h-7 ' + card.iconColor} />
-                </div>
-                <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">{card.title}</h2>
-                <p className="text-sm text-crm-muted mt-2 leading-relaxed">{card.description}</p>
-                <div className="flex items-center gap-2 mt-4">
-                  <div className={'w-2 h-2 rounded-full ' + card.notificationDot} />
-                  <span className="text-xs text-crm-muted">{card.notification}</span>
-                </div>
-                <button
-                  className={'w-full mt-6 py-3 rounded-xl font-display font-semibold text-sm transition-colors ' + card.btnClass}
-                  onClick={function(e) { e.stopPropagation(); openForm(card.id, card.configKey); }}
-                >
-                  Open form
-                </button>
-              </div>
-            );
-          })}
+          {/* Book a Call */}
+          <div
+            onClick={function () { handleOpenForm('book-call'); }}
+            className="glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.01] stagger-1"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-crm-accent/10 border border-crm-accent/20 flex items-center justify-center">
+              <Phone className="w-7 h-7 text-crm-accent" />
+            </div>
+            <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">Book a call</h2>
+            <p className="text-sm text-crm-muted mt-2 leading-relaxed">Log a new booked sales call with lead details, source, and scheduled time.</p>
+            <div className="flex items-center gap-2 mt-4">
+              <div className="glow-dot-green" />
+              <span className="text-xs text-crm-muted">Sends to team WhatsApp</span>
+            </div>
+            <button
+              className="w-full mt-6 py-3 rounded-xl font-display font-semibold text-sm bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-all flex items-center justify-center gap-2"
+              onClick={function (e) { e.stopPropagation(); handleOpenForm('book-call'); }}
+            >
+              Open form
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Close a Deal */}
+          <div
+            onClick={function () { handleOpenForm('close-deal'); }}
+            className="glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.01] stagger-2"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-crm-positive/10 border border-crm-positive/20 flex items-center justify-center">
+              <DollarSign className="w-7 h-7 text-crm-positive" />
+            </div>
+            <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">Close a deal</h2>
+            <p className="text-sm text-crm-muted mt-2 leading-relaxed">Record a closed deal with revenue amount, payment method, and Fathom recording link.</p>
+            <div className="flex items-center gap-2 mt-4">
+              <div className="glow-dot-green" />
+              <span className="text-xs text-crm-muted">Sends celebration to team WhatsApp</span>
+            </div>
+            <button
+              className="w-full mt-6 py-3 rounded-xl font-display font-semibold text-sm bg-crm-positive/10 text-crm-positive border border-crm-positive/20 hover:bg-crm-positive/20 transition-all flex items-center justify-center gap-2"
+              onClick={function (e) { e.stopPropagation(); handleOpenForm('close-deal'); }}
+            >
+              Open form
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* End-of-Day Report */}
+          <div
+            onClick={function () { handleOpenForm('eod-report'); }}
+            className="glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.01] stagger-3"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-crm-border flex items-center justify-center">
+              <ClipboardCheck className="w-7 h-7 text-crm-muted" />
+            </div>
+            <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">End-of-day report</h2>
+            <p className="text-sm text-crm-muted mt-2 leading-relaxed">Submit your daily numbers — dials, connects, closes, cash collected, pipeline notes, and confidence score.</p>
+            <div className="flex items-center gap-2 mt-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-crm-muted" />
+              <span className="text-xs text-crm-muted">Data sent to CRM only</span>
+            </div>
+            <button
+              className="w-full mt-6 py-3 rounded-xl font-display font-semibold text-sm bg-white/5 text-crm-text border border-crm-border hover:bg-white/[0.08] transition-all flex items-center justify-center gap-2"
+              onClick={function (e) { e.stopPropagation(); handleOpenForm('eod-report'); }}
+            >
+              Open form
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {/* Alert — form not configured */}
+        {showAlert && (
+          <div className="glass-card p-4 flex items-center gap-3 border-crm-warning/20" onClick={function () { setShowAlert(false); }}>
+            <AlertTriangle className="w-5 h-5 text-crm-warning flex-shrink-0" />
+            <div>
+              <p className="text-sm text-crm-text-bright">Form not configured</p>
+              <p className="text-xs text-crm-muted mt-0.5">Ask your admin to add the n8n form URL in Settings &rarr; Form Configuration</p>
+            </div>
+            <Link href="/settings" className="btn-ghost text-xs ml-auto flex-shrink-0">Go to Settings</Link>
+          </div>
+        )}
 
         {/* Recent Submissions */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-crm-muted" />
-            <h3 className="text-sm font-mono text-crm-muted uppercase tracking-wider">Your recent submissions</h3>
+            <h3 className="text-sm font-mono text-crm-muted uppercase tracking-wider">Recent submissions</h3>
           </div>
           {submissions.length > 0 ? (
             <div className="glass-card overflow-hidden">
@@ -168,7 +172,7 @@ export default function SubmitPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {submissions.slice(0, 15).map(function(s) {
+                  {submissions.slice(0, 15).map(function (s) {
                     var badge = typeBadge[s.type] || typeBadge['eod-report'];
                     return (
                       <tr key={s.id}>
@@ -195,56 +199,6 @@ export default function SubmitPage() {
           )}
         </div>
       </div>
-
-      {/* Form Overlay */}
-      {activeForm && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={closeOverlay} />
-          <div className="fixed inset-0 md:inset-4 z-50 bg-crm-bg border border-crm-border md:rounded-xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-crm-border">
-              <h2 className="font-display font-semibold text-crm-text-bright">{overlayTitles[activeForm.id]}</h2>
-              <button
-                onClick={closeOverlay}
-                className="btn-ghost p-2"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 relative">
-              {activeUrl ? (
-                <>
-                  {!iframeLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="animate-spin w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full" />
-                    </div>
-                  )}
-                  <iframe
-                    src={activeUrl}
-                    className="w-full h-full border-0"
-                    onLoad={function() { setIframeLoaded(true); }}
-                  />
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-                  <SettingsIcon className="w-12 h-12 text-crm-muted mb-4" />
-                  <h3 className="font-display font-semibold text-crm-text-bright text-lg mb-2">Form not configured</h3>
-                  <p className="text-sm text-crm-muted mb-6">
-                    This form has not been configured yet. Ask your admin to add the URL in Settings.
-                  </p>
-                  <Link
-                    href="/settings"
-                    onClick={closeOverlay}
-                    className="btn-primary inline-flex items-center gap-2"
-                  >
-                    <SettingsIcon className="w-4 h-4" />
-                    Go to Settings
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
