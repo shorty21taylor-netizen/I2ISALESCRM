@@ -2,24 +2,34 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatPercent } from '@/lib/utils';
 
-export default function MetricCard({ label, value, trend, trendLabel, icon: Icon, accentColor = 'default', delay = 0 }) {
-  const isPositive = trend > 0;
-  const isNegative = trend < 0;
+var staggerMap = { 0: 'stagger-1', 50: 'stagger-2', 100: 'stagger-3', 150: 'stagger-4', 200: 'stagger-5', 250: 'stagger-6', 300: 'stagger-7', 350: 'stagger-8' };
 
-  const iconBgMap = {
+export default function MetricCard({ label, value, trend, trendLabel, icon: Icon, accentColor = 'default', delay = 0 }) {
+  var isPositive = trend > 0;
+  var isNegative = trend < 0;
+
+  var iconBgMap = {
     red: 'bg-crm-accent/10 text-crm-accent',
     green: 'bg-crm-positive/10 text-crm-positive',
     default: 'bg-white/5 text-crm-muted',
   };
 
+  var glowMap = {
+    red: 'glow-red',
+    green: 'glow-green',
+    default: '',
+  };
+
+  var staggerClass = staggerMap[delay] || 'stagger-1';
+
   return (
-    <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
+    <div className={'glass-card p-5 ' + staggerClass}>
       <div className="flex items-start justify-between mb-3">
-        <div className={`p-2 rounded-lg ${iconBgMap[accentColor]}`}>
+        <div className={'p-2.5 rounded-xl ' + iconBgMap[accentColor] + ' ' + glowMap[accentColor]}>
           {Icon && <Icon className="w-5 h-5" />}
         </div>
         {trend !== undefined && trend !== null && (
-          <div className={`flex items-center gap-1 font-mono text-xs ${isPositive ? 'metric-positive' : isNegative ? 'metric-negative' : 'text-crm-muted'}`}>
+          <div className={'flex items-center gap-1 font-mono text-xs ' + (isPositive ? 'metric-positive' : isNegative ? 'metric-negative' : 'text-crm-muted')}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : null}
             {formatPercent(trend)}
           </div>

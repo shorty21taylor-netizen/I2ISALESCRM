@@ -26,21 +26,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-crm-bg flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md stagger-1">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Activity className="w-8 h-8 text-crm-accent" />
+          <div className="glow-red rounded-lg p-1">
+            <Activity className="w-8 h-8 text-crm-accent" />
+          </div>
           <span className="font-display font-bold text-2xl text-crm-text-bright">
             Summit<span className="text-crm-accent">CRM</span>
           </span>
         </div>
 
-        <div className="glass-card p-8">
+        <div className="glass-card-accent p-8">
           <h1 className="font-display font-bold text-xl text-crm-text-bright text-center mb-2">Sign in to your account</h1>
           <p className="text-sm text-crm-muted text-center mb-6">Enter your name and email to continue</p>
 
           {inviteMsg && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-crm-positive/10 border border-crm-positive/20 mb-4">
-              <div className="w-2 h-2 rounded-full bg-crm-positive" />
+              <div className="glow-dot-green" />
               <span className="text-xs text-crm-positive">{inviteMsg}</span>
             </div>
           )}
@@ -53,7 +55,7 @@ export default function LoginPage() {
                 value={name}
                 onChange={function(e) { setName(e.target.value); }}
                 placeholder="Anthony Taylor"
-                className="w-full bg-crm-bg border border-crm-border rounded-lg text-crm-text text-sm px-4 py-3 font-body focus:border-crm-accent/50 focus:outline-none placeholder:text-crm-muted/50"
+                className="input-field"
                 required
               />
             </div>
@@ -64,14 +66,11 @@ export default function LoginPage() {
                 value={email}
                 onChange={function(e) { setEmail(e.target.value); }}
                 placeholder="anthony@summit.com"
-                className="w-full bg-crm-bg border border-crm-border rounded-lg text-crm-text text-sm px-4 py-3 font-body focus:border-crm-accent/50 focus:outline-none placeholder:text-crm-muted/50"
+                className="input-field"
                 required
               />
             </div>
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-crm-accent hover:bg-crm-accent-glow text-white font-display font-semibold py-3 rounded-lg transition-colors"
-            >
+            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2 py-3">
               Continue
               <ArrowRight className="w-4 h-4" />
             </button>

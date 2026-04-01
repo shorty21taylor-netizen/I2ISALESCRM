@@ -4,9 +4,9 @@ import { Phone, DollarSign, ClipboardCheck, X, Clock, Settings as SettingsIcon, 
 import Link from 'next/link';
 import { getFormConfig } from '@/lib/form-config';
 
-const SUBMISSIONS_KEY = 'summit-crm-submissions';
+var SUBMISSIONS_KEY = 'summit-crm-submissions';
 
-const sampleSubmissions = [
+var sampleSubmissions = [
   { id: 's1', type: 'close-deal', closerName: 'Marcus Johnson', detail: 'Sarah Mitchell \u2014 $5,500', submittedAt: '2026-03-31T18:30:00Z' },
   { id: 's2', type: 'book-call', closerName: 'Aisha Williams', detail: 'James Taylor \u2014 Apr 2, 2:00 PM', submittedAt: '2026-03-31T16:45:00Z' },
   { id: 's3', type: 'eod-report', closerName: 'Marcus Johnson', detail: '34 dials, 2 closes, $8,500', submittedAt: '2026-03-31T18:12:00Z' },
@@ -15,7 +15,7 @@ const sampleSubmissions = [
   { id: 's6', type: 'eod-report', closerName: 'Aisha Williams', detail: '38 dials, 1 close, $3,800', submittedAt: '2026-03-31T18:45:00Z' },
 ];
 
-const formCards = [
+var formCards = [
   {
     id: 'book-call',
     configKey: 'bookCallFormUrl',
@@ -54,13 +54,13 @@ const formCards = [
   },
 ];
 
-const overlayTitles = {
+var overlayTitles = {
   'book-call': 'Book a call',
   'close-deal': 'Close a deal',
   'eod-report': 'End-of-day report',
 };
 
-const typeBadge = {
+var typeBadge = {
   'book-call': { label: 'Booked Call', cls: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20' },
   'close-deal': { label: 'Closed Deal', cls: 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' },
   'eod-report': { label: 'EOD Report', cls: 'bg-white/5 text-crm-muted border border-crm-border' },
@@ -69,49 +69,49 @@ const typeBadge = {
 function loadSubmissions() {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem(SUBMISSIONS_KEY);
+    var stored = localStorage.getItem(SUBMISSIONS_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
+      var parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch {}
+  } catch(e) {}
   localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(sampleSubmissions));
   return sampleSubmissions;
 }
 
 export default function SubmitPage() {
-  const [config, setConfig] = useState({ bookCallFormUrl: '', closeDealFormUrl: '', eodReportFormUrl: '' });
-  const [activeForm, setActiveForm] = useState(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [submissions, setSubmissions] = useState([]);
+  var s1 = useState({ bookCallFormUrl: '', closeDealFormUrl: '', eodReportFormUrl: '' }), config = s1[0], setConfig = s1[1];
+  var s2 = useState(null), activeForm = s2[0], setActiveForm = s2[1];
+  var s3 = useState(false), iframeLoaded = s3[0], setIframeLoaded = s3[1];
+  var s4 = useState([]), submissions = s4[0], setSubmissions = s4[1];
 
-  useEffect(() => {
+  useEffect(function() {
     setConfig(getFormConfig());
     setSubmissions(loadSubmissions());
   }, []);
 
-  const closeOverlay = useCallback(() => {
+  var closeOverlay = useCallback(function() {
     setActiveForm(null);
     setIframeLoaded(false);
   }, []);
 
-  useEffect(() => {
+  useEffect(function() {
     if (!activeForm) return;
-    const handler = (e) => { if (e.key === 'Escape') closeOverlay(); };
+    var handler = function(e) { if (e.key === 'Escape') closeOverlay(); };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return function() { window.removeEventListener('keydown', handler); };
   }, [activeForm, closeOverlay]);
 
-  const openForm = (formId, configKey) => {
+  function openForm(formId, configKey) {
     setIframeLoaded(false);
     setActiveForm({ id: formId, url: config[configKey] });
-  };
+  }
 
-  const activeUrl = activeForm?.url || '';
+  var activeUrl = activeForm ? activeForm.url || '' : '';
 
   return (
     <div>
-      <header className="sticky top-0 z-40 border-b border-crm-border bg-crm-bg/80 backdrop-blur-xl">
+      <header className="page-header">
         <div className="flex items-center justify-between px-8 h-16">
           <div>
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Submit reports</h1>
@@ -123,29 +123,31 @@ export default function SubmitPage() {
       <div className="px-8 py-8 space-y-8">
         {/* Three Form Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {formCards.map((card) => (
-            <div
-              key={card.id}
-              onClick={() => openForm(card.id, card.configKey)}
-              className="glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.02]"
-            >
-              <div className={`w-16 h-16 rounded-2xl ${card.iconBg} flex items-center justify-center`}>
-                <card.icon className={`w-7 h-7 ${card.iconColor}`} />
-              </div>
-              <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">{card.title}</h2>
-              <p className="text-sm text-crm-muted mt-2 leading-relaxed">{card.description}</p>
-              <div className="flex items-center gap-2 mt-4">
-                <div className={`w-2 h-2 rounded-full ${card.notificationDot}`} />
-                <span className="text-xs text-crm-muted">{card.notification}</span>
-              </div>
-              <button
-                className={`w-full mt-6 py-3 rounded-lg font-display font-semibold text-sm transition-colors ${card.btnClass}`}
-                onClick={(e) => { e.stopPropagation(); openForm(card.id, card.configKey); }}
+          {formCards.map(function(card, idx) {
+            return (
+              <div
+                key={card.id}
+                onClick={function() { openForm(card.id, card.configKey); }}
+                className={'glass-card p-8 flex flex-col items-center text-center cursor-pointer transition-all duration-200 hover:border-crm-border-hover hover:scale-[1.02] stagger-' + (idx + 1)}
               >
-                Open form
-              </button>
-            </div>
-          ))}
+                <div className={'w-16 h-16 rounded-2xl ' + card.iconBg + ' flex items-center justify-center'}>
+                  <card.icon className={'w-7 h-7 ' + card.iconColor} />
+                </div>
+                <h2 className="font-display font-bold text-crm-text-bright text-xl mt-5">{card.title}</h2>
+                <p className="text-sm text-crm-muted mt-2 leading-relaxed">{card.description}</p>
+                <div className="flex items-center gap-2 mt-4">
+                  <div className={'w-2 h-2 rounded-full ' + card.notificationDot} />
+                  <span className="text-xs text-crm-muted">{card.notification}</span>
+                </div>
+                <button
+                  className={'w-full mt-6 py-3 rounded-xl font-display font-semibold text-sm transition-colors ' + card.btnClass}
+                  onClick={function(e) { e.stopPropagation(); openForm(card.id, card.configKey); }}
+                >
+                  Open form
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Recent Submissions */}
@@ -166,15 +168,15 @@ export default function SubmitPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {submissions.slice(0, 15).map((s) => {
-                    const badge = typeBadge[s.type] || typeBadge['eod-report'];
+                  {submissions.slice(0, 15).map(function(s) {
+                    var badge = typeBadge[s.type] || typeBadge['eod-report'];
                     return (
                       <tr key={s.id}>
                         <td className="text-xs font-mono text-crm-muted whitespace-nowrap">
                           {new Date(s.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </td>
                         <td>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium ${badge.cls}`}>
+                          <span className={'inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium ' + badge.cls}>
                             {badge.label}
                           </span>
                         </td>
@@ -203,7 +205,7 @@ export default function SubmitPage() {
               <h2 className="font-display font-semibold text-crm-text-bright">{overlayTitles[activeForm.id]}</h2>
               <button
                 onClick={closeOverlay}
-                className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-crm-muted hover:text-crm-text transition-colors"
+                className="btn-ghost p-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -219,7 +221,7 @@ export default function SubmitPage() {
                   <iframe
                     src={activeUrl}
                     className="w-full h-full border-0"
-                    onLoad={() => setIframeLoaded(true)}
+                    onLoad={function() { setIframeLoaded(true); }}
                   />
                 </>
               ) : (
@@ -232,7 +234,7 @@ export default function SubmitPage() {
                   <Link
                     href="/settings"
                     onClick={closeOverlay}
-                    className="inline-flex items-center gap-2 bg-crm-accent hover:bg-crm-accent-glow text-white font-display font-semibold px-6 py-2.5 rounded-lg transition-colors"
+                    className="btn-primary inline-flex items-center gap-2"
                   >
                     <SettingsIcon className="w-4 h-4" />
                     Go to Settings

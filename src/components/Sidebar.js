@@ -31,9 +31,11 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className={'fixed top-0 left-0 h-screen bg-crm-surface border-r border-crm-border flex flex-col transition-all duration-300 z-50 ' + (collapsed ? 'w-[64px]' : 'w-[240px]')}>
-      <div className="flex items-center gap-2 px-4 h-16 border-b border-crm-border">
-        <Activity className="w-6 h-6 text-crm-accent flex-shrink-0" />
+    <aside className={'sidebar ' + (collapsed ? 'w-[64px]' : 'w-[240px]')}>
+      <div className="flex items-center gap-2 px-4 h-16 border-b border-crm-border/50">
+        <div className="glow-red rounded-lg">
+          <Activity className="w-6 h-6 text-crm-accent flex-shrink-0" />
+        </div>
         {!collapsed && (
           <span className="font-display font-bold text-lg text-crm-text-bright">
             Summit<span className="text-crm-accent">CRM</span>
@@ -53,7 +55,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-2 pb-2 space-y-1">
+      <hr className="divider mx-2" />
+
+      <div className="px-2 py-2 space-y-1">
         <Link href="/admin/invites" className={'nav-link ' + (pathname === '/admin/invites' ? 'active' : '')}>
           <UserPlus className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Invite Team</span>}
@@ -69,9 +73,9 @@ export default function Sidebar() {
       </div>
 
       {!collapsed && user && (
-        <div className="px-3 py-3 border-t border-crm-border">
+        <div className="px-3 py-3 border-t border-crm-border/50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-crm-accent/10 flex items-center justify-center text-xs font-bold text-crm-accent flex-shrink-0">
+            <div className="avatar avatar-sm bg-crm-accent/10 text-crm-accent">
               {user.name ? user.name.split(' ').map(function(n) { return n[0]; }).join('').toUpperCase() : '?'}
             </div>
             <div className="min-w-0">
@@ -84,7 +88,7 @@ export default function Sidebar() {
 
       <button
         onClick={function() { setCollapsed(!collapsed); }}
-        className="flex items-center justify-center h-10 border-t border-crm-border text-crm-muted hover:text-crm-text transition-colors"
+        className="flex items-center justify-center h-10 border-t border-crm-border/50 text-crm-muted hover:text-crm-text transition-colors"
       >
         <ChevronLeft className={'w-4 h-4 transition-transform duration-300 ' + (collapsed ? 'rotate-180' : '')} />
       </button>

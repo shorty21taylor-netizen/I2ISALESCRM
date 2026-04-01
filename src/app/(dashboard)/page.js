@@ -13,28 +13,28 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay, dialsByCloser } from '@/lib/mock-data';
 
 export default function DashboardPage() {
-  const t = teamOverview;
-  const todayCash = recentEODs.reduce((sum, e) => sum + e.cashCollected, 0);
-  const todayCloses = recentEODs.reduce((sum, e) => sum + e.closes, 0);
-  const todayDials = recentEODs.reduce((sum, e) => sum + e.totalDials, 0);
+  var t = teamOverview;
+  var todayCash = recentEODs.reduce(function(sum, e) { return sum + e.cashCollected; }, 0);
+  var todayCloses = recentEODs.reduce(function(sum, e) { return sum + e.closes; }, 0);
+  var todayDials = recentEODs.reduce(function(sum, e) { return sum + e.totalDials; }, 0);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between stagger-1">
         <div>
           <h1 className="font-display text-2xl font-bold text-crm-text-bright">Good afternoon, Anthony</h1>
           <p className="text-sm text-crm-muted mt-1">March 31, 2026</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-crm-positive/10 border border-crm-positive/20">
-            <div className="w-2 h-2 rounded-full bg-crm-positive animate-pulse" />
+            <div className="glow-dot-green" />
             <span className="text-xs font-mono text-crm-positive">n8n Connected</span>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono text-crm-muted">
-            <span>Today: <span className="text-crm-positive">{formatCurrency(todayCash)}</span></span>
-            <span>{todayCloses} closes</span>
-            <span>{todayDials} dials</span>
+          <div className="flex items-center gap-4 glass-surface px-4 py-2">
+            <span className="text-xs font-mono text-crm-muted">Today: <span className="metric-positive">{formatCurrency(todayCash)}</span></span>
+            <span className="text-xs font-mono text-crm-muted">{todayCloses} closes</span>
+            <span className="text-xs font-mono text-crm-muted">{todayDials} dials</span>
           </div>
         </div>
       </div>
@@ -43,7 +43,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-4 gap-4">
         <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} icon={DollarSign} accentColor="red" delay={0} />
         <MetricCard label="Total Closes" value={t.totalCloses} trend={t.closesTrend} icon={Target} accentColor="red" delay={50} />
-        <MetricCard label="Team Close Rate" value={`${t.teamCloseRate}%`} trend={t.closeRateTrend} icon={Percent} accentColor="green" delay={100} />
+        <MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} accentColor="green" delay={100} />
         <MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} accentColor="default" delay={150} />
       </div>
 
@@ -51,8 +51,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-4 gap-4">
         <MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={200} />
         <MetricCard label="Active Closers" value={t.activeClosers} icon={Users} delay={250} />
-        <MetricCard label="EOD Compliance" value={`${t.eodComplianceRate}%`} icon={ClipboardCheck} accentColor="green" delay={300} />
-        <MetricCard label="Revenue/Dial" value={`$${(t.totalRevenue / t.totalDials).toFixed(2)}`} icon={Zap} delay={350} />
+        <MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} />
+        <MetricCard label="Revenue/Dial" value={'$' + (t.totalRevenue / t.totalDials).toFixed(2)} icon={Zap} delay={350} />
       </div>
 
       {/* Charts */}
@@ -79,7 +79,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Footer */}
-      <div className="text-center text-xs text-crm-muted py-4 border-t border-crm-border">
+      <hr className="divider" />
+      <div className="text-center text-xs text-crm-muted py-4">
         Summit CRM v1.0 &middot; Data refreshes via n8n webhooks
       </div>
     </div>
