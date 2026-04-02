@@ -13,17 +13,23 @@ export function getStore() {
   return store;
 }
 
+// ============================================
+// BOOK A CALL — new fields
+// ============================================
+
 export function addBookedCall(data) {
   var entry = {
     id: 'book-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    closerName: data.closerName || '',
-    leadName: data.leadName || '',
-    leadPhone: data.leadPhone || '',
-    leadEmail: data.leadEmail || '',
-    leadSource: data.leadSource || 'inbound',
-    channel: data.channel || '',
-    callDateTime: data.callDateTime || '',
+    leadsName: data.leadsName || '',
+    leadsPhone: data.leadsPhone || '',
+    program: data.program || '',
+    qualified: data.qualified || 'yes',
+    bookedDay: data.bookedDay || '',
+    bookedTime: data.bookedTime || '',
     notes: data.notes || '',
+    setter: data.setter || '',
+    closer: data.closer || '',
+    outboundInbound: data.outboundInbound || 'inbound',
     submittedAt: new Date().toISOString(),
   };
   store.bookedCalls.unshift(entry);
@@ -32,17 +38,24 @@ export function addBookedCall(data) {
   return entry;
 }
 
+// ============================================
+// CLOSE A DEAL — new fields
+// ============================================
+
 export function addClosedDeal(data) {
   var entry = {
     id: 'close-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    closerName: data.closerName || '',
+    leadsName: data.leadsName || '',
+    leadsPhone: data.leadsPhone || '',
+    leadsEmail: data.leadsEmail || '',
+    program: data.program || '',
+    paymentDetails: data.paymentDetails || '',
+    paymentProcessor: data.paymentProcessor || '',
+    paymentAgreement: data.paymentAgreement || '',
+    cashCollected: parseFloat(data.cashCollected) || 0,
+    setter: data.setter || '',
+    closer: data.closer || '',
     closerEmail: data.closerEmail || '',
-    leadName: data.leadName || '',
-    dealValue: parseFloat(data.dealValue) || 0,
-    paymentMethod: data.paymentMethod || 'full-pay',
-    leadSource: data.leadSource || 'inbound',
-    fathomUrl: data.fathomUrl || '',
-    notes: data.notes || '',
     commissionStatus: 'pending',
     submittedAt: new Date().toISOString(),
   };
@@ -52,21 +65,28 @@ export function addClosedDeal(data) {
   return entry;
 }
 
+// ============================================
+// EOD REPORT — new fields
+// ============================================
+
 export function addEODReport(data) {
   var entry = {
     id: 'eod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    closerName: data.closerName || '',
+    salesRep: data.salesRep || '',
     date: data.date || new Date().toISOString().split('T')[0],
-    totalDials: parseInt(data.totalDials) || 0,
-    connects: parseInt(data.connects) || 0,
-    callsBooked: parseInt(data.callsBooked) || 0,
+    netNewCallsBooked: parseInt(data.netNewCallsBooked) || 0,
+    callsOnCalendar: parseInt(data.callsOnCalendar) || 0,
     callsTaken: parseInt(data.callsTaken) || 0,
+    callsNoShowed: parseInt(data.callsNoShowed) || 0,
+    callsCanceled: parseInt(data.callsCanceled) || 0,
+    callsRescheduled: parseInt(data.callsRescheduled) || 0,
+    callsTakenAndPitched: parseInt(data.callsTakenAndPitched) || 0,
     closes: parseInt(data.closes) || 0,
-    cashCollected: parseFloat(data.cashCollected) || 0,
-    pipelineNotes: data.pipelineNotes || '',
-    biggestWin: data.biggestWin || '',
-    biggestLoss: data.biggestLoss || '',
-    confidenceScore: parseInt(data.confidenceScore) || 0,
+    outboundDials: parseInt(data.outboundDials) || 0,
+    cashCollectedMYFM: parseFloat(data.cashCollectedMYFM) || 0,
+    cashCollectedI2I: parseFloat(data.cashCollectedI2I) || 0,
+    revenueOnDay: parseFloat(data.revenueOnDay) || 0,
+    improvementPlan: data.improvementPlan || '',
     submittedAt: new Date().toISOString(),
     status: 'submitted',
   };
@@ -76,7 +96,10 @@ export function addEODReport(data) {
   return entry;
 }
 
-// Computed overview — recalculated on every new entry
+// ============================================
+// COMPUTED OVERVIEW
+// ============================================
+
 var overview = null;
 
 function recalcOverview() {
@@ -90,29 +113,37 @@ function recalcOverview() {
     return b.submittedAt && b.submittedAt.startsWith(today);
   });
 
-  var totalDials = todayEODs.reduce(function(s, e) { return s + e.totalDials; }, 0);
-  var totalConnects = todayEODs.reduce(function(s, e) { return s + e.connects; }, 0);
-  var totalCallsTaken = todayEODs.reduce(function(s, e) { return s + e.callsTaken; }, 0);
+  var totalDials = todayEODs.reduce(function(s, e) { return s + e.outboundDials; }, 0);
+  var totalCallsTaken = todayEODs.reduce(function(s, e) { return s + e.callsTakenAndPitched; }, 0);
   var totalCloses = todayDeals.length;
-  var totalRevenue = todayDeals.reduce(function(s, d) { return s + d.dealValue; }, 0);
-  var totalCash = todayEODs.reduce(function(s, e) { return s + e.cashCollected; }, 0);
+  var totalRevenue = todayEODs.reduce(function(s, e) { return s + e.revenueOnDay; }, 0);
+  var totalCashMYFM = todayEODs.reduce(function(s, e) { return s + e.cashCollectedMYFM; }, 0);
+  var totalCashI2I = todayEODs.reduce(function(s, e) { return s + e.cashCollectedI2I; }, 0);
+  var totalCash = totalCashMYFM + totalCashI2I;
+  var eodCloses = todayEODs.reduce(function(s, e) { return s + e.closes; }, 0);
 
-  var inboundRevenue = todayDeals.filter(function(d) { return d.leadSource === 'inbound'; }).reduce(function(s, d) { return s + d.dealValue; }, 0);
-  var outboundRevenue = todayDeals.filter(function(d) { return d.leadSource === 'outbound'; }).reduce(function(s, d) { return s + d.dealValue; }, 0);
+  var dealCash = todayDeals.reduce(function(s, d) { return s + d.cashCollected; }, 0);
 
-  var closeRate = totalCallsTaken > 0 ? Math.round((totalCloses / totalCallsTaken) * 1000) / 10 : 0;
-  var avgDealValue = totalCloses > 0 ? Math.round(totalRevenue / totalCloses) : 0;
-  var cashPerCall = totalCallsTaken > 0 ? Math.round(totalRevenue / totalCallsTaken) : 0;
-  var offerRate = totalCallsTaken > 0 ? Math.round((totalCloses / totalCallsTaken) * 1000) / 10 : 0;
+  var inboundRevenue = todayDeals.filter(function(d) { return d.program && d.program.toLowerCase().indexOf('inbound') !== -1; }).reduce(function(s, d) { return s + d.cashCollected; }, 0);
+  var outboundRevenue = todayDeals.filter(function(d) { return d.program && d.program.toLowerCase().indexOf('outbound') !== -1; }).reduce(function(s, d) { return s + d.cashCollected; }, 0);
+
+  var closeRate = totalCallsTaken > 0 ? Math.round((eodCloses / totalCallsTaken) * 1000) / 10 : 0;
+  var avgDealValue = totalCloses > 0 ? Math.round(dealCash / totalCloses) : 0;
+  var cashPerCall = totalCallsTaken > 0 ? Math.round((totalCash || dealCash) / totalCallsTaken) : 0;
+  var offerRate = totalCallsTaken > 0 ? Math.round((eodCloses / totalCallsTaken) * 1000) / 10 : 0;
 
   var closerNames = {};
-  todayEODs.forEach(function(e) { closerNames[e.closerName] = true; });
-  todayDeals.forEach(function(d) { closerNames[d.closerName] = true; });
+  todayEODs.forEach(function(e) { closerNames[e.salesRep] = true; });
+  todayDeals.forEach(function(d) { closerNames[d.closer] = true; });
+  // Remove empty key
+  delete closerNames[''];
   var activeClosers = Object.keys(closerNames).length;
 
+  var netNewBooked = todayEODs.reduce(function(s, e) { return s + e.netNewCallsBooked; }, 0);
+
   overview = {
-    totalRevenue: totalRevenue,
-    totalCloses: totalCloses,
+    totalRevenue: totalRevenue || dealCash,
+    totalCloses: eodCloses || totalCloses,
     teamCloseRate: closeRate,
     totalDials: totalDials,
     avgDealValue: avgDealValue,
@@ -123,16 +154,16 @@ function recalcOverview() {
     outboundRevenue: outboundRevenue,
     activeClosers: activeClosers,
     eodComplianceRate: 0,
-    bookedCallsThisWeek: todayBooked.length,
+    bookedCallsThisWeek: todayBooked.length + netNewBooked,
     showRate: 0,
     pipelineValue: 0,
     avgDaysToClose: 0,
     refundRate: 0,
-    netRevenueRetained30d: totalRevenue,
+    netRevenueRetained30d: totalRevenue || dealCash,
     avgDialsPerHour: 0,
     teamDialTarget: 150,
-    todayCash: totalCash || totalRevenue,
-    todayCloses: totalCloses,
+    todayCash: totalCash || dealCash,
+    todayCloses: eodCloses || totalCloses,
     todayDials: totalDials,
     todayBooked: todayBooked.length,
     revenueTrend: 0, closesTrend: 0, closeRateTrend: 0, dialsTrend: 0,
@@ -154,25 +185,27 @@ export function getCloserBreakdown() {
   var closerMap = {};
 
   store.eodReports.filter(function(e) { return e.date === today; }).forEach(function(eod) {
-    if (!closerMap[eod.closerName]) {
-      closerMap[eod.closerName] = { name: eod.closerName, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, closes: 0, cash: 0, confidence: 0, eodCount: 0 };
+    var name = eod.salesRep;
+    if (!name) return;
+    if (!closerMap[name]) {
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, closes: 0, cash: 0, confidence: 0, eodCount: 0 };
     }
-    var c = closerMap[eod.closerName];
-    c.dials += eod.totalDials;
-    c.connects += eod.connects;
-    c.callsBooked += eod.callsBooked;
-    c.callsTaken += eod.callsTaken;
+    var c = closerMap[name];
+    c.dials += eod.outboundDials;
+    c.callsBooked += eod.netNewCallsBooked;
+    c.callsTaken += eod.callsTakenAndPitched;
     c.closes += eod.closes;
-    c.cash += eod.cashCollected;
-    c.confidence = eod.confidenceScore;
+    c.cash += eod.cashCollectedMYFM + eod.cashCollectedI2I;
     c.eodCount++;
   });
 
   store.closedDeals.filter(function(d) { return d.submittedAt && d.submittedAt.startsWith(today); }).forEach(function(deal) {
-    if (!closerMap[deal.closerName]) {
-      closerMap[deal.closerName] = { name: deal.closerName, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, closes: 0, cash: 0, confidence: 0, eodCount: 0 };
+    var name = deal.closer;
+    if (!name) return;
+    if (!closerMap[name]) {
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, closes: 0, cash: 0, confidence: 0, eodCount: 0 };
     }
-    closerMap[deal.closerName].cash += deal.dealValue;
+    closerMap[name].cash += deal.cashCollected;
   });
 
   return Object.values(closerMap).sort(function(a, b) { return b.cash - a.cash; });
@@ -182,19 +215,71 @@ export function getRecentActivity(limit) {
   var all = [];
 
   store.bookedCalls.forEach(function(b) {
-    all.push({ id: b.id, type: 'book-call', closerName: b.closerName, detail: b.leadName + ' \u2014 ' + (b.callDateTime || 'TBD'), submittedAt: b.submittedAt });
+    all.push({ id: b.id, type: 'book-call', closerName: b.closer || b.setter, detail: b.leadsName + ' — ' + (b.program || 'N/A') + ' — ' + (b.bookedDay || 'TBD'), submittedAt: b.submittedAt });
   });
 
   store.closedDeals.forEach(function(d) {
-    all.push({ id: d.id, type: 'close-deal', closerName: d.closerName, detail: d.leadName + ' \u2014 $' + d.dealValue.toLocaleString(), submittedAt: d.submittedAt });
+    all.push({ id: d.id, type: 'close-deal', closerName: d.closer, detail: d.leadsName + ' — $' + d.cashCollected.toLocaleString() + ' — ' + (d.program || 'N/A'), submittedAt: d.submittedAt });
   });
 
   store.eodReports.forEach(function(e) {
-    all.push({ id: e.id, type: 'eod-report', closerName: e.closerName, detail: e.totalDials + ' dials, ' + e.closes + ' closes, $' + e.cashCollected.toLocaleString(), submittedAt: e.submittedAt });
+    var totalCash = e.cashCollectedMYFM + e.cashCollectedI2I;
+    all.push({ id: e.id, type: 'eod-report', closerName: e.salesRep, detail: e.outboundDials + ' dials, ' + e.closes + ' closes, $' + totalCash.toLocaleString(), submittedAt: e.submittedAt });
   });
 
   all.sort(function(a, b) { return new Date(b.submittedAt) - new Date(a.submittedAt); });
   return all.slice(0, limit || 50);
+}
+
+// ============================================
+// DAILY SUMMARY + MORNING DIGEST helpers
+// ============================================
+
+export function getDailyTeamSummary(dateStr) {
+  var date = dateStr || new Date().toISOString().split('T')[0];
+
+  var dayEODs = store.eodReports.filter(function(e) { return e.date === date; });
+  var dayDeals = store.closedDeals.filter(function(d) { return d.submittedAt && d.submittedAt.startsWith(date); });
+
+  var totalRevenue = dayEODs.reduce(function(s, e) { return s + e.revenueOnDay; }, 0);
+  var dealCash = dayDeals.reduce(function(s, d) { return s + d.cashCollected; }, 0);
+  var totalCloses = dayEODs.reduce(function(s, e) { return s + e.closes; }, 0);
+  var totalDials = dayEODs.reduce(function(s, e) { return s + e.outboundDials; }, 0);
+  var cashMYFM = dayEODs.reduce(function(s, e) { return s + e.cashCollectedMYFM; }, 0);
+  var cashI2I = dayEODs.reduce(function(s, e) { return s + e.cashCollectedI2I; }, 0);
+
+  var closerMap = {};
+  dayEODs.forEach(function(e) {
+    if (!e.salesRep) return;
+    if (!closerMap[e.salesRep]) closerMap[e.salesRep] = { name: e.salesRep, revenue: 0, closes: 0, dials: 0 };
+    closerMap[e.salesRep].revenue += e.revenueOnDay;
+    closerMap[e.salesRep].closes += e.closes;
+    closerMap[e.salesRep].dials += e.outboundDials;
+  });
+  dayDeals.forEach(function(d) {
+    if (!d.closer) return;
+    if (!closerMap[d.closer]) closerMap[d.closer] = { name: d.closer, revenue: 0, closes: 0, dials: 0 };
+    closerMap[d.closer].revenue += d.cashCollected;
+  });
+
+  var closers = Object.values(closerMap).sort(function(a, b) { return b.revenue - a.revenue; });
+
+  return {
+    totalRevenue: totalRevenue || dealCash,
+    totalCloses: totalCloses || dayDeals.length,
+    totalDials: totalDials,
+    eodCount: dayEODs.length,
+    cashMYFM: cashMYFM,
+    cashI2I: cashI2I,
+    closers: closers,
+  };
+}
+
+export function getBookedCallsForDate(dateStr) {
+  var date = dateStr || new Date().toISOString().split('T')[0];
+  return store.bookedCalls.filter(function(b) {
+    return b.bookedDay === date || (b.submittedAt && b.submittedAt.startsWith(date));
+  });
 }
 
 // ============================================
@@ -222,7 +307,7 @@ export function getCommissionsForCloser(closerName) {
   if (!closerName) return { deals: [], summary: getEmptyCommissionSummary() };
 
   var closerDeals = store.closedDeals.filter(function(d) {
-    return d.closerName && d.closerName.toLowerCase() === closerName.toLowerCase();
+    return d.closer && d.closer.toLowerCase() === closerName.toLowerCase();
   });
 
   var rate = 0.10;
@@ -235,15 +320,15 @@ export function getCommissionsForCloser(closerName) {
   }
 
   var deals = closerDeals.map(function(deal) {
-    var commission = deal.dealValue * rate;
+    var commission = deal.cashCollected * rate;
     return {
       id: deal.id,
-      leadName: deal.leadName,
-      dealValue: deal.dealValue,
+      leadName: deal.leadsName,
+      dealValue: deal.cashCollected,
       commissionRate: rate,
       commissionAmount: Math.round(commission * 100) / 100,
-      paymentMethod: deal.paymentMethod,
-      leadSource: deal.leadSource,
+      paymentProcessor: deal.paymentProcessor,
+      program: deal.program,
       status: deal.commissionStatus || 'pending',
       closedAt: deal.submittedAt,
     };
@@ -299,7 +384,7 @@ function getEmptyCommissionSummary() {
 export function getAllCommissions() {
   var closerNames = {};
   store.closedDeals.forEach(function(d) {
-    if (d.closerName) closerNames[d.closerName] = true;
+    if (d.closer) closerNames[d.closer] = true;
   });
 
   return Object.keys(closerNames).map(function(name) {

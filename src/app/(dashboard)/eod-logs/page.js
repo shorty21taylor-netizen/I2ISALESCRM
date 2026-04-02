@@ -21,22 +21,22 @@ export default function EODLogsPage() {
       .then(function(data) {
         if (data.success && data.data) {
           setLiveEODs(data.data);
-          // Extract unique closer names for filter
           var names = {};
-          data.data.forEach(function(e) { names[e.closerName] = true; });
+          data.data.forEach(function(e) { names[e.salesRep] = true; });
+          delete names[''];
           setCloserNames(Object.keys(names));
         }
       })
       .catch(function() {});
   }, []);
 
-  var totalCash = liveEODs.reduce(function(s, e) { return s + e.cashCollected; }, 0);
-  var totalCloses = liveEODs.reduce(function(s, e) { return s + e.closes; }, 0);
-  var totalDials = liveEODs.reduce(function(s, e) { return s + e.totalDials; }, 0);
+  var totalCash = liveEODs.reduce(function(s, e) { return s + (e.cashCollectedMYFM || 0) + (e.cashCollectedI2I || 0); }, 0);
+  var totalCloses = liveEODs.reduce(function(s, e) { return s + (e.closes || 0); }, 0);
+  var totalDials = liveEODs.reduce(function(s, e) { return s + (e.outboundDials || 0); }, 0);
   var submitted = liveEODs.filter(function(e) { return e.status === 'submitted'; }).length;
 
   var filtered = liveEODs.filter(function(e) {
-    if (filterCloser !== 'all' && e.closerName !== filterCloser) return false;
+    if (filterCloser !== 'all' && e.salesRep !== filterCloser) return false;
     if (filterStatus !== 'all' && e.status !== filterStatus) return false;
     return true;
   });
@@ -71,7 +71,7 @@ export default function EODLogsPage() {
       <div className="flex items-center gap-3 mb-4">
         <Filter className="w-4 h-4 text-crm-muted" />
         <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5">
-          <option value="all">All Closers</option>
+          <option value="all">All Reps</option>
           {closerNames.map(function(name) { return <option key={name} value={name}>{name}</option>; })}
         </select>
         <select value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} className="input-field w-auto py-1.5">
@@ -85,21 +85,22 @@ export default function EODLogsPage() {
       {/* EOD Cards */}
       {filtered.length === 0 ? (
         <div className="glass-card overflow-hidden">
-          <EmptyState icon={FileText} title="No EOD reports yet" subtitle="Reports will appear when closers submit their end-of-day" />
+          <EmptyState icon={FileText} title="No EOD reports yet" subtitle="Reports will appear when reps submit their end-of-day" />
         </div>
       ) : (
         <div className="space-y-4">
           {filtered.map(function(eod) {
+            var totalEodCash = (eod.cashCollectedMYFM || 0) + (eod.cashCollectedI2I || 0);
             return (
               <div key={eod.id} className="glass-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="avatar avatar-md text-crm-text">
-                      {getInitials(eod.closerName)}
+                      {getInitials(eod.salesRep)}
                     </div>
                     <div>
-                      <div className="font-medium text-crm-text-bright">{eod.closerName}</div>
-                      <div className="text-xs text-crm-muted">Submitted {formatTime(eod.submittedAt)}</div>
+                      <div className="font-medium text-crm-text-bright">{eod.salesRep}</div>
+                      <div className="text-xs text-crm-muted">Submitted {formatTime(eod.submittedAt)} &middot; {eod.date}</div>
                     </div>
                   </div>
                   <StatusBadge status={eod.status} />
@@ -109,12 +110,12 @@ export default function EODLogsPage() {
                   <>
                     <div className="grid grid-cols-6 gap-3 mb-4">
                       {[
-                        { label: 'Dials', value: eod.totalDials },
-                        { label: 'Connects', value: eod.connects },
-                        { label: 'Booked', value: eod.callsBooked },
-                        { label: 'Taken', value: eod.callsTaken },
-                        { label: 'Closes', value: eod.closes },
-                        { label: 'Cash', value: formatCurrency(eod.cashCollected), color: 'text-crm-positive' },
+                        { label: 'Outbound Dials', value: eod.outboundDials || 0 },
+                        { label: 'Net New Booked', value: eod.netNewCallsBooked || 0 },
+                        { label: 'On Calendar', value: eod.callsOnCalendar || 0 },
+                        { label: 'Taken & Pitched', value: eod.callsTakenAndPitched || 0 },
+                        { label: 'Closes', value: eod.closes || 0 },
+                        { label: 'Cash', value: formatCurrency(totalEodCash), color: 'text-crm-positive' },
                       ].map(function(m) {
                         return (
                           <div key={m.label} className="glass-surface p-2 text-center">
@@ -124,24 +125,30 @@ export default function EODLogsPage() {
                         );
                       })}
                     </div>
-                    {eod.pipelineNotes && (
-                      <div className="text-sm text-crm-text mb-2"><span className="text-crm-muted">Pipeline:</span> {eod.pipelineNotes}</div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      {eod.biggestWin && (
-                        <div className="text-sm"><span className="text-crm-positive">Win:</span> <span className="text-crm-text">{eod.biggestWin}</span></div>
-                      )}
-                      {eod.biggestLoss && (
-                        <div className="text-sm"><span className="text-crm-negative">Loss:</span> <span className="text-crm-text">{eod.biggestLoss}</span></div>
-                      )}
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                      {[
+                        { label: 'No-Showed', value: eod.callsNoShowed || 0 },
+                        { label: 'Canceled', value: eod.callsCanceled || 0 },
+                        { label: 'Rescheduled', value: eod.callsRescheduled || 0 },
+                        { label: 'Revenue', value: formatCurrency(eod.revenueOnDay || 0), color: 'text-crm-positive' },
+                      ].map(function(m) {
+                        return (
+                          <div key={m.label} className="glass-surface p-2 text-center">
+                            <div className="text-xs text-crm-muted mb-1">{m.label}</div>
+                            <div className={'font-mono font-bold text-sm ' + (m.color || 'text-crm-text-bright')}>{m.value}</div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-crm-muted">Confidence:</span>
-                      <div className="progress-bar w-24">
-                        <div className={'progress-fill ' + (eod.confidenceScore >= 7 ? 'progress-fill-green' : eod.confidenceScore >= 5 ? 'progress-fill-amber' : 'progress-fill-red')} style={{ width: (eod.confidenceScore * 10) + '%' }} />
+                    {(eod.cashCollectedMYFM > 0 || eod.cashCollectedI2I > 0) && (
+                      <div className="flex items-center gap-4 mb-3 text-xs text-crm-muted">
+                        <span>MYFM: <span className="text-crm-text-bright font-mono">{formatCurrency(eod.cashCollectedMYFM || 0)}</span></span>
+                        <span>I2I: <span className="text-crm-text-bright font-mono">{formatCurrency(eod.cashCollectedI2I || 0)}</span></span>
                       </div>
-                      <span className="text-xs font-mono text-crm-muted">{eod.confidenceScore}/10</span>
-                    </div>
+                    )}
+                    {eod.improvementPlan && (
+                      <div className="text-sm text-crm-text mt-2"><span className="text-crm-muted">Improvement Plan:</span> {eod.improvementPlan}</div>
+                    )}
                   </>
                 ) : (
                   <div className="text-sm text-crm-negative py-4 text-center">No EOD report submitted</div>

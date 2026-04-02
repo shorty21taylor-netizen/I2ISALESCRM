@@ -4,11 +4,12 @@ import { addEODReport, getStore } from '@/lib/store';
 export async function POST(req) {
   try {
     var body = await req.json();
-    if (!body.closerName) {
-      return NextResponse.json({ error: 'closerName required' }, { status: 400 });
+    if (!body.salesRep) {
+      return NextResponse.json({ error: 'salesRep required' }, { status: 400 });
     }
     var entry = addEODReport(body);
-    console.log('[EOD]', entry.closerName, '- dials:', entry.totalDials, 'closes:', entry.closes, 'cash:', entry.cashCollected);
+    var totalCash = entry.cashCollectedMYFM + entry.cashCollectedI2I;
+    console.log('[EOD]', entry.salesRep, '- dials:', entry.outboundDials, 'closes:', entry.closes, 'cash:', totalCash);
     return NextResponse.json({ success: true, submission: entry });
   } catch (e) {
     console.error('[EOD Error]', e);

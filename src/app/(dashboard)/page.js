@@ -146,7 +146,7 @@ export default function DashboardPage() {
       {/* Footer */}
       <hr className="divider" />
       <div className="text-center text-xs text-crm-muted py-4">
-        Summit CRM v1.0 &middot; Data refreshes every 30s via n8n webhooks
+        Summit CRM v1.0 &middot; Data refreshes every 30s
         {liveData && liveData.counts ? (
           <span className="ml-3 text-crm-muted/50">
             ({liveData.counts.bookedCalls} bookings, {liveData.counts.closedDeals} deals, {liveData.counts.eodReports} EODs)
