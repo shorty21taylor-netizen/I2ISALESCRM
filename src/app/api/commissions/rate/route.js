@@ -1,0 +1,19 @@
+import { NextResponse } from 'next/server';
+import { setCommissionRate, getAllCommissionRates } from '@/lib/store';
+
+export async function POST(req) {
+  try {
+    var body = await req.json();
+    if (!body.email || body.rate === undefined) {
+      return NextResponse.json({ error: 'email and rate required' }, { status: 400 });
+    }
+    setCommissionRate(body.email, body.rate, body.name || '');
+    return NextResponse.json({ success: true, email: body.email, rate: body.rate });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  return NextResponse.json({ success: true, rates: getAllCommissionRates() });
+}

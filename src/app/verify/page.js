@@ -37,6 +37,12 @@ export default function VerifyPage() {
       var data = await res.json();
       if (data.verified) {
         setVerified(true);
+        // Register the closer in the CRM store
+        fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, name: user.name }),
+        }).catch(function() {});
         router.push('/');
       } else {
         setError(data.error || 'Incorrect password');
