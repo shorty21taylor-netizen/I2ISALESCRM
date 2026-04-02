@@ -1,181 +1,378 @@
 // Server-side scheduler — runs setInterval to check time every 60s
-// Triggers: EOD reminder (6 PM), Daily summary (8 AM), Morning digest (8:30 AM)
+// Triggers: EOD reminder (8 PM), Morning digest (6 AM), Admin morning report (6 AM)
 // All times are timezone-aware, skips weekends
 
-import { isWhatsAppConfigured, sendGroupMessage, sendDirectMessage } from '@/lib/whatsapp';
-import { getDailyTeamSummary, getBookedCallsForDate, getStore } from '@/lib/store';
+import { getBookedCallsForDate, getStore } from '@/lib/store';
 
-var schedulerState = {
-  running: false,
-  intervalId: null,
-  baseUrl: '',
-  timezone: 'America/New_York',
-  eodReminderEnabled: true,
-  eodReminderTime: '18:00',
-  dailySummaryEnabled: true,
-  dailySummaryTime: '08:00',
-  morningDigestEnabled: true,
-  morningDigestTime: '08:30',
-  lastRun: {
-    eodReminder: null,
-    dailySummary: null,
-    morningDigest: null,
-  },
+var schedule = {
+  eodReminder: { hour: 20, minute: 0, enabled: true, lastRun: null },
+  morningDigest: { hour: 6, minute: 0, enabled: true, lastRun: null },
+  adminMorningReport: { hour: 6, minute: 0, enabled: true, lastRun: null },
 };
+
+var config = {
+  assistroApiUrl: '',
+  assistroApiKey: '',
+  timezone: 'America/New_York',
+  baseUrl: '',
+  crmUrl: '',
+  eodReminder: { groupId: '' },
+  morningDigest: { groupId: '' },
+  adminMorningReport: { phone: '' },
+  customMessages: [],
+};
+
+var intervalId = null;
+var running = false;
+
+export function getSchedulerConfig() {
+  return config;
+}
 
 export function getSchedulerState() {
   return {
-    running: schedulerState.running,
-    timezone: schedulerState.timezone,
-    eodReminderEnabled: schedulerState.eodReminderEnabled,
-    eodReminderTime: schedulerState.eodReminderTime,
-    dailySummaryEnabled: schedulerState.dailySummaryEnabled,
-    dailySummaryTime: schedulerState.dailySummaryTime,
-    morningDigestEnabled: schedulerState.morningDigestEnabled,
-    morningDigestTime: schedulerState.morningDigestTime,
-    lastRun: schedulerState.lastRun,
-    whatsappConfigured: isWhatsAppConfigured(),
+    running: running,
+    schedule: schedule,
+    config: {
+      timezone: config.timezone,
+      crmUrl: config.crmUrl,
+      hasApiUrl: !!config.assistroApiUrl,
+      hasApiKey: !!config.assistroApiKey,
+      eodReminderGroupId: config.eodReminder.groupId,
+      morningDigestGroupId: config.morningDigest.groupId,
+      adminMorningReportPhone: config.adminMorningReport.phone,
+    },
   };
 }
 
-export function updateSchedulerConfig(config) {
-  if (config.timezone !== undefined) schedulerState.timezone = config.timezone;
-  if (config.eodReminderEnabled !== undefined) schedulerState.eodReminderEnabled = config.eodReminderEnabled;
-  if (config.eodReminderTime !== undefined) schedulerState.eodReminderTime = config.eodReminderTime;
-  if (config.dailySummaryEnabled !== undefined) schedulerState.dailySummaryEnabled = config.dailySummaryEnabled;
-  if (config.dailySummaryTime !== undefined) schedulerState.dailySummaryTime = config.dailySummaryTime;
-  if (config.morningDigestEnabled !== undefined) schedulerState.morningDigestEnabled = config.morningDigestEnabled;
-  if (config.morningDigestTime !== undefined) schedulerState.morningDigestTime = config.morningDigestTime;
+export function updateSchedulerConfig(updates) {
+  if (updates.assistroApiUrl !== undefined) config.assistroApiUrl = updates.assistroApiUrl;
+  if (updates.assistroApiKey !== undefined) config.assistroApiKey = updates.assistroApiKey;
+  if (updates.timezone !== undefined) config.timezone = updates.timezone;
+  if (updates.baseUrl !== undefined) config.baseUrl = updates.baseUrl;
+  if (updates.crmUrl !== undefined) config.crmUrl = updates.crmUrl;
+  if (updates.eodReminder) Object.assign(config.eodReminder, updates.eodReminder);
+  if (updates.morningDigest) Object.assign(config.morningDigest, updates.morningDigest);
+  if (updates.adminMorningReport) Object.assign(config.adminMorningReport, updates.adminMorningReport);
+  if (updates.customMessages) config.customMessages = updates.customMessages;
+  // Schedule enable/disable overrides
+  if (updates.eodReminderEnabled !== undefined) schedule.eodReminder.enabled = updates.eodReminderEnabled;
+  if (updates.morningDigestEnabled !== undefined) schedule.morningDigest.enabled = updates.morningDigestEnabled;
+  if (updates.adminMorningReportEnabled !== undefined) schedule.adminMorningReport.enabled = updates.adminMorningReportEnabled;
+  console.log('[Scheduler] Config updated');
 }
 
-function getNowInTimezone() {
+function getNow() {
   try {
     var now = new Date();
-    var tzString = now.toLocaleString('en-US', { timeZone: schedulerState.timezone });
+    var tzString = now.toLocaleString('en-US', { timeZone: config.timezone });
     var tzDate = new Date(tzString);
-    return tzDate;
+    return {
+      hour: tzDate.getHours(),
+      minute: tzDate.getMinutes(),
+      dayOfWeek: tzDate.getDay(),
+      dateStr: tzDate.getFullYear() + '-' + String(tzDate.getMonth() + 1).padStart(2, '0') + '-' + String(tzDate.getDate()).padStart(2, '0'),
+    };
   } catch (e) {
-    return new Date();
+    var fallback = new Date();
+    return {
+      hour: fallback.getHours(),
+      minute: fallback.getMinutes(),
+      dayOfWeek: fallback.getDay(),
+      dateStr: fallback.toISOString().split('T')[0],
+    };
   }
 }
 
-function getTimeString(date) {
-  var h = String(date.getHours()).padStart(2, '0');
-  var m = String(date.getMinutes()).padStart(2, '0');
-  return h + ':' + m;
+function shouldRun(task, now) {
+  if (!task.enabled) return false;
+  // Skip weekends
+  if (now.dayOfWeek === 0 || now.dayOfWeek === 6) return false;
+  // Check hour and minute (within 1 minute window)
+  if (now.hour !== task.hour) return false;
+  if (now.minute !== task.minute) return false;
+  // Already ran today?
+  if (task.lastRun && task.lastRun.startsWith(now.dateStr)) return false;
+  return true;
 }
 
-function getDateString(date) {
-  var y = date.getFullYear();
-  var m = String(date.getMonth() + 1).padStart(2, '0');
-  var d = String(date.getDate()).padStart(2, '0');
-  return y + '-' + m + '-' + d;
+async function sendToGroup(message, groupId) {
+  if (!config.assistroApiUrl || !groupId) return;
+  try {
+    await fetch(config.assistroApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': config.assistroApiKey ? ('Bearer ' + config.assistroApiKey) : '',
+      },
+      body: JSON.stringify({ phone: groupId, body: message, type: 2 }),
+    });
+    console.log('[Scheduler] Group message sent to', groupId);
+  } catch (e) {
+    console.error('[Scheduler] Group send error:', e.message);
+  }
 }
 
-function isWeekend(date) {
-  var day = date.getDay();
-  return day === 0 || day === 6;
+async function sendDirect(message, phone) {
+  if (!config.assistroApiUrl || !phone) return;
+  try {
+    await fetch(config.assistroApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': config.assistroApiKey ? ('Bearer ' + config.assistroApiKey) : '',
+      },
+      body: JSON.stringify({ phone: phone, body: message, type: 1 }),
+    });
+    console.log('[Scheduler] Direct message sent to', phone);
+  } catch (e) {
+    console.error('[Scheduler] Direct send error:', e.message);
+  }
 }
 
-function alreadyRanToday(taskKey) {
-  if (!schedulerState.lastRun[taskKey]) return false;
-  var now = getNowInTimezone();
-  var todayStr = getDateString(now);
-  return schedulerState.lastRun[taskKey].startsWith(todayStr);
-}
+// ============================================
+// BUILT-IN TASKS
+// ============================================
 
 export async function runEODReminder() {
-  var message = '⏰ *EOD Reminder*\n\nHey team! Time to submit your end-of-day reports.\n\nHead to Summit CRM → Submit → End-of-Day Report\n\nMake sure to log your:\n• Net new calls booked\n• Calls on calendar\n• Calls taken & pitched\n• Closes & cash collected\n• Outbound dials\n• Improvement plan';
-  var result = await sendGroupMessage(message);
-  schedulerState.lastRun.eodReminder = new Date().toISOString();
+  var groupId = config.eodReminder.groupId;
+  if (!groupId) { console.log('[Scheduler] EOD reminder skipped — no group ID'); return; }
+
+  var link = config.crmUrl ? config.crmUrl + '/submit' : 'the CRM';
+  var msg = 'EOD REMINDER \u23F0\n'
+    + '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n'
+    + 'Team \u2014 it\'s time to submit your End of Day report!\n\n'
+    + '\uD83D\uDC49 Submit your EOD here:\n'
+    + link + '\n\n'
+    + 'Make sure you fill out:\n'
+    + '\u2022 Net new calls booked\n'
+    + '\u2022 Calls taken & pitched\n'
+    + '\u2022 Closes & cash collected (MYFM + I2I)\n'
+    + '\u2022 Outbound dials\n'
+    + '\u2022 Revenue on the day\n'
+    + '\u2022 Your improvement plan for tomorrow\n\n'
+    + 'Get it in before you clock out! \uD83D\uDCAA\n'
+    + '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550';
+
+  await sendToGroup(msg, groupId);
+  schedule.eodReminder.lastRun = new Date().toISOString();
   console.log('[Scheduler] EOD reminder sent');
-  return result;
-}
-
-export async function runDailySummary() {
-  var today = getDateString(getNowInTimezone());
-  var summary = getDailyTeamSummary(today);
-
-  var message = '📊 *Daily Team Performance Summary*\n' + today + '\n\n';
-  message += '💰 Total Revenue: $' + summary.totalRevenue.toLocaleString() + '\n';
-  message += '🎯 Total Closes: ' + summary.totalCloses + '\n';
-  message += '📞 Total Dials: ' + summary.totalDials + '\n';
-  message += '📋 EOD Reports: ' + summary.eodCount + '\n';
-  message += '💵 Cash (MYFM): $' + summary.cashMYFM.toLocaleString() + '\n';
-  message += '💵 Cash (I2I): $' + summary.cashI2I.toLocaleString() + '\n';
-
-  if (summary.closers.length > 0) {
-    message += '\n*Top Performers:*\n';
-    summary.closers.slice(0, 5).forEach(function(c, i) {
-      message += (i + 1) + '. ' + c.name + ' — $' + c.revenue.toLocaleString() + ' (' + c.closes + ' closes)\n';
-    });
-  }
-
-  var result = await sendDirectMessage(null, message);
-  schedulerState.lastRun.dailySummary = new Date().toISOString();
-  console.log('[Scheduler] Daily summary sent');
-  return result;
 }
 
 export async function runMorningDigest() {
-  var today = getDateString(getNowInTimezone());
-  var calls = getBookedCallsForDate(today);
+  var groupId = config.morningDigest.groupId;
+  if (!groupId) { console.log('[Scheduler] Morning digest skipped — no group ID'); return; }
 
-  var message = '☀️ *Morning Booked Calls Digest*\n' + today + '\n\n';
+  var now = getNow();
+  var calls = getBookedCallsForDate(now.dateStr);
+
+  var msg = '\u2600\uFE0F MORNING CALL DIGEST\n'
+    + '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n'
+    + now.dateStr + '\n\n';
 
   if (calls.length === 0) {
-    message += 'No calls booked for today yet. Let\'s fill that calendar! 💪';
+    msg += 'No calls booked for today yet.\nLet\'s fill that calendar! \uD83D\uDCAA';
   } else {
-    message += calls.length + ' call' + (calls.length === 1 ? '' : 's') + ' booked for today:\n\n';
+    msg += calls.length + ' call' + (calls.length === 1 ? '' : 's') + ' booked for today:\n\n';
     calls.forEach(function(call, i) {
-      message += (i + 1) + '. *' + call.leadsName + '* — ' + (call.program || 'N/A') + '\n';
-      message += '   Closer: ' + (call.closer || 'TBD') + ' | Time: ' + (call.bookedTime || 'TBD') + '\n';
+      msg += (i + 1) + '. *' + call.leadsName + '*\n';
+      msg += '   Closer: ' + (call.closer || 'TBD') + '\n';
+      msg += '   Time: ' + (call.bookedTime || 'TBD') + '\n';
+      msg += '   Program: ' + (call.program || 'N/A') + '\n';
+      if (call.leadsPhone) msg += '   Phone: ' + call.leadsPhone + '\n';
+      msg += '\n';
     });
   }
 
-  var result = await sendGroupMessage(message);
-  schedulerState.lastRun.morningDigest = new Date().toISOString();
-  console.log('[Scheduler] Morning digest sent');
-  return result;
+  msg += '\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550';
+
+  await sendToGroup(msg, groupId);
+  schedule.morningDigest.lastRun = new Date().toISOString();
+  console.log('[Scheduler] Morning digest sent,', calls.length, 'calls');
 }
+
+export async function runAdminMorningReport() {
+  var phone = config.adminMorningReport.phone;
+  if (!phone) { console.log('[Scheduler] Admin report skipped — no phone'); return; }
+
+  if (config.baseUrl) {
+    try {
+      var res = await fetch(config.baseUrl + '/api/admin-morning-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminPhone: phone,
+          assistroApiUrl: config.assistroApiUrl,
+          assistroApiKey: config.assistroApiKey,
+        }),
+      });
+      var data = await res.json();
+      schedule.adminMorningReport.lastRun = new Date().toISOString();
+      console.log('[Scheduler] Admin morning report sent');
+    } catch (e) {
+      console.error('[Scheduler] Admin report error:', e.message);
+    }
+  } else {
+    console.log('[Scheduler] Admin report skipped — no baseUrl configured');
+  }
+}
+
+async function runTask(name, now) {
+  console.log('[Scheduler] Running task:', name);
+  try {
+    if (name === 'eodReminder') await runEODReminder();
+    if (name === 'morningDigest') await runMorningDigest();
+    if (name === 'adminMorningReport') await runAdminMorningReport();
+  } catch (e) {
+    console.error('[Scheduler] Task error (' + name + '):', e.message);
+  }
+}
+
+// ============================================
+// CUSTOM MESSAGES
+// ============================================
+
+export function addCustomMessage(msg) {
+  var entry = {
+    id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    title: msg.title || 'Untitled',
+    message: msg.message || '',
+    destination: msg.destination || 'group',
+    groupId: msg.groupId || '',
+    phone: msg.phone || '',
+    frequency: msg.frequency || 'once',
+    hour: parseInt(msg.hour) || 9,
+    minute: parseInt(msg.minute) || 0,
+    dayOfWeek: parseInt(msg.dayOfWeek) || 1,
+    date: msg.date || '',
+    includeWeekends: msg.includeWeekends || false,
+    enabled: true,
+    lastRun: null,
+    createdAt: new Date().toISOString(),
+  };
+  config.customMessages.push(entry);
+  return entry;
+}
+
+export function removeCustomMessage(id) {
+  config.customMessages = config.customMessages.filter(function(m) { return m.id !== id; });
+}
+
+export function updateCustomMessage(id, updates) {
+  var msg = config.customMessages.find(function(m) { return m.id === id; });
+  if (msg) {
+    if (updates.enabled !== undefined) msg.enabled = updates.enabled;
+    if (updates.title !== undefined) msg.title = updates.title;
+    if (updates.message !== undefined) msg.message = updates.message;
+    if (updates.destination !== undefined) msg.destination = updates.destination;
+    if (updates.groupId !== undefined) msg.groupId = updates.groupId;
+    if (updates.phone !== undefined) msg.phone = updates.phone;
+    if (updates.frequency !== undefined) msg.frequency = updates.frequency;
+    if (updates.hour !== undefined) msg.hour = parseInt(updates.hour);
+    if (updates.minute !== undefined) msg.minute = parseInt(updates.minute);
+    if (updates.dayOfWeek !== undefined) msg.dayOfWeek = parseInt(updates.dayOfWeek);
+    if (updates.date !== undefined) msg.date = updates.date;
+    if (updates.includeWeekends !== undefined) msg.includeWeekends = updates.includeWeekends;
+  }
+  return msg;
+}
+
+export function getCustomMessages() {
+  return config.customMessages;
+}
+
+function replacePlaceholders(text) {
+  var now = new Date();
+  return text
+    .replace(/\{date\}/g, now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
+    .replace(/\{day\}/g, now.toLocaleDateString('en-US', { weekday: 'long' }))
+    .replace(/\{team_count\}/g, String(Object.keys(getStore().closerProfiles || {}).length))
+    .replace(/\{crmlink\}/g, config.crmUrl || 'Summit CRM');
+}
+
+export async function sendCustomMessageNow(msg) {
+  console.log('[Scheduler] Sending custom message:', msg.title);
+  var text = replacePlaceholders(msg.message);
+  try {
+    if (msg.destination === 'group' && msg.groupId) {
+      await sendToGroup(text, msg.groupId);
+    } else if (msg.destination === 'direct' && msg.phone) {
+      await sendDirect(text, msg.phone);
+    }
+  } catch (e) {
+    console.error('[Scheduler] Custom message error:', e.message);
+  }
+}
+
+// ============================================
+// TICK — runs every 60 seconds
+// ============================================
 
 async function tick() {
-  if (!isWhatsAppConfigured()) return;
+  var now = getNow();
 
-  var now = getNowInTimezone();
-  if (isWeekend(now)) return;
-
-  var currentTime = getTimeString(now);
-
-  // EOD Reminder
-  if (schedulerState.eodReminderEnabled && currentTime === schedulerState.eodReminderTime && !alreadyRanToday('eodReminder')) {
-    try { await runEODReminder(); } catch (e) { console.error('[Scheduler] EOD reminder error:', e.message); }
+  // Run built-in scheduled tasks
+  var taskNames = Object.keys(schedule);
+  for (var i = 0; i < taskNames.length; i++) {
+    var name = taskNames[i];
+    if (shouldRun(schedule[name], now)) {
+      await runTask(name, now);
+    }
   }
 
-  // Daily Summary (to admin)
-  if (schedulerState.dailySummaryEnabled && currentTime === schedulerState.dailySummaryTime && !alreadyRanToday('dailySummary')) {
-    try { await runDailySummary(); } catch (e) { console.error('[Scheduler] Daily summary error:', e.message); }
-  }
+  // Run custom scheduled messages
+  if (config.customMessages && config.customMessages.length > 0) {
+    for (var j = 0; j < config.customMessages.length; j++) {
+      var msg = config.customMessages[j];
+      if (!msg.enabled) continue;
+      if (msg.lastRun === now.dateStr) continue;
 
-  // Morning Digest (to group)
-  if (schedulerState.morningDigestEnabled && currentTime === schedulerState.morningDigestTime && !alreadyRanToday('morningDigest')) {
-    try { await runMorningDigest(); } catch (e) { console.error('[Scheduler] Morning digest error:', e.message); }
+      var shouldFire = false;
+
+      if (msg.frequency === 'daily') {
+        if (now.hour === msg.hour && now.minute === msg.minute) {
+          if (now.dayOfWeek !== 0 && now.dayOfWeek !== 6) shouldFire = true;
+          if (msg.includeWeekends) shouldFire = true;
+        }
+      }
+
+      if (msg.frequency === 'weekly') {
+        if (now.dayOfWeek === msg.dayOfWeek && now.hour === msg.hour && now.minute === msg.minute) {
+          shouldFire = true;
+        }
+      }
+
+      if (msg.frequency === 'once') {
+        if (now.dateStr === msg.date && now.hour === msg.hour && now.minute === msg.minute) {
+          shouldFire = true;
+        }
+      }
+
+      if (shouldFire) {
+        msg.lastRun = now.dateStr;
+        await sendCustomMessageNow(msg);
+      }
+    }
   }
 }
 
+// ============================================
+// INIT / STOP
+// ============================================
+
 export function initScheduler(baseUrl) {
-  if (schedulerState.running) return;
-  schedulerState.baseUrl = baseUrl || '';
-  schedulerState.running = true;
-  schedulerState.intervalId = setInterval(tick, 60000);
-  console.log('[Scheduler] Started — checking every 60s');
+  if (running) return;
+  if (baseUrl) config.baseUrl = baseUrl;
+  running = true;
+  intervalId = setInterval(tick, 60000);
+  console.log('[Scheduler] Started — checking every 60s, timezone:', config.timezone);
 }
 
 export function stopScheduler() {
-  if (schedulerState.intervalId) {
-    clearInterval(schedulerState.intervalId);
-    schedulerState.intervalId = null;
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
   }
-  schedulerState.running = false;
+  running = false;
   console.log('[Scheduler] Stopped');
 }

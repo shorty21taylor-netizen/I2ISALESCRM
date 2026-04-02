@@ -84,9 +84,9 @@ export default function SettingsPage() {
       .catch(function() { setSyncing(false); });
   }
 
-  function handleRunNow(endpoint) {
+  function handleRunNow(endpoint, body) {
     setActionResult(null);
-    fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         setActionResult({ endpoint: endpoint, success: true, message: 'Sent successfully!' });
@@ -204,6 +204,16 @@ export default function SettingsPage() {
                   <option value="UTC">UTC</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">CRM URL (for links in messages)</label>
+                <input
+                  type="text"
+                  value={config.crmUrl}
+                  onChange={function(e) { updateConfig('crmUrl', e.target.value); }}
+                  placeholder="https://your-app.railway.app"
+                  className="input-field"
+                />
+              </div>
             </div>
 
             {/* Connection Status Indicators */}
@@ -239,23 +249,17 @@ export default function SettingsPage() {
           <div className="p-5 space-y-4">
             <p className="text-xs text-crm-muted">Automated WhatsApp messages sent on schedule. Skips weekends. Requires WhatsApp to be connected.</p>
 
-            {/* EOD Reminder */}
+            {/* EOD Reminder - 8 PM */}
             <div className="glass-surface p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <div className={'w-2 h-2 rounded-full ' + (config.eodReminderEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
                     <div className="text-sm font-medium text-crm-text-bright">EOD Reminder</div>
-                    <div className="text-xs text-crm-muted">Reminds team to submit end-of-day reports</div>
+                    <div className="text-xs text-crm-muted">8:00 PM EST &middot; Reminds team to submit end-of-day reports</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={config.eodReminderTime}
-                    onChange={function(e) { updateConfig('eodReminderTime', e.target.value); }}
-                    className="input-field w-28 text-xs"
-                  />
                   <button
                     onClick={function() { updateConfig('eodReminderEnabled', !config.eodReminderEnabled); }}
                     className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.eodReminderEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
@@ -263,71 +267,29 @@ export default function SettingsPage() {
                     {config.eodReminderEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={function() { handleRunNow('/api/scheduler'); }}
+                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-eod-reminder' }); }}
                     className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
                   >
                     <Play className="w-3 h-3" /> Run Now
                   </button>
                 </div>
               </div>
-              {schedulerStatus && schedulerStatus.lastRun.eodReminder && (
-                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.lastRun.eodReminder).toLocaleString()}</div>
+              {schedulerStatus && schedulerStatus.schedule && schedulerStatus.schedule.eodReminder && schedulerStatus.schedule.eodReminder.lastRun && (
+                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.schedule.eodReminder.lastRun).toLocaleString()}</div>
               )}
             </div>
 
-            {/* Daily Summary */}
-            <div className="glass-surface p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className={'w-2 h-2 rounded-full ' + (config.dailySummaryEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
-                  <div>
-                    <div className="text-sm font-medium text-crm-text-bright">Daily Team Summary</div>
-                    <div className="text-xs text-crm-muted">Sends performance summary to admin via DM</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={config.dailySummaryTime}
-                    onChange={function(e) { updateConfig('dailySummaryTime', e.target.value); }}
-                    className="input-field w-28 text-xs"
-                  />
-                  <button
-                    onClick={function() { updateConfig('dailySummaryEnabled', !config.dailySummaryEnabled); }}
-                    className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.dailySummaryEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
-                  >
-                    {config.dailySummaryEnabled ? 'ON' : 'OFF'}
-                  </button>
-                  <button
-                    onClick={function() { handleRunNow('/api/daily-summary'); }}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
-                  >
-                    <Play className="w-3 h-3" /> Run Now
-                  </button>
-                </div>
-              </div>
-              {schedulerStatus && schedulerStatus.lastRun.dailySummary && (
-                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.lastRun.dailySummary).toLocaleString()}</div>
-              )}
-            </div>
-
-            {/* Morning Digest */}
+            {/* Morning Call Digest - 6 AM */}
             <div className="glass-surface p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <div className={'w-2 h-2 rounded-full ' + (config.morningDigestEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
-                    <div className="text-sm font-medium text-crm-text-bright">Morning Booked Calls Digest</div>
-                    <div className="text-xs text-crm-muted">Sends today&apos;s booked calls to team group</div>
+                    <div className="text-sm font-medium text-crm-text-bright">Morning Call Digest</div>
+                    <div className="text-xs text-crm-muted">6:00 AM EST &middot; Sends today&apos;s booked calls to team group</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={config.morningDigestTime}
-                    onChange={function(e) { updateConfig('morningDigestTime', e.target.value); }}
-                    className="input-field w-28 text-xs"
-                  />
                   <button
                     onClick={function() { updateConfig('morningDigestEnabled', !config.morningDigestEnabled); }}
                     className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.morningDigestEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
@@ -335,16 +297,83 @@ export default function SettingsPage() {
                     {config.morningDigestEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={function() { handleRunNow('/api/morning-digest'); }}
+                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-morning-digest' }); }}
                     className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
                   >
                     <Play className="w-3 h-3" /> Run Now
                   </button>
                 </div>
               </div>
-              {schedulerStatus && schedulerStatus.lastRun.morningDigest && (
-                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.lastRun.morningDigest).toLocaleString()}</div>
+              {schedulerStatus && schedulerStatus.schedule && schedulerStatus.schedule.morningDigest && schedulerStatus.schedule.morningDigest.lastRun && (
+                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.schedule.morningDigest.lastRun).toLocaleString()}</div>
               )}
+            </div>
+
+            {/* Admin Morning Report - 6 AM */}
+            <div className="glass-surface p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className={'w-2 h-2 rounded-full ' + (config.adminMorningReportEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                  <div>
+                    <div className="text-sm font-medium text-crm-text-bright">Admin Morning Report</div>
+                    <div className="text-xs text-crm-muted">6:00 AM EST &middot; Yesterday&apos;s EOD + MTD breakdown to admin DM</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={function() { updateConfig('adminMorningReportEnabled', !config.adminMorningReportEnabled); }}
+                    className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.adminMorningReportEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
+                  >
+                    {config.adminMorningReportEnabled ? 'ON' : 'OFF'}
+                  </button>
+                  <button
+                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-admin-report' }); }}
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
+                  >
+                    <Play className="w-3 h-3" /> Run Now
+                  </button>
+                </div>
+              </div>
+              {schedulerStatus && schedulerStatus.schedule && schedulerStatus.schedule.adminMorningReport && schedulerStatus.schedule.adminMorningReport.lastRun && (
+                <div className="text-[10px] text-crm-muted/50 mt-1">Last run: {new Date(schedulerStatus.schedule.adminMorningReport.lastRun).toLocaleString()}</div>
+              )}
+            </div>
+
+            {/* Per-destination overrides */}
+            <div className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">EOD Reminder Group ID</label>
+                  <input
+                    type="text"
+                    value={config.eodReminderGroupId}
+                    onChange={function(e) { updateConfig('eodReminderGroupId', e.target.value); }}
+                    placeholder="Override default group for EOD"
+                    className="input-field text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Morning Digest Group ID</label>
+                  <input
+                    type="text"
+                    value={config.morningDigestGroupId}
+                    onChange={function(e) { updateConfig('morningDigestGroupId', e.target.value); }}
+                    placeholder="Override default group for digest"
+                    className="input-field text-xs"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Admin Report Phone</label>
+                <input
+                  type="text"
+                  value={config.adminMorningReportPhone}
+                  onChange={function(e) { updateConfig('adminMorningReportPhone', e.target.value); }}
+                  placeholder="Override admin phone for morning report"
+                  className="input-field text-xs"
+                />
+              </div>
+              <p className="text-[10px] text-crm-muted/50">Leave blank to use the default WhatsApp Group ID / Admin Phone from above.</p>
             </div>
 
             {/* Action result */}
@@ -371,8 +400,9 @@ export default function SettingsPage() {
               { label: 'Dashboard', path: '/api/dashboard', method: 'GET' },
               { label: 'WhatsApp Group', path: '/api/notify', method: 'POST' },
               { label: 'WhatsApp Direct', path: '/api/notify-direct', method: 'POST' },
-              { label: 'Daily Summary', path: '/api/daily-summary', method: 'POST' },
               { label: 'Morning Digest', path: '/api/morning-digest', method: 'POST' },
+              { label: 'Admin Morning Report', path: '/api/admin-morning-report', method: 'POST' },
+              { label: 'Scheduled Messages', path: '/api/scheduled-messages', method: 'GET/POST' },
               { label: 'Scheduler', path: '/api/scheduler', method: 'GET/POST' },
               { label: 'Health', path: '/api/health', method: 'GET' },
             ].map(function(ep) {

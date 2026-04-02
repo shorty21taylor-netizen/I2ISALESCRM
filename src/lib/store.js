@@ -241,28 +241,69 @@ export function getDailyTeamSummary(dateStr) {
   var dayEODs = store.eodReports.filter(function(e) { return e.date === date; });
   var dayDeals = store.closedDeals.filter(function(d) { return d.submittedAt && d.submittedAt.startsWith(date); });
 
-  var totalRevenue = dayEODs.reduce(function(s, e) { return s + e.revenueOnDay; }, 0);
-  var dealCash = dayDeals.reduce(function(s, d) { return s + d.cashCollected; }, 0);
-  var totalCloses = dayEODs.reduce(function(s, e) { return s + e.closes; }, 0);
-  var totalDials = dayEODs.reduce(function(s, e) { return s + e.outboundDials; }, 0);
-  var cashMYFM = dayEODs.reduce(function(s, e) { return s + e.cashCollectedMYFM; }, 0);
-  var cashI2I = dayEODs.reduce(function(s, e) { return s + e.cashCollectedI2I; }, 0);
+  var totalRevenue = dayEODs.reduce(function(s, e) { return s + (e.revenueOnDay || 0); }, 0);
+  var dealCash = dayDeals.reduce(function(s, d) { return s + (d.cashCollected || 0); }, 0);
+  var totalCloses = dayEODs.reduce(function(s, e) { return s + (e.closes || 0); }, 0);
+  var totalDials = dayEODs.reduce(function(s, e) { return s + (e.outboundDials || 0); }, 0);
+  var cashMYFM = dayEODs.reduce(function(s, e) { return s + (e.cashCollectedMYFM || 0); }, 0);
+  var cashI2I = dayEODs.reduce(function(s, e) { return s + (e.cashCollectedI2I || 0); }, 0);
 
+  // Detailed per-closer breakdown
   var closerMap = {};
   dayEODs.forEach(function(e) {
-    if (!e.salesRep) return;
-    if (!closerMap[e.salesRep]) closerMap[e.salesRep] = { name: e.salesRep, revenue: 0, closes: 0, dials: 0 };
-    closerMap[e.salesRep].revenue += e.revenueOnDay;
-    closerMap[e.salesRep].closes += e.closes;
-    closerMap[e.salesRep].dials += e.outboundDials;
+    var name = e.salesRep || e.closerName || 'Unknown';
+    if (!closerMap[name]) {
+      closerMap[name] = {
+        name: name,
+        outboundDials: 0,
+        callsTaken: 0,
+        takenPitched: 0,
+        closes: 0,
+        cashMYFM: 0,
+        cashI2I: 0,
+        revenue: 0,
+        noShows: 0,
+        netNewBooked: 0,
+        canceled: 0,
+        rescheduled: 0,
+        improvement: '',
+        dials: 0,
+      };
+    }
+    var c = closerMap[name];
+    c.outboundDials += (e.outboundDials || 0);
+    c.dials += (e.outboundDials || 0);
+    c.callsTaken += (e.callsTaken || 0);
+    c.takenPitched += (e.callsTakenAndPitched || 0);
+    c.closes += (e.closes || 0);
+    c.cashMYFM += (e.cashCollectedMYFM || 0);
+    c.cashI2I += (e.cashCollectedI2I || 0);
+    c.revenue += (e.revenueOnDay || 0);
+    c.noShows += (e.callsNoShowed || 0);
+    c.netNewBooked += (e.netNewCallsBooked || 0);
+    c.canceled += (e.callsCanceled || 0);
+    c.rescheduled += (e.callsRescheduled || 0);
+    if (e.improvementPlan) c.improvement = e.improvementPlan;
   });
   dayDeals.forEach(function(d) {
-    if (!d.closer) return;
-    if (!closerMap[d.closer]) closerMap[d.closer] = { name: d.closer, revenue: 0, closes: 0, dials: 0 };
-    closerMap[d.closer].revenue += d.cashCollected;
+    var name = d.closer || d.closerName || 'Unknown';
+    if (!closerMap[name]) {
+      closerMap[name] = {
+        name: name,
+        outboundDials: 0, callsTaken: 0, takenPitched: 0, closes: 0,
+        cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0,
+        netNewBooked: 0, canceled: 0, rescheduled: 0, improvement: '', dials: 0,
+      };
+    }
+    closerMap[name].revenue += (d.cashCollected || 0);
   });
 
   var closers = Object.values(closerMap).sort(function(a, b) { return b.revenue - a.revenue; });
+
+  // Aggregated totals
+  var totalCallsTaken = dayEODs.reduce(function(s, e) { return s + (e.callsTaken || 0); }, 0);
+  var totalNoShows = dayEODs.reduce(function(s, e) { return s + (e.callsNoShowed || 0); }, 0);
+  var totalNewBooked = dayEODs.reduce(function(s, e) { return s + (e.netNewCallsBooked || 0); }, 0);
 
   return {
     totalRevenue: totalRevenue || dealCash,
@@ -272,6 +313,17 @@ export function getDailyTeamSummary(dateStr) {
     cashMYFM: cashMYFM,
     cashI2I: cashI2I,
     closers: closers,
+    totals: {
+      totalReps: closers.length,
+      totalDials: totalDials,
+      totalCallsTaken: totalCallsTaken,
+      totalCloses: totalCloses || dayDeals.length,
+      totalRevenue: totalRevenue || dealCash,
+      totalCashMYFM: cashMYFM,
+      totalCashI2I: cashI2I,
+      totalNoShows: totalNoShows,
+      totalNewBooked: totalNewBooked,
+    },
   };
 }
 

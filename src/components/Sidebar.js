@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Users, FileText, ClipboardList, Phone, PlayCircle, Brain, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard } from 'lucide-react';
+import { Activity, LayoutDashboard, Users, FileText, ClipboardList, Phone, PlayCircle, Brain, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 
 var navItems = [
@@ -59,10 +59,18 @@ export default function Sidebar() {
       <hr className="divider mx-2" />
 
       <div className="px-2 py-2 space-y-1">
-        <Link href="/admin/invites" className={'nav-link ' + (pathname === '/admin/invites' ? 'active' : '')}>
-          <UserPlus className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Invite Team</span>}
-        </Link>
+        {user && user.email === 'shorty21taylor@gmail.com' && (
+          <>
+            <Link href="/admin/invites" className={'nav-link ' + (pathname === '/admin/invites' ? 'active' : '')}>
+              <UserPlus className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span>Invite Team</span>}
+            </Link>
+            <Link href="/message-scheduler" className={'nav-link ' + (pathname === '/message-scheduler' ? 'active' : '')}>
+              <MessageSquare className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span>Messages</span>}
+            </Link>
+          </>
+        )}
         <Link href="/settings" className={'nav-link ' + (pathname === '/settings' ? 'active' : '')}>
           <Settings className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Settings</span>}

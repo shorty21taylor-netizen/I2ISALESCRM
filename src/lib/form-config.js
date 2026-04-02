@@ -6,13 +6,14 @@ var defaultConfig = {
   whatsappGroupId: '',
   adminPhone: '',
   timezone: 'America/New_York',
+  crmUrl: '',
   schedulerEnabled: true,
   eodReminderEnabled: true,
-  eodReminderTime: '18:00',
-  dailySummaryEnabled: true,
-  dailySummaryTime: '08:00',
+  eodReminderGroupId: '',
   morningDigestEnabled: true,
-  morningDigestTime: '08:30',
+  morningDigestGroupId: '',
+  adminMorningReportEnabled: true,
+  adminMorningReportPhone: '',
 };
 
 export function getFormConfig() {

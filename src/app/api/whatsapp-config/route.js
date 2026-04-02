@@ -11,10 +11,22 @@ export async function POST(req) {
       setWhatsAppConfig(body);
     }
 
-    // Update scheduler config
-    if (body.timezone !== undefined || body.eodReminderEnabled !== undefined || body.schedulerEnabled !== undefined) {
-      updateSchedulerConfig(body);
-    }
+    // Map per-destination config to scheduler
+    var schedulerUpdate = {};
+    if (body.assistroApiUrl !== undefined) schedulerUpdate.assistroApiUrl = body.assistroApiUrl;
+    if (body.assistroApiKey !== undefined) schedulerUpdate.assistroApiKey = body.assistroApiKey;
+    if (body.timezone !== undefined) schedulerUpdate.timezone = body.timezone;
+    if (body.crmUrl !== undefined) schedulerUpdate.crmUrl = body.crmUrl;
+    if (body.eodReminderEnabled !== undefined) schedulerUpdate.eodReminderEnabled = body.eodReminderEnabled;
+    if (body.morningDigestEnabled !== undefined) schedulerUpdate.morningDigestEnabled = body.morningDigestEnabled;
+    if (body.adminMorningReportEnabled !== undefined) schedulerUpdate.adminMorningReportEnabled = body.adminMorningReportEnabled;
+
+    // Per-destination: use specific IDs if provided, fall back to defaults
+    schedulerUpdate.eodReminder = { groupId: body.eodReminderGroupId || body.whatsappGroupId || '' };
+    schedulerUpdate.morningDigest = { groupId: body.morningDigestGroupId || body.whatsappGroupId || '' };
+    schedulerUpdate.adminMorningReport = { phone: body.adminMorningReportPhone || body.adminPhone || '' };
+
+    updateSchedulerConfig(schedulerUpdate);
 
     // Start scheduler if not running
     initScheduler();
