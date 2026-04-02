@@ -1,5 +1,6 @@
 'use client';
-import { DollarSign, Target, Percent, Phone, TrendingUp, Users, ClipboardCheck, Zap, Calendar, UserCheck, Clock, Timer, CheckCircle, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { DollarSign, Target, Percent, Phone, TrendingUp, ClipboardCheck, Zap, Calendar, UserCheck, Clock, Timer, CheckCircle, ShieldCheck } from 'lucide-react';
 import MetricCard from '@/components/MetricCard';
 import CloserLeaderboard from '@/components/CloserLeaderboard';
 import RevenueChart from '@/components/RevenueChart';
@@ -13,6 +14,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay, dialsByCloser } from '@/lib/mock-data';
 
 export default function DashboardPage() {
+  var s = useState('performance'), metricPage = s[0], setMetricPage = s[1];
   var t = teamOverview;
   var todayCash = recentEODs.reduce(function(sum, e) { return sum + e.cashCollected; }, 0);
   var todayCloses = recentEODs.reduce(function(sum, e) { return sum + e.closes; }, 0);
@@ -40,26 +42,59 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI Metrics — Horizontal scroll, 6 visible at a time */}
-      <div className="relative z-10 -mx-6 px-6 overflow-x-auto scrollbar-thin" style={{ scrollbarGutter: 'stable' }}>
-        <div className="flex gap-4 pb-2" style={{ minWidth: 'max-content' }}>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} icon={DollarSign} accentColor="red" delay={0} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Total Closes" value={t.totalCloses} trend={t.closesTrend} icon={Target} accentColor="red" delay={50} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} accentColor="green" delay={100} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} accentColor="default" delay={150} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Booked This Week" value={t.bookedCallsThisWeek} trend={t.bookedCallsTrend} icon={Calendar} accentColor="default" delay={200} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Show Rate" value={t.showRate + '%'} trend={t.showRateTrend} icon={UserCheck} accentColor="default" delay={250} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Pipeline Value" value={formatCurrency(t.pipelineValue)} trend={t.pipelineValueTrend} icon={TrendingUp} accentColor="green" delay={300} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Avg Days to Close" value={t.avgDaysToClose} trend={t.daysToCloseTrend * -1} icon={Clock} accentColor="green" delay={350} trendLabel="faster closing" /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={0} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} accentColor="default" delay={50} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="One-Call Close Rate" value={t.oneCallCloseRate + '%'} trend={t.oneCallCloseTrend} icon={CheckCircle} accentColor="green" delay={100} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Dials / Hour" value={t.avgDialsPerHour} trend={t.dialsPerHourTrend} icon={Timer} accentColor="default" delay={150} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Refund Rate" value={t.refundRate + '%'} trend={t.refundRateTrend * -1} icon={ShieldCheck} accentColor="green" delay={200} trendLabel="fewer refunds" /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Net Revenue (30d)" value={formatCurrency(t.netRevenueRetained30d)} trend={t.netRetainedTrend} icon={DollarSign} accentColor="green" delay={250} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} /></div>
-          <div className="w-[calc((100vw-240px-48px-80px)/6)] min-w-[200px] flex-shrink-0"><MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={350} /></div>
+      {/* ===== METRIC PAGE TOGGLE ===== */}
+      <div className="flex items-center justify-center relative z-10">
+        <div className="glass-surface inline-flex rounded-xl p-1">
+          <button
+            onClick={function() { setMetricPage('performance'); }}
+            className={metricPage === 'performance'
+              ? 'px-5 py-2 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
+              : 'px-5 py-2 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
+          >
+            Performance
+          </button>
+          <button
+            onClick={function() { setMetricPage('pipeline'); }}
+            className={metricPage === 'pipeline'
+              ? 'px-5 py-2 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
+              : 'px-5 py-2 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
+          >
+            Pipeline &amp; Health
+          </button>
         </div>
+      </div>
+
+      {/* ===== KPI CARDS — 8 at a time ===== */}
+      <div key={metricPage} className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
+        {metricPage === 'performance' ? (
+          <>
+            <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} trendLabel="vs prev 30d" icon={DollarSign} accentColor="red" delay={0} />
+            <MetricCard label="Total Closes" value={formatNumber(t.totalCloses)} trend={t.closesTrend} trendLabel="vs prev 30d" icon={Target} accentColor="green" delay={50} />
+            <MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} delay={100} />
+            <MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} delay={150} />
+            <MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={200} />
+            <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={250} />
+            <MetricCard label="One-Call Close Rate" value={t.oneCallCloseRate + '%'} trend={t.oneCallCloseTrend} icon={CheckCircle} accentColor="green" delay={300} />
+            <MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} delay={350} />
+          </>
+        ) : (
+          <>
+            <MetricCard label="Booked This Week" value={String(t.bookedCallsThisWeek)} trend={t.bookedCallsTrend} icon={Calendar} delay={0} />
+            <MetricCard label="Show Rate" value={t.showRate + '%'} trend={t.showRateTrend} icon={UserCheck} delay={50} />
+            <MetricCard label="Pipeline Value" value={formatCurrency(t.pipelineValue)} trend={t.pipelineValueTrend} icon={TrendingUp} accentColor="green" delay={100} />
+            <MetricCard label="Avg Days to Close" value={String(t.avgDaysToClose)} trend={t.daysToCloseTrend ? t.daysToCloseTrend * -1 : 0} trendLabel="faster closing" icon={Clock} accentColor="green" delay={150} />
+            <MetricCard label="Refund Rate" value={t.refundRate + '%'} trend={t.refundRateTrend ? t.refundRateTrend * -1 : 0} trendLabel="fewer refunds" icon={ShieldCheck} accentColor="green" delay={200} />
+            <MetricCard label="Net Revenue (30d)" value={formatCurrency(t.netRevenueRetained30d)} trend={t.netRetainedTrend} icon={DollarSign} accentColor="green" delay={250} />
+            <MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} />
+            <MetricCard label="Dials / Hour" value={String(t.avgDialsPerHour)} trend={t.dialsPerHourTrend} icon={Timer} delay={350} />
+          </>
+        )}
+      </div>
+
+      {/* ===== PAGE INDICATOR DOTS ===== */}
+      <div className="flex items-center justify-center gap-2 relative z-10">
+        <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'performance' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
+        <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'pipeline' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
       </div>
 
       {/* Row 6 — Charts */}
