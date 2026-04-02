@@ -1,8 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Filter, FileText } from 'lucide-react';
 import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
-import { recentEODs, closers } from '@/lib/mock-data';
 import EmptyState from '@/components/EmptyState';
 
 function StatusBadge({ status }) {
@@ -13,14 +12,31 @@ function StatusBadge({ status }) {
 export default function EODLogsPage() {
   var s1 = useState('all'), filterCloser = s1[0], setFilterCloser = s1[1];
   var s2 = useState('all'), filterStatus = s2[0], setFilterStatus = s2[1];
+  var s3 = useState([]), liveEODs = s3[0], setLiveEODs = s3[1];
+  var s4 = useState([]), closerNames = s4[0], setCloserNames = s4[1];
 
-  var totalCash = recentEODs.reduce(function(s, e) { return s + e.cashCollected; }, 0);
-  var totalCloses = recentEODs.reduce(function(s, e) { return s + e.closes; }, 0);
-  var totalDials = recentEODs.reduce(function(s, e) { return s + e.totalDials; }, 0);
-  var submitted = recentEODs.filter(function(e) { return e.status === 'submitted'; }).length;
+  useEffect(function() {
+    fetch('/api/webhooks/eod-report')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success && data.data) {
+          setLiveEODs(data.data);
+          // Extract unique closer names for filter
+          var names = {};
+          data.data.forEach(function(e) { names[e.closerName] = true; });
+          setCloserNames(Object.keys(names));
+        }
+      })
+      .catch(function() {});
+  }, []);
 
-  var filtered = recentEODs.filter(function(e) {
-    if (filterCloser !== 'all' && e.closerId !== filterCloser) return false;
+  var totalCash = liveEODs.reduce(function(s, e) { return s + e.cashCollected; }, 0);
+  var totalCloses = liveEODs.reduce(function(s, e) { return s + e.closes; }, 0);
+  var totalDials = liveEODs.reduce(function(s, e) { return s + e.totalDials; }, 0);
+  var submitted = liveEODs.filter(function(e) { return e.status === 'submitted'; }).length;
+
+  var filtered = liveEODs.filter(function(e) {
+    if (filterCloser !== 'all' && e.closerName !== filterCloser) return false;
     if (filterStatus !== 'all' && e.status !== filterStatus) return false;
     return true;
   });
@@ -30,9 +46,7 @@ export default function EODLogsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-2xl font-bold text-crm-text-bright">EOD Logs</h1>
         <div className="flex items-center gap-3">
-          <button className="btn-ghost p-2"><ChevronLeft className="w-4 h-4" /></button>
-          <span className="text-sm font-mono text-crm-text-bright">March 31, 2026</span>
-          <button className="btn-ghost p-2"><ChevronRight className="w-4 h-4" /></button>
+          <span className="text-sm font-mono text-crm-text-bright">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </div>
       </div>
 
@@ -42,7 +56,7 @@ export default function EODLogsPage() {
           { label: 'Total Cash', value: formatCurrency(totalCash), color: 'metric-positive' },
           { label: 'Total Closes', value: totalCloses, color: 'text-crm-text-bright' },
           { label: 'Total Dials', value: totalDials, color: 'text-crm-text-bright' },
-          { label: 'Submitted', value: recentEODs.length > 0 ? submitted + '/' + recentEODs.length : '0', color: submitted === recentEODs.length && recentEODs.length > 0 ? 'metric-positive' : 'text-crm-muted' },
+          { label: 'Submitted', value: liveEODs.length > 0 ? submitted + '/' + liveEODs.length : '0', color: submitted === liveEODs.length && liveEODs.length > 0 ? 'metric-positive' : 'text-crm-muted' },
         ].map(function(s, idx) {
           return (
             <div key={s.label} className={'glass-card p-4 stagger-' + (idx + 1)}>
@@ -58,7 +72,7 @@ export default function EODLogsPage() {
         <Filter className="w-4 h-4 text-crm-muted" />
         <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5">
           <option value="all">All Closers</option>
-          {closers.map(function(c) { return <option key={c.id} value={c.id}>{c.name}</option>; })}
+          {closerNames.map(function(name) { return <option key={name} value={name}>{name}</option>; })}
         </select>
         <select value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} className="input-field w-auto py-1.5">
           <option value="all">All Status</option>

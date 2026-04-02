@@ -5,35 +5,25 @@ import { Phone, DollarSign, ClipboardCheck, ExternalLink, AlertTriangle, Clock }
 import Link from 'next/link';
 import { getFormConfig } from '@/lib/form-config';
 
-var SUBMISSIONS_KEY = 'summit-crm-submissions';
-
-var sampleSubmissions = [];
-
 var typeBadge = {
   'book-call': { label: 'Booked Call', cls: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20' },
   'close-deal': { label: 'Closed Deal', cls: 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' },
   'eod-report': { label: 'EOD Report', cls: 'bg-white/5 text-crm-muted border border-crm-border' },
 };
 
-function loadSubmissions() {
-  if (typeof window === 'undefined') return [];
-  try {
-    var stored = localStorage.getItem(SUBMISSIONS_KEY);
-    if (stored) {
-      var parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {}
-  localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(sampleSubmissions));
-  return sampleSubmissions;
-}
-
 export default function SubmitPage() {
   var s1 = useState(false), showAlert = s1[0], setShowAlert = s1[1];
   var s2 = useState([]), submissions = s2[0], setSubmissions = s2[1];
 
   useEffect(function () {
-    setSubmissions(loadSubmissions());
+    fetch('/api/dashboard')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success && data.activity) {
+          setSubmissions(data.activity);
+        }
+      })
+      .catch(function() {});
   }, []);
 
   function handleOpenForm(formType) {

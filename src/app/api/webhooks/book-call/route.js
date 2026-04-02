@@ -1,47 +1,22 @@
 import { NextResponse } from 'next/server';
+import { addBookedCall, getStore } from '@/lib/store';
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-
-    const {
-      closerName = '',
-      leadName = '',
-      leadPhone = '',
-      leadEmail = '',
-      leadSource = 'inbound',
-      channel = '',
-      callDateTime = '',
-      notes = '',
-    } = body;
-
-    if (!closerName || !leadName) {
-      return NextResponse.json({ error: 'closerName and leadName are required' }, { status: 400 });
+    var body = await req.json();
+    if (!body.closerName || !body.leadName) {
+      return NextResponse.json({ error: 'closerName and leadName required' }, { status: 400 });
     }
-
-    const submission = {
-      id: `book-${Date.now()}`,
-      type: 'book-call',
-      closerName,
-      leadName,
-      leadPhone,
-      leadEmail,
-      leadSource,
-      channel,
-      callDateTime,
-      notes,
-      submittedAt: new Date().toISOString(),
-    };
-
-    console.log('[Book Call Webhook]', JSON.stringify(submission));
-
-    return NextResponse.json({ success: true, submission });
-  } catch (error) {
-    console.error('[Book Call Webhook Error]', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    var entry = addBookedCall(body);
+    console.log('[Book Call]', entry.closerName, '->', entry.leadName);
+    return NextResponse.json({ success: true, submission: entry });
+  } catch (e) {
+    console.error('[Book Call Error]', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ status: 'ok', endpoint: 'book-call', method: 'POST required' });
+  var store = getStore();
+  return NextResponse.json({ success: true, data: store.bookedCalls });
 }
