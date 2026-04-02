@@ -1,5 +1,9 @@
-// In-memory data store — persists while the server is running
-// Resets on deploy/restart. Replace with database later.
+// In-memory data store with PostgreSQL persistence
+// Data is cached in memory for fast reads, written to DB on every write
+// On server start, data is loaded from DB into memory
+
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
+import { loadCustomMessagesFromDB } from '@/lib/scheduler';
 
 var store = {
   bookedCalls: [],
@@ -8,6 +12,42 @@ var store = {
   commissionRates: {},    // { "email@example.com": { rate: 0.10, name: "Marcus" } }
   closerProfiles: {},     // { "email": { name: "Marcus Johnson", email: "marcus@gmail.com", registeredAt: "..." } }
 };
+
+var dbLoaded = false;
+
+export async function initStore() {
+  if (dbLoaded) return;
+  dbLoaded = true;
+
+  var dbReady = await initDatabase();
+  if (!dbReady) {
+    console.log('[Store] Running in memory-only mode (no database)');
+    return;
+  }
+
+  var data = await loadFromDatabase();
+  if (data) {
+    store.bookedCalls = data.bookedCalls || [];
+    store.closedDeals = data.closedDeals || [];
+    store.eodReports = data.eodReports || [];
+    store.closerProfiles = data.closerProfiles || {};
+    store.commissionRates = data.commissionRates || {};
+
+    console.log('[Store] Loaded from database:',
+      store.bookedCalls.length, 'booked calls,',
+      store.closedDeals.length, 'deals,',
+      store.eodReports.length, 'EODs,',
+      Object.keys(store.closerProfiles).length, 'closers'
+    );
+
+    recalcOverview();
+
+    // Load custom messages into scheduler
+    if (data.customMessages && data.customMessages.length > 0) {
+      loadCustomMessagesFromDB(data.customMessages);
+    }
+  }
+}
 
 export function getStore() {
   return store;
@@ -35,6 +75,7 @@ export function addBookedCall(data) {
   store.bookedCalls.unshift(entry);
   if (store.bookedCalls.length > 500) store.bookedCalls = store.bookedCalls.slice(0, 500);
   recalcOverview();
+  saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   return entry;
 }
 
@@ -62,6 +103,7 @@ export function addClosedDeal(data) {
   store.closedDeals.unshift(entry);
   if (store.closedDeals.length > 500) store.closedDeals = store.closedDeals.slice(0, 500);
   recalcOverview();
+  saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save deal error:', e.message); });
   return entry;
 }
 
@@ -93,6 +135,7 @@ export function addEODReport(data) {
   store.eodReports.unshift(entry);
   if (store.eodReports.length > 500) store.eodReports = store.eodReports.slice(0, 500);
   recalcOverview();
+  saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   return entry;
 }
 
@@ -339,11 +382,13 @@ export function getBookedCallsForDate(dateStr) {
 // ============================================
 
 export function setCommissionRate(email, rate, name) {
-  store.commissionRates[email.toLowerCase()] = {
+  var key = email.toLowerCase();
+  store.commissionRates[key] = {
     rate: parseFloat(rate) || 0.10,
     name: name || email,
     updatedAt: new Date().toISOString(),
   };
+  saveCommissionRate(email, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save rate error:', e.message); });
 }
 
 export function getCommissionRate(email) {
@@ -453,6 +498,7 @@ export function updateCommissionStatus(dealId, status) {
   for (var i = 0; i < store.closedDeals.length; i++) {
     if (store.closedDeals[i].id === dealId) {
       store.closedDeals[i].commissionStatus = status;
+      updateDealInDB(store.closedDeals[i]).catch(function(e) { console.error('[DB] Update deal error:', e.message); });
       return store.closedDeals[i];
     }
   }
@@ -486,6 +532,10 @@ export function registerCloser(email, name) {
     };
   }
   console.log('[Store] Registered closer:', name, '(' + key + ')');
+  saveCloserProfile(key, store.closerProfiles[key]).catch(function(e) { console.error('[DB] Save profile error:', e.message); });
+  if (store.commissionRates[key]) {
+    saveCommissionRate(key, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save rate error:', e.message); });
+  }
   return store.closerProfiles[key];
 }
 

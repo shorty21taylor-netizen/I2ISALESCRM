@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { addBookedCall, getStore, registerCloser } from '@/lib/store';
+import { addBookedCall, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.leadsName) {
       return NextResponse.json({ error: 'leadsName required' }, { status: 400 });

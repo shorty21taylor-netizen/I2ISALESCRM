@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { updateCommissionStatus } from '@/lib/store';
+import { updateCommissionStatus, initStore } from '@/lib/store';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.dealId || !body.status) {
       return NextResponse.json({ error: 'dealId and status required' }, { status: 400 });

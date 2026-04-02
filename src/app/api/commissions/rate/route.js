@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { setCommissionRate, getAllCommissionRates } from '@/lib/store';
+import { setCommissionRate, getAllCommissionRates, initStore } from '@/lib/store';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.email || body.rate === undefined) {
       return NextResponse.json({ error: 'email and rate required' }, { status: 400 });

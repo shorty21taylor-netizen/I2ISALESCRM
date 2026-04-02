@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore } from '@/lib/store';
+import { getAllCloserProfiles, getStore, initStore } from '@/lib/store';
 
 export async function GET() {
   try {
+    await initStore();
     var profiles = getAllCloserProfiles();
     var store = getStore();
     var today = new Date().toISOString().split('T')[0];

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { addEODReport, getStore, registerCloser } from '@/lib/store';
+import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.salesRep) {
       return NextResponse.json({ error: 'salesRep required' }, { status: 400 });

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { addClosedDeal, getStore, registerCloser } from '@/lib/store';
+import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });

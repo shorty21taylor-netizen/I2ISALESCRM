@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getOverview, getCloserBreakdown, getRecentActivity, getStore } from '@/lib/store';
+import { getOverview, getCloserBreakdown, getRecentActivity, getStore, initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    await initStore();
     var overview = getOverview();
     var closers = getCloserBreakdown();
     var activity = getRecentActivity(20);

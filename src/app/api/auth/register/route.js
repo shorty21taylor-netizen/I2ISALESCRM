@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { registerCloser, getAllCloserProfiles } from '@/lib/store';
+import { registerCloser, getAllCloserProfiles, initStore } from '@/lib/store';
 
 export async function POST(req) {
   try {
+    await initStore();
     var body = await req.json();
     if (!body.email || !body.name) {
       return NextResponse.json({ error: 'email and name required' }, { status: 400 });

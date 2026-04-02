@@ -3,6 +3,7 @@
 // All times are timezone-aware, skips weekends
 
 import { getBookedCallsForDate, getStore } from '@/lib/store';
+import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageFromDB } from '@/lib/db';
 
 var schedule = {
   eodReminder: { hour: 20, minute: 0, enabled: true, lastRun: null },
@@ -251,11 +252,13 @@ export function addCustomMessage(msg) {
     createdAt: new Date().toISOString(),
   };
   config.customMessages.push(entry);
+  saveCustomMessageDB(entry).catch(function(e) { console.error('[DB] Save message error:', e.message); });
   return entry;
 }
 
 export function removeCustomMessage(id) {
   config.customMessages = config.customMessages.filter(function(m) { return m.id !== id; });
+  deleteCustomMessageFromDB(id).catch(function(e) { console.error('[DB] Delete message error:', e.message); });
 }
 
 export function updateCustomMessage(id, updates) {
@@ -273,6 +276,7 @@ export function updateCustomMessage(id, updates) {
     if (updates.dayOfWeek !== undefined) msg.dayOfWeek = parseInt(updates.dayOfWeek);
     if (updates.date !== undefined) msg.date = updates.date;
     if (updates.includeWeekends !== undefined) msg.includeWeekends = updates.includeWeekends;
+    saveCustomMessageDB(msg).catch(function(e) { console.error('[DB] Update message error:', e.message); });
   }
   return msg;
 }
@@ -359,6 +363,13 @@ async function tick() {
 // ============================================
 // INIT / STOP
 // ============================================
+
+export function loadCustomMessagesFromDB(messages) {
+  if (messages && messages.length > 0) {
+    config.customMessages = messages;
+    console.log('[Scheduler] Loaded', messages.length, 'custom messages from DB');
+  }
+}
 
 export function initScheduler(baseUrl) {
   if (running) return;
