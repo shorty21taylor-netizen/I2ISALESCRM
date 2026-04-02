@@ -413,24 +413,53 @@ export function updateCommissionStatus(dealId, status) {
 
 export function registerCloser(email, name) {
   if (!email) return;
-  store.closerProfiles[email.toLowerCase()] = {
-    name: name,
-    email: email.toLowerCase(),
-    registeredAt: new Date().toISOString(),
-  };
-  if (!store.commissionRates[email.toLowerCase()]) {
-    store.commissionRates[email.toLowerCase()] = {
+  var key = email.toLowerCase().trim();
+  if (store.closerProfiles[key]) {
+    // Update existing profile login time and name if provided
+    store.closerProfiles[key].lastLogin = new Date().toISOString();
+    if (name) store.closerProfiles[key].name = name;
+  } else {
+    store.closerProfiles[key] = {
+      name: name || email,
+      email: key,
+      registeredAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+    };
+  }
+  if (!store.commissionRates[key]) {
+    store.commissionRates[key] = {
       rate: 0.10,
-      name: name,
+      name: name || email,
       updatedAt: new Date().toISOString(),
     };
+  }
+  console.log('[Store] Registered closer:', name, '(' + key + ')');
+  return store.closerProfiles[key];
+}
+
+export function updateCloserLogin(email) {
+  if (!email) return;
+  var key = email.toLowerCase().trim();
+  if (store.closerProfiles[key]) {
+    store.closerProfiles[key].lastLogin = new Date().toISOString();
   }
 }
 
 export function getCloserNameByEmail(email) {
   if (!email) return null;
-  var profile = store.closerProfiles[email.toLowerCase()];
+  var profile = store.closerProfiles[email.toLowerCase().trim()];
   return profile ? profile.name : null;
+}
+
+export function getCloserEmailByName(name) {
+  if (!name) return null;
+  var keys = Object.keys(store.closerProfiles);
+  for (var i = 0; i < keys.length; i++) {
+    if (store.closerProfiles[keys[i]].name && store.closerProfiles[keys[i]].name.toLowerCase() === name.toLowerCase()) {
+      return keys[i];
+    }
+  }
+  return null;
 }
 
 export function getAllCloserProfiles() {

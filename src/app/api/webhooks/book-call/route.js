@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addBookedCall, getStore } from '@/lib/store';
+import { addBookedCall, getStore, registerCloser } from '@/lib/store';
 import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
@@ -9,6 +9,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'leadsName required' }, { status: 400 });
     }
     var entry = addBookedCall(body);
+    // Auto-register closer on submission
+    if (body.closerEmail || body.closer) {
+      registerCloser(body.closerEmail || '', body.closer || '');
+    }
     console.log('[Book Call]', entry.closer || entry.setter, '->', entry.leadsName);
 
     // Send WhatsApp notification to team group

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addClosedDeal, getStore } from '@/lib/store';
+import { addClosedDeal, getStore, registerCloser } from '@/lib/store';
 import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
@@ -9,6 +9,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });
     }
     var entry = addClosedDeal(body);
+    // Auto-register closer on submission
+    if (body.closerEmail || body.closer) {
+      registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
+    }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
 
     // Send WhatsApp celebration to team group

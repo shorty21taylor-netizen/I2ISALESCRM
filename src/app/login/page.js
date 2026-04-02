@@ -21,6 +21,12 @@ export default function LoginPage() {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     saveUser({ name: name.trim(), email: email.trim().toLowerCase(), role: 'closer', joinedAt: new Date().toISOString() });
+    // Register the closer in the CRM store
+    fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() }),
+    }).catch(function() {});
     router.push('/verify');
   }
 

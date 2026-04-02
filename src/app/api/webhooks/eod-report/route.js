@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addEODReport, getStore } from '@/lib/store';
+import { addEODReport, getStore, registerCloser } from '@/lib/store';
 
 export async function POST(req) {
   try {
@@ -8,6 +8,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'salesRep required' }, { status: 400 });
     }
     var entry = addEODReport(body);
+    // Auto-register closer on submission
+    if (body.closerEmail || body.salesRep) {
+      registerCloser(body.closerEmail || '', body.salesRep || body.closerName || '');
+    }
     var totalCash = entry.cashCollectedMYFM + entry.cashCollectedI2I;
     console.log('[EOD]', entry.salesRep, '- dials:', entry.outboundDials, 'closes:', entry.closes, 'cash:', totalCash);
     return NextResponse.json({ success: true, submission: entry });
