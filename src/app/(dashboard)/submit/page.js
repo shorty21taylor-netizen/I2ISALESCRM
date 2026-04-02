@@ -246,23 +246,24 @@ export default function SubmitPage() {
               <span className="section-tag">Sends to WhatsApp</span>
             </div>
             <form onSubmit={handleSubmitBookCall} className="p-6 space-y-5">
+              <div className="form-section-title">Lead Information</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Lead&apos;s Name *</label>
+                  <label className="form-label form-label-required">Lead&apos;s Name</label>
                   <input type="text" value={bcLeadsName} onChange={function(e) { setBcLeadsName(e.target.value); }} className="input-field" placeholder="John Smith" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Lead&apos;s Phone</label>
+                  <label className="form-label">Lead&apos;s Phone</label>
                   <input type="text" value={bcLeadsPhone} onChange={function(e) { setBcLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Program</label>
+                  <label className="form-label">Program</label>
                   <input type="text" value={bcProgram} onChange={function(e) { setBcProgram(e.target.value); }} className="input-field" placeholder="e.g. MYFM, I2I, Coaching" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Qualified?</label>
+                  <label className="form-label">Qualified?</label>
                   <select value={bcQualified} onChange={function(e) { setBcQualified(e.target.value); }} className="input-field">
                     <option value="yes">Yes</option>
                     <option value="no">No</option>
@@ -270,29 +271,33 @@ export default function SubmitPage() {
                   </select>
                 </div>
               </div>
+
+              <div className="form-section-title">Scheduling</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Booked Day</label>
+                  <label className="form-label">Booked Day</label>
                   <input type="date" value={bcBookedDay} onChange={function(e) { setBcBookedDay(e.target.value); }} className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Booked Time</label>
+                  <label className="form-label">Booked Time</label>
                   <input type="time" value={bcBookedTime} onChange={function(e) { setBcBookedTime(e.target.value); }} className="input-field" />
                 </div>
               </div>
+
+              <div className="form-section-title">Team</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Setter</label>
+                  <label className="form-label">Setter</label>
                   <input type="text" value={bcSetter} onChange={function(e) { setBcSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Closer</label>
+                  <label className="form-label">Closer</label>
                   <input type="text" value={bcCloser} onChange={function(e) { setBcCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Source</label>
+                  <label className="form-label">Source</label>
                   <select value={bcSource} onChange={function(e) { setBcSource(e.target.value); }} className="input-field">
                     <option value="inbound">Inbound</option>
                     <option value="outbound">Outbound</option>
@@ -300,7 +305,7 @@ export default function SubmitPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Notes</label>
+                <label className="form-label">Notes</label>
                 <textarea value={bcNotes} onChange={function(e) { setBcNotes(e.target.value); }} className="input-field" rows={3} placeholder="Any additional notes..." />
               </div>
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
@@ -319,53 +324,58 @@ export default function SubmitPage() {
               <span className="section-tag">Sends celebration to WhatsApp</span>
             </div>
             <form onSubmit={handleSubmitCloseDeal} className="p-6 space-y-5">
+              <div className="form-section-title">Lead Information</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Lead&apos;s Name *</label>
+                  <label className="form-label form-label-required">Lead&apos;s Name</label>
                   <input type="text" value={cdLeadsName} onChange={function(e) { setCdLeadsName(e.target.value); }} className="input-field" placeholder="John Smith" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Lead&apos;s Phone</label>
+                  <label className="form-label">Lead&apos;s Phone</label>
                   <input type="text" value={cdLeadsPhone} onChange={function(e) { setCdLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Lead&apos;s Email</label>
+                  <label className="form-label">Lead&apos;s Email</label>
                   <input type="email" value={cdLeadsEmail} onChange={function(e) { setCdLeadsEmail(e.target.value); }} className="input-field" placeholder="john@email.com" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Program</label>
+                  <label className="form-label">Program</label>
                   <input type="text" value={cdProgram} onChange={function(e) { setCdProgram(e.target.value); }} className="input-field" placeholder="e.g. MYFM, I2I, Coaching" />
                 </div>
               </div>
+
+              <div className="form-section-title">Payment</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Payment Details</label>
+                  <label className="form-label">Payment Details</label>
                   <input type="text" value={cdPaymentDetails} onChange={function(e) { setCdPaymentDetails(e.target.value); }} className="input-field" placeholder="Full pay, 3-pay, etc." />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Payment Processor</label>
+                  <label className="form-label">Payment Processor</label>
                   <input type="text" value={cdPaymentProcessor} onChange={function(e) { setCdPaymentProcessor(e.target.value); }} className="input-field" placeholder="Stripe, PayPal, etc." />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Payment Agreement</label>
+                  <label className="form-label">Payment Agreement</label>
                   <input type="text" value={cdPaymentAgreement} onChange={function(e) { setCdPaymentAgreement(e.target.value); }} className="input-field" placeholder="Agreement URL or details" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Cash Collected *</label>
+                  <label className="form-label form-label-required">Cash Collected</label>
                   <input type="number" value={cdCashCollected} onChange={function(e) { setCdCashCollected(e.target.value); }} className="input-field" placeholder="5500" required />
                 </div>
               </div>
+
+              <div className="form-section-title">Team</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Setter</label>
+                  <label className="form-label">Setter</label>
                   <input type="text" value={cdSetter} onChange={function(e) { setCdSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Closer</label>
+                  <label className="form-label">Closer</label>
                   <input type="text" value={cdCloser} onChange={function(e) { setCdCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
                 </div>
               </div>
@@ -387,83 +397,78 @@ export default function SubmitPage() {
             <form onSubmit={handleSubmitEOD} className="p-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Sales Rep *</label>
+                  <label className="form-label form-label-required">Sales Rep</label>
                   <input type="text" value={eodSalesRep} onChange={function(e) { setEodSalesRep(e.target.value); }} className="input-field" placeholder="Your name" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Date</label>
+                  <label className="form-label">Date</label>
                   <input type="date" value={eodDate} onChange={function(e) { setEodDate(e.target.value); }} className="input-field" />
                 </div>
               </div>
 
-              <div className="border-t border-crm-border/30 pt-4">
-                <h4 className="text-xs font-mono text-crm-muted uppercase tracking-wider mb-3">Call Metrics</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Net New Calls Booked</label>
-                    <input type="number" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Calls on Calendar</label>
-                    <input type="number" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Calls Taken</label>
-                    <input type="number" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">No-Showed</label>
-                    <input type="number" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Canceled</label>
-                    <input type="number" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Rescheduled</label>
-                    <input type="number" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
+              <div className="form-section-title">Call Metrics</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="form-label">Net New Calls Booked</label>
+                  <input type="number" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Calls on Calendar</label>
+                  <input type="number" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Calls Taken</label>
+                  <input type="number" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">No-Showed</label>
+                  <input type="number" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Canceled</label>
+                  <input type="number" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Rescheduled</label>
+                  <input type="number" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
-              <div className="border-t border-crm-border/30 pt-4">
-                <h4 className="text-xs font-mono text-crm-muted uppercase tracking-wider mb-3">Performance</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Calls Taken &amp; Pitched</label>
-                    <input type="number" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Closes</label>
-                    <input type="number" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Outbound Dials</label>
-                    <input type="number" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
+              <div className="form-section-title">Performance</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="form-label">Calls Taken &amp; Pitched</label>
+                  <input type="number" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Closes</label>
+                  <input type="number" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Outbound Dials</label>
+                  <input type="number" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
-              <div className="border-t border-crm-border/30 pt-4">
-                <h4 className="text-xs font-mono text-crm-muted uppercase tracking-wider mb-3">Revenue</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Cash Collected (MYFM)</label>
-                    <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Cash Collected (I2I)</label>
-                    <input type="number" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-crm-muted mb-1">Revenue on Day</label>
-                    <input type="number" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
-                  </div>
+              <div className="form-section-title">Revenue</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="form-label">Cash Collected (MYFM)</label>
+                  <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Cash Collected (I2I)</label>
+                  <input type="number" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label className="form-label">Revenue on Day</label>
+                  <input type="number" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
+              <div className="form-section-title">Improvement Plan</div>
               <div>
-                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Improvement Plan</label>
+                <label className="form-label">What will you improve?</label>
                 <textarea value={eodPlan} onChange={function(e) { setEodPlan(e.target.value); }} className="input-field" rows={3} placeholder="What will you improve tomorrow? What worked today?" />
               </div>
 
