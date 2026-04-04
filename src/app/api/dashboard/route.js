@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore } from '@/lib/store';
+import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET(req) {
+  await initStore();
   try {
     var url = new URL(req.url);
     var start = url.searchParams.get('start');

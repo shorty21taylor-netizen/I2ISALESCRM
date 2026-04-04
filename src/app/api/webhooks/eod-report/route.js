@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { addEODReport, getStore, registerCloser } from '@/lib/store';
+import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     if (!body.salesRep) {
@@ -22,6 +23,7 @@ export async function POST(req) {
 }
 
 export async function GET() {
+  await initStore();
   var store = getStore();
   return NextResponse.json({ success: true, data: store.eodReports });
 }

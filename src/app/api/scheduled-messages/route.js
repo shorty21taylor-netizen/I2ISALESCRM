@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { addCustomMessage, removeCustomMessage, updateCustomMessage, getCustomMessages, getSchedulerConfig, sendCustomMessageNow } from '@/lib/scheduler';
+import { initStore } from '@/lib/store';
 
 export async function GET() {
+  await initStore();
   return NextResponse.json({ success: true, messages: getCustomMessages() });
 }
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
 

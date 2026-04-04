@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { addClosedDeal, getStore, registerCloser } from '@/lib/store';
+import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     if (!body.leadsName || !body.cashCollected) {
@@ -36,6 +37,7 @@ export async function POST(req) {
 }
 
 export async function GET() {
+  await initStore();
   var store = getStore();
   return NextResponse.json({ success: true, data: store.closedDeals });
 }

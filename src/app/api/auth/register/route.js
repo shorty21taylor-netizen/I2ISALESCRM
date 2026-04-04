@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { registerCloser, getAllCloserProfiles } from '@/lib/store';
+import { registerCloser, getAllCloserProfiles, initStore } from '@/lib/store';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     if (!body.email || !body.name) {
@@ -17,5 +18,6 @@ export async function POST(req) {
 }
 
 export async function GET() {
+  await initStore();
   return NextResponse.json({ success: true, closers: getAllCloserProfiles() });
 }

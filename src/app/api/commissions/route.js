@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getCommissionsForCloser, getAllCommissions, getAllCommissionRates } from '@/lib/store';
+import { getCommissionsForCloser, getAllCommissions, getAllCommissionRates, initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET(req) {
+  await initStore();
   try {
     var url = new URL(req.url);
     var closerName = url.searchParams.get('closer');

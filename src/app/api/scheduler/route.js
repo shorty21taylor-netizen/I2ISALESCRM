@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSchedulerState, updateSchedulerConfig, initScheduler, runEODReminder, runMorningDigest, runAdminMorningReport } from '@/lib/scheduler';
+import { initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET() {
+  await initStore();
   try {
     var state = getSchedulerState();
     return NextResponse.json({ success: true, scheduler: state });
@@ -13,6 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
 

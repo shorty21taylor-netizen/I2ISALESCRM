@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore } from '@/lib/store';
+import { getAllCloserProfiles, getStore, initStore } from '@/lib/store';
 
 export async function GET() {
+  await initStore();
   try {
     var profiles = getAllCloserProfiles();
     var store = getStore();

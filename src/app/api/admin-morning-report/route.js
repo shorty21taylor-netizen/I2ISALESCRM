@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getDailyTeamSummary, getStore } from '@/lib/store';
+import { getDailyTeamSummary, getStore, initStore } from '@/lib/store';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
 
