@@ -10,17 +10,22 @@ function getPool() {
       console.log('[DB] No DATABASE_URL — running without database (in-memory only)');
       return null;
     }
+
+    // Railway internal URLs don't need SSL. Public URLs do.
+    var isInternal = connectionString.includes('.railway.internal');
+
     pool = new Pool({
       connectionString: connectionString,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: isInternal ? false : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
     pool.on('error', function(err) {
       console.error('[DB] Pool error:', err.message);
+      pool = null;
     });
-    console.log('[DB] Pool created');
+    console.log('[DB] Pool created (' + (isInternal ? 'internal' : 'public') + ' connection)');
   }
   return pool;
 }
@@ -32,6 +37,9 @@ export async function query(text, params) {
     return await p.query(text, params);
   } catch (e) {
     console.error('[DB] Query error:', e.message, '| Query:', text.substring(0, 80));
+    if (e.message.includes('Connection terminated') || e.message.includes('ECONNREFUSED')) {
+      pool = null;
+    }
     throw e;
   }
 }

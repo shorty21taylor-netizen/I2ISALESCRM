@@ -22,26 +22,30 @@ export async function initStore() {
   if (dbLoaded) return;
   dbLoaded = true;
 
-  var dbReady = await initDatabase();
-  if (!dbReady) {
-    console.log('[Store] Running in memory-only mode (no database)');
-    return;
-  }
+  try {
+    var dbReady = await initDatabase();
+    if (!dbReady) {
+      console.log('[Store] Running in memory-only mode (no database)');
+      return;
+    }
 
-  var data = await loadFromDatabase();
-  if (data) {
-    store.bookedCalls = data.bookedCalls || [];
-    store.closedDeals = data.closedDeals || [];
-    store.eodReports = data.eodReports || [];
-    store.closerProfiles = data.closerProfiles || {};
-    store.commissionRates = data.commissionRates || {};
-    console.log('[Store] Loaded from DB:',
-      store.bookedCalls.length, 'booked,',
-      store.closedDeals.length, 'deals,',
-      store.eodReports.length, 'EODs,',
-      Object.keys(store.closerProfiles).length, 'closers'
-    );
-    recalcOverview();
+    var data = await loadFromDatabase();
+    if (data) {
+      store.bookedCalls = data.bookedCalls || [];
+      store.closedDeals = data.closedDeals || [];
+      store.eodReports = data.eodReports || [];
+      store.closerProfiles = data.closerProfiles || {};
+      store.commissionRates = data.commissionRates || {};
+      console.log('[Store] Loaded from DB:',
+        store.bookedCalls.length, 'booked,',
+        store.closedDeals.length, 'deals,',
+        store.eodReports.length, 'EODs,',
+        Object.keys(store.closerProfiles).length, 'closers'
+      );
+      recalcOverview();
+    }
+  } catch (e) {
+    console.error('[Store] Init error:', e.message);
   }
 }
 

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { setWhatsAppConfig, getWhatsAppConfig, isWhatsAppConfigured } from '@/lib/whatsapp';
 import { updateSchedulerConfig, initScheduler } from '@/lib/scheduler';
+import { initStore } from '@/lib/store';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
 
@@ -38,6 +40,7 @@ export async function POST(req) {
 }
 
 export async function GET() {
+  await initStore();
   try {
     var config = getWhatsAppConfig();
     return NextResponse.json({
