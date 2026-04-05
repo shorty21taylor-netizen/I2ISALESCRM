@@ -142,6 +142,94 @@ export default function SettingsPage() {
       });
   }
 
+  // Fire a scheduled message NOW using the SAVED localStorage config — bypasses the
+  // server-side scheduler state entirely so it works even if config wasn't pushed.
+  function runSavedTask(taskType) {
+    setActionResult(null);
+    if (!config.assistroApiUrl) {
+      setActionResult({ success: false, message: 'Save your Assistro API URL first' });
+      setTimeout(function() { setActionResult(null); }, 4000);
+      return;
+    }
+
+    var groupId = '';
+    var phone = '';
+    var message = '';
+    var isDirect = false;
+
+    if (taskType === 'eodReminder') {
+      groupId = config.eodReminderGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
+      message = '⏰ EOD REMINDER ⏰\n'
+        + '═══════════════════════\n\n'
+        + 'Team — time to submit your End of Day report!\n\n'
+        + '👉 Log into Summit CRM → Submit → End of Day\n\n'
+        + 'Don\'t forget:\n'
+        + '📞 Net new calls booked\n'
+        + '🗣️ Calls taken & pitched\n'
+        + '🏆 Closes & cash collected\n'
+        + '📱 Outbound dials\n'
+        + '🔮 Your plan for tomorrow\n\n'
+        + '💪 Get it in before you clock out!\n'
+        + '═══════════════════════';
+    } else if (taskType === 'morningDigest') {
+      groupId = config.morningDigestGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
+      message = '☀️ MORNING CALL DIGEST ☀️\n'
+        + '═══════════════════════\n\n'
+        + 'Good morning team! Here are today\'s booked calls.\n\n'
+        + '👉 Check Summit CRM for the full list\n\n'
+        + '🎯 Let\'s close some deals today!\n'
+        + '═══════════════════════';
+    } else if (taskType === 'adminMorningReport') {
+      phone = config.adminMorningReportPhone || config.adminPhone || '';
+      isDirect = true;
+      message = '📊 ADMIN MORNING REPORT 📊\n'
+        + '═══════════════════════\n\n'
+        + 'Yesterday\'s EOD submissions + MTD breakdown.\n\n'
+        + '👉 Open Summit CRM → Reports for full numbers.\n'
+        + '═══════════════════════';
+    }
+
+    if (!isDirect && !groupId) {
+      setActionResult({ success: false, message: 'Save the Group ID for this task first' });
+      setTimeout(function() { setActionResult(null); }, 4000);
+      return;
+    }
+    if (isDirect && !phone) {
+      setActionResult({ success: false, message: 'Save the admin phone first' });
+      setTimeout(function() { setActionResult(null); }, 4000);
+      return;
+    }
+
+    var endpoint = isDirect ? '/api/notify-direct' : '/api/notify';
+    var payload = {
+      assistroApiUrl: config.assistroApiUrl,
+      assistroApiKey: config.assistroApiKey,
+      message: message,
+    };
+    if (isDirect) payload.phone = phone;
+    else payload.whatsappGroupId = groupId;
+
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        setActionResult({
+          success: !!data.sent,
+          message: data.sent
+            ? '✅ Sent!'
+            : '❌ Failed (' + (data.status || '?') + '): ' + (data.error || data.reason || JSON.stringify(data.result || {}).substring(0, 150)),
+        });
+        setTimeout(function() { setActionResult(null); }, 6000);
+      })
+      .catch(function(e) {
+        setActionResult({ success: false, message: '❌ ' + e.message });
+        setTimeout(function() { setActionResult(null); }, 6000);
+      });
+  }
+
   if (!config) return null;
 
   return (
@@ -450,7 +538,7 @@ export default function SettingsPage() {
                     {config.eodReminderEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-eod-reminder' }); }}
+                    onClick={function() { runSavedTask('eodReminder'); }}
                     className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
                   >
                     <Play className="w-3 h-3" /> Run Now
@@ -480,7 +568,7 @@ export default function SettingsPage() {
                     {config.morningDigestEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-morning-digest' }); }}
+                    onClick={function() { runSavedTask('morningDigest'); }}
                     className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
                   >
                     <Play className="w-3 h-3" /> Run Now
@@ -510,7 +598,7 @@ export default function SettingsPage() {
                     {config.adminMorningReportEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={function() { handleRunNow('/api/scheduler', { action: 'run-admin-report' }); }}
+                    onClick={function() { runSavedTask('adminMorningReport'); }}
                     className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
                   >
                     <Play className="w-3 h-3" /> Run Now
