@@ -16,6 +16,9 @@ export default function SettingsPage() {
   var s8 = useState(null), actionResult = s8[0], setActionResult = s8[1];
   var s9 = useState(false), syncing = s9[0], setSyncing = s9[1];
   var s10 = useState('dark'), currentTheme = s10[0], setCurrentTheme = s10[1];
+  var s11 = useState(false), savedConnection = s11[0], setSavedConnection = s11[1];
+  var s12 = useState(false), savedNotifications = s12[0], setSavedNotifications = s12[1];
+  var s13 = useState(false), savedScheduled = s13[0], setSavedScheduled = s13[1];
 
   useEffect(function() {
     setCurrentTheme(getTheme());
@@ -63,6 +66,14 @@ export default function SettingsPage() {
 
     // Push to server
     syncToServer(config);
+  }
+
+  function saveSection(flagSetter) {
+    // Always persist the FULL config so one section's save never wipes another
+    saveFormConfig(config);
+    syncToServer(config);
+    flagSetter(true);
+    setTimeout(function() { flagSetter(false); }, 2000);
   }
 
   function syncToServer(cfg) {
@@ -301,6 +312,13 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>
+              {savedConnection && <span className="text-xs font-mono text-crm-positive">✓ Saved</span>}
+              <button onClick={function() { saveSection(setSavedConnection); }} className="btn-primary text-sm ml-auto flex items-center gap-2">
+                <Save className="w-3.5 h-3.5" /> Save Connection
+              </button>
+            </div>
           </div>
         </div>
 
@@ -394,6 +412,13 @@ export default function SettingsPage() {
               <button onClick={function() { testGroup('booked', config.bookedCallGroupId); }} className="btn-ghost text-xs">📞 Test Booked</button>
               <button onClick={function() { testGroup('deal', config.closedDealGroupId); }} className="btn-ghost text-xs">💰 Test Deal</button>
               <button onClick={function() { testGroup('eod', config.eodReportGroupId); }} className="btn-ghost text-xs">📋 Test EOD</button>
+            </div>
+
+            <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>
+              {savedNotifications && <span className="text-xs font-mono text-crm-positive">✓ Saved</span>}
+              <button onClick={function() { saveSection(setSavedNotifications); }} className="btn-primary text-sm ml-auto flex items-center gap-2">
+                <Save className="w-3.5 h-3.5" /> Save Notifications
+              </button>
             </div>
           </div>
         </div>
@@ -541,6 +566,13 @@ export default function SettingsPage() {
                 <span className={'text-xs font-mono ' + (actionResult.success ? 'text-crm-positive' : 'text-crm-negative')}>{actionResult.message}</span>
               </div>
             )}
+
+            <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>
+              {savedScheduled && <span className="text-xs font-mono text-crm-positive">✓ Saved</span>}
+              <button onClick={function() { saveSection(setSavedScheduled); }} className="btn-primary text-sm ml-auto flex items-center gap-2">
+                <Save className="w-3.5 h-3.5" /> Save Schedule
+              </button>
+            </div>
           </div>
         </div>
 
