@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCircle, AlertCircle, Clock, Play, Pause, RefreshCw, Webhook, Phone, Zap, FileText, Video } from 'lucide-react';
+import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCircle, AlertCircle, Clock, Play, Pause, RefreshCw, Webhook, Phone, Zap, FileText, Video, Sun, Moon } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import { getFormConfig, saveFormConfig } from '@/lib/form-config';
+import { getTheme, setTheme } from '@/lib/theme';
 
 export default function SettingsPage() {
   var s1 = useState(null), copiedText = s1[0], setCopiedText = s1[1];
@@ -14,8 +15,10 @@ export default function SettingsPage() {
   var s7 = useState(null), waStatus = s7[0], setWaStatus = s7[1];
   var s8 = useState(null), actionResult = s8[0], setActionResult = s8[1];
   var s9 = useState(false), syncing = s9[0], setSyncing = s9[1];
+  var s10 = useState('dark'), currentTheme = s10[0], setCurrentTheme = s10[1];
 
   useEffect(function() {
+    setCurrentTheme(getTheme());
     var cfg = getFormConfig();
     setConfig(cfg);
     setOrigin(window.location.origin);
@@ -105,8 +108,38 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
 
-        {/* ===== LIVE STATUS ===== */}
+        {/* ===== THEME TOGGLE ===== */}
         <div className="glass-card overflow-hidden stagger-1">
+          <div className="section-header">
+            <h3>{currentTheme === 'dark' ? <Moon className="w-4 h-4 text-crm-accent" /> : <Sun className="w-4 h-4 text-crm-warning" />} Appearance</h3>
+            <span className="section-tag">{currentTheme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+          </div>
+          <div className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-crm-text-bright">Theme</div>
+                <div className="text-xs text-crm-muted mt-1">Switch between dark and light mode</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={function() { setTheme('light'); setCurrentTheme('light'); }}
+                  className={'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all ' + (currentTheme === 'light' ? 'bg-crm-warning/15 text-crm-warning border border-crm-warning/30' : 'text-crm-muted border border-crm-border hover:text-crm-text')}
+                >
+                  <Sun className="w-3.5 h-3.5" /> Light
+                </button>
+                <button
+                  onClick={function() { setTheme('dark'); setCurrentTheme('dark'); }}
+                  className={'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all ' + (currentTheme === 'dark' ? 'bg-crm-accent/15 text-crm-accent border border-crm-accent/30' : 'text-crm-muted border border-crm-border hover:text-crm-text')}
+                >
+                  <Moon className="w-3.5 h-3.5" /> Dark
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== LIVE STATUS ===== */}
+        <div className="glass-card overflow-hidden stagger-2">
           <div className="section-header">
             <h3><Activity className="w-4 h-4 text-crm-positive" /> Live Data Status</h3>
             <span className="section-tag">{liveStatus ? 'Connected' : 'Loading...'}</span>
@@ -134,7 +167,7 @@ export default function SettingsPage() {
             ) : (
               <div className="text-sm text-crm-muted text-center py-4">Connecting to server...</div>
             )}
-            <p className="text-xs text-crm-muted/50 mt-3">Data is stored in server memory. Resets on deploy/restart. Dashboard polls every 30 seconds.</p>
+            <p className="text-xs text-crm-muted/50 mt-3">Data is persisted to PostgreSQL. Dashboard polls every 30 seconds.</p>
           </div>
         </div>
 
