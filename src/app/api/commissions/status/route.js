@@ -4,6 +4,7 @@ import { updateCommissionStatus, initStore } from '@/lib/store';
 export async function POST(req) {
   await initStore();
   try {
+    await initStore();
     var body = await req.json();
     if (!body.dealId || !body.status) {
       return NextResponse.json({ error: 'dealId and status required' }, { status: 400 });

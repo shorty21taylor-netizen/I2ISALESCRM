@@ -5,6 +5,7 @@ import { sendGroupMessage } from '@/lib/whatsapp';
 export async function POST(req) {
   await initStore();
   try {
+    await initStore();
     var body = await req.json();
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });

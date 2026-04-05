@@ -5,8 +5,10 @@ import { initStore } from '@/lib/store';
 export async function POST() {
   await initStore();
   try {
-    var result = await runDailySummary();
-    return NextResponse.json({ success: true, result: result });
+    await initStore();
+    var today = new Date().toISOString().split('T')[0];
+    var summary = getDailyTeamSummary(today);
+    return NextResponse.json({ success: true, summary: summary });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

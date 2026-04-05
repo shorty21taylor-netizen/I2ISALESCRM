@@ -5,6 +5,7 @@ import { initStore } from '@/lib/store';
 export async function POST() {
   await initStore();
   try {
+    await initStore();
     var result = await runMorningDigest();
     return NextResponse.json({ success: true, result: result });
   } catch (e) {

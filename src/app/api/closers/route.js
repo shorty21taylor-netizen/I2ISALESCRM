@@ -4,6 +4,7 @@ import { getAllCloserProfiles, getStore, initStore } from '@/lib/store';
 export async function GET() {
   await initStore();
   try {
+    await initStore();
     var profiles = getAllCloserProfiles();
     var store = getStore();
     var today = new Date().toISOString().split('T')[0];

@@ -80,6 +80,7 @@ export function addBookedCall(data) {
   if (store.bookedCalls.length > 500) store.bookedCalls = store.bookedCalls.slice(0, 500);
   saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   recalcOverview();
+  saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   return entry;
 }
 
@@ -108,6 +109,7 @@ export function addClosedDeal(data) {
   if (store.closedDeals.length > 500) store.closedDeals = store.closedDeals.slice(0, 500);
   saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save closed deal error:', e.message); });
   recalcOverview();
+  saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save deal error:', e.message); });
   return entry;
 }
 
@@ -140,6 +142,7 @@ export function addEODReport(data) {
   if (store.eodReports.length > 500) store.eodReports = store.eodReports.slice(0, 500);
   saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   recalcOverview();
+  saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   return entry;
 }
 
@@ -690,6 +693,10 @@ export function registerCloser(email, name) {
   }
   saveCloserProfile(key, store.closerProfiles[key]).catch(function(e) { console.error('[DB] Save closer profile error:', e.message); });
   console.log('[Store] Registered closer:', name, '(' + key + ')');
+  saveCloserProfile(key, store.closerProfiles[key]).catch(function(e) { console.error('[DB] Save profile error:', e.message); });
+  if (store.commissionRates[key]) {
+    saveCommissionRate(key, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save rate error:', e.message); });
+  }
   return store.closerProfiles[key];
 }
 

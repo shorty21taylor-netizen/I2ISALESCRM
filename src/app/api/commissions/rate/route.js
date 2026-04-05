@@ -4,6 +4,7 @@ import { setCommissionRate, getAllCommissionRates, initStore } from '@/lib/store
 export async function POST(req) {
   await initStore();
   try {
+    await initStore();
     var body = await req.json();
     if (!body.email || body.rate === undefined) {
       return NextResponse.json({ error: 'email and rate required' }, { status: 400 });

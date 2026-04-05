@@ -4,6 +4,7 @@ import { getDailyTeamSummary, getStore, initStore } from '@/lib/store';
 export async function POST(req) {
   await initStore();
   try {
+    await initStore();
     var body = await req.json();
 
     // Yesterday's date
