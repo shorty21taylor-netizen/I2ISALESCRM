@@ -21,7 +21,11 @@ export async function initStore() {
 
   var dbReady = await initDatabase();
   if (!dbReady) {
-    console.log('[Store] Running in memory-only mode (no database)');
+    console.error('============================================================');
+    console.error('WARNING: DATABASE_URL NOT SET — RUNNING IN MEMORY-ONLY MODE');
+    console.error('ALL DATA WILL BE LOST ON RESTART/REDEPLOY!');
+    console.error('Set DATABASE_URL in Railway: Service → Variables → Add Reference');
+    console.error('============================================================');
     return;
   }
 
