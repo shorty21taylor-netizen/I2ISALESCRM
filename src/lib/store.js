@@ -25,7 +25,11 @@ export async function initStore() {
   try {
     var dbReady = await initDatabase();
     if (!dbReady) {
-      console.log('[Store] Running in memory-only mode (no database)');
+      console.error('============================================================');
+      console.error('WARNING: DATABASE_URL NOT SET — RUNNING IN MEMORY-ONLY MODE');
+      console.error('ALL DATA WILL BE LOST ON RESTART/REDEPLOY!');
+      console.error('Fix: Railway Dashboard → CRM Service → Variables → Add Reference → PostgreSQL DATABASE_URL');
+      console.error('============================================================');
       return;
     }
 

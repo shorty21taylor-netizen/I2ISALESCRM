@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { initStore } from '@/lib/store';
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     if (!body.password) return NextResponse.json({ error: 'Password required' }, { status: 400 });

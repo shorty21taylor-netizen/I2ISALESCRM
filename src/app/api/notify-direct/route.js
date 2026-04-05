@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sendDirectMessage } from '@/lib/whatsapp';
+import { initStore } from '@/lib/store';
 
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     if (!body.message) {

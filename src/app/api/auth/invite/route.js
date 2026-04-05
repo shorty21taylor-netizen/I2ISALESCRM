@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { initStore } from '@/lib/store';
 var invites = [];
 export async function POST(req) {
+  await initStore();
   try {
     var body = await req.json();
     var code = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
@@ -13,5 +15,6 @@ export async function POST(req) {
   }
 }
 export async function GET() {
+  await initStore();
   return NextResponse.json({ success: true, invites: invites });
 }
