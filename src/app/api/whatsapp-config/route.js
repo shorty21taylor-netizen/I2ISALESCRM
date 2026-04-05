@@ -31,7 +31,10 @@ export async function POST(req) {
     updateSchedulerConfig(schedulerUpdate);
 
     // Start scheduler if not running
-    initScheduler();
+    var host = req.headers.get('host');
+    var proto = req.headers.get('x-forwarded-proto') || 'https';
+    var baseUrl = host ? (proto + '://' + host) : '';
+    initScheduler(baseUrl);
 
     return NextResponse.json({ success: true, configured: isWhatsAppConfigured() });
   } catch (e) {

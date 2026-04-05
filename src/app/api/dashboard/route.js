@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore } from '@/lib/store';
+import { initScheduler } from '@/lib/scheduler';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET(req) {
   await initStore();
   try {
+    var host = req.headers.get('host');
+    var proto = req.headers.get('x-forwarded-proto') || 'https';
+    if (host) initScheduler(proto + '://' + host);
     var url = new URL(req.url);
     var start = url.searchParams.get('start');
     var end = url.searchParams.get('end');

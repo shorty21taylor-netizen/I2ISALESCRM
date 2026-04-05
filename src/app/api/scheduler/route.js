@@ -4,9 +4,13 @@ import { initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
   await initStore();
   try {
+    var host = req.headers.get('host');
+    var proto = req.headers.get('x-forwarded-proto') || 'https';
+    var baseUrl = host ? (proto + '://' + host) : '';
+    initScheduler(baseUrl);
     var state = getSchedulerState();
     return NextResponse.json({ success: true, scheduler: state });
   } catch (e) {
@@ -37,7 +41,10 @@ export async function POST(req) {
 
     // Update config
     updateSchedulerConfig(body);
-    initScheduler();
+    var host = req.headers.get('host');
+    var proto = req.headers.get('x-forwarded-proto') || 'https';
+    var baseUrl = host ? (proto + '://' + host) : '';
+    initScheduler(baseUrl);
     return NextResponse.json({ success: true, scheduler: getSchedulerState() });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
