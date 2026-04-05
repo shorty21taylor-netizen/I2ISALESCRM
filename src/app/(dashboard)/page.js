@@ -120,6 +120,9 @@ export default function DashboardPage() {
             <span className="text-xs font-mono text-crm-muted">{todayCloses} closes</span>
             <span className="text-xs font-mono text-crm-muted">{todayDials} dials</span>
             <span className="text-xs font-mono text-crm-muted">{t.activeClosers || 0} closers</span>
+            {liveData && liveData.counts ? (
+              <span className="text-xs font-mono text-crm-accent">{liveData.counts.bookedCalls} total bookings</span>
+            ) : null}
           </div>
         </div>
       </div>
