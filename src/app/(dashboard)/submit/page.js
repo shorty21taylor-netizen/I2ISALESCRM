@@ -3,6 +3,24 @@
 import { useState, useEffect } from 'react';
 import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
+import { getFormConfig } from '@/lib/form-config';
+
+function getWhatsAppForType(formType) {
+  var c = getFormConfig();
+  if (!c.assistroApiUrl) return null;
+  var groupId = '';
+  var enabled = false;
+  if (formType === 'book-call') { groupId = c.bookedCallGroupId || ''; enabled = !!c.bookedCallEnabled; }
+  else if (formType === 'close-deal') { groupId = c.closedDealGroupId || ''; enabled = !!c.closedDealEnabled; }
+  else if (formType === 'eod-report') { groupId = c.eodReportGroupId || ''; enabled = !!c.eodReportEnabled; }
+  if (!enabled || !groupId) return null;
+  return {
+    enabled: true,
+    apiUrl: c.assistroApiUrl,
+    apiKey: c.assistroApiKey,
+    groupId: groupId,
+  };
+}
 
 var typeBadge = {
   'book-call': { label: 'Booked Call', cls: 'bg-crm-accent/10 text-crm-accent border border-crm-accent/20' },
@@ -102,6 +120,7 @@ export default function SubmitPage() {
     if (!bcLeadsName.trim()) return;
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
+      var waBC = getWhatsAppForType('book-call');
       var res = await fetch('/api/webhooks/book-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,6 +128,8 @@ export default function SubmitPage() {
           leadsName: bcLeadsName, leadsPhone: bcLeadsPhone, program: bcProgram,
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
           notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
+          closerEmail: user ? user.email : '',
+          _whatsapp: waBC,
         }),
       });
       var data = await res.json();
@@ -126,6 +147,7 @@ export default function SubmitPage() {
     if (!cdLeadsName.trim() || !cdCashCollected) return;
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
+      var waCD = getWhatsAppForType('close-deal');
       var res = await fetch('/api/webhooks/close-deal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,6 +156,7 @@ export default function SubmitPage() {
           program: cdProgram, paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
           setter: cdSetter, closer: cdCloser, closerEmail: user ? user.email : '',
+          _whatsapp: waCD,
         }),
       });
       var data = await res.json();
@@ -151,6 +174,7 @@ export default function SubmitPage() {
     if (!eodSalesRep.trim()) return;
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
+      var waEOD = getWhatsAppForType('eod-report');
       var res = await fetch('/api/webhooks/eod-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,6 +187,8 @@ export default function SubmitPage() {
           outboundDials: eodDials, cashCollectedMYFM: eodCashMYFM,
           cashCollectedI2I: eodCashI2I, revenueOnDay: eodRevenue,
           improvementPlan: eodPlan,
+          closerEmail: user ? user.email : '',
+          _whatsapp: waEOD,
         }),
       });
       var data = await res.json();

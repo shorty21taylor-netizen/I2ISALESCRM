@@ -1,34 +1,53 @@
 import { NextResponse } from 'next/server';
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
-import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
   await initStore();
   try {
-    await initStore();
     var body = await req.json();
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });
     }
     var entry = addClosedDeal(body);
-    // Auto-register closer on submission
     if (body.closerEmail || body.closer) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
 
-    // Send WhatsApp celebration to team group
-    var message = '🔥 *DEAL CLOSED!* 🔥\n\n';
-    message += entry.closer + ' just closed ' + entry.leadsName + '!\n\n';
-    message += '💰 $' + entry.cashCollected.toLocaleString() + '\n';
-    message += 'Program: ' + (entry.program || 'N/A') + '\n';
-    message += 'Processor: ' + (entry.paymentProcessor || 'N/A') + '\n';
-    if (entry.setter) message += 'Setter: ' + entry.setter + '\n';
-    message += '\nLet\'s go! 🚀';
+    // INSTANT WhatsApp
+    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
+      try {
+        var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+        var cash = '$' + Number(entry.cashCollected).toLocaleString();
 
-    sendGroupMessage(message).catch(function(e) {
-      console.error('[Close Deal] WhatsApp error:', e.message);
-    });
+        var msg = '🔥💰 CLOSED DEAL 💰🔥\n'
+          + '═══════════════════════\n\n'
+          + '👤 Lead: ' + entry.leadsName + '\n'
+          + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
+          + '📧 Email: ' + (entry.leadsEmail || 'N/A') + '\n'
+          + '🎯 Program: ' + (entry.program || 'N/A') + '\n\n'
+          + '💵 Cash Collected: ' + cash + '\n'
+          + '💳 Payment: ' + (entry.paymentDetails || 'N/A') + '\n'
+          + '🏦 Processor: ' + (entry.paymentProcessor || 'N/A') + '\n'
+          + '📄 Agreement: ' + (entry.paymentAgreement || 'N/A') + '\n\n'
+          + '👥 Setter: ' + (entry.setter || 'N/A') + '\n'
+          + '🎯 Closer: ' + (entry.closer || 'N/A') + '\n\n'
+          + '🚀 Let\'s go! Another one! 🚀\n\n'
+          + '⏰ ' + ts + '\n'
+          + '═══════════════════════';
+
+        await fetch(new URL('/api/notify', req.url).href, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assistroApiUrl: body._whatsapp.apiUrl,
+            assistroApiKey: body._whatsapp.apiKey,
+            whatsappGroupId: body._whatsapp.groupId,
+            message: msg,
+          }),
+        });
+      } catch (e) { console.error('[Close Deal WhatsApp]', e.message); }
+    }
 
     return NextResponse.json({ success: true, submission: entry });
   } catch (e) {

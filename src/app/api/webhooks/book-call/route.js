@@ -1,36 +1,50 @@
 import { NextResponse } from 'next/server';
 import { addBookedCall, getStore, registerCloser, initStore } from '@/lib/store';
-import { sendGroupMessage } from '@/lib/whatsapp';
 
 export async function POST(req) {
   await initStore();
   try {
-    await initStore();
     var body = await req.json();
     if (!body.leadsName) {
       return NextResponse.json({ error: 'leadsName required' }, { status: 400 });
     }
     var entry = addBookedCall(body);
-    // Auto-register closer on submission
     if (body.closerEmail || body.closer) {
       registerCloser(body.closerEmail || '', body.closer || '');
     }
     console.log('[Book Call]', entry.closer || entry.setter, '->', entry.leadsName);
 
-    // Send WhatsApp notification to team group
-    var message = '📞 *New Call Booked!*\n\n';
-    message += 'Lead: ' + entry.leadsName + '\n';
-    message += 'Program: ' + (entry.program || 'N/A') + '\n';
-    message += 'Closer: ' + (entry.closer || 'TBD') + '\n';
-    message += 'Setter: ' + (entry.setter || 'N/A') + '\n';
-    message += 'Day: ' + (entry.bookedDay || 'TBD') + '\n';
-    message += 'Time: ' + (entry.bookedTime || 'TBD') + '\n';
-    message += 'Source: ' + (entry.outboundInbound || 'N/A') + '\n';
-    if (entry.notes) message += 'Notes: ' + entry.notes;
+    // INSTANT WhatsApp — fires right now
+    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
+      try {
+        var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 
-    sendGroupMessage(message).catch(function(e) {
-      console.error('[Book Call] WhatsApp error:', e.message);
-    });
+        var msg = '📞 NEW BOOKED CALL 📞\n'
+          + '═══════════════════════\n\n'
+          + '👤 Lead: ' + entry.leadsName + '\n'
+          + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
+          + '🎯 Program: ' + (entry.program || 'N/A') + '\n'
+          + '✅ Qualified: ' + (entry.qualified || 'N/A') + '\n'
+          + '📅 Booked For: ' + (entry.bookedDay || 'TBD') + ' at ' + (entry.bookedTime || 'TBD') + '\n'
+          + '🔗 Source: ' + (entry.outboundInbound || 'N/A') + '\n\n'
+          + '👥 Setter: ' + (entry.setter || 'N/A') + '\n'
+          + '🎯 Closer: ' + (entry.closer || 'N/A') + '\n'
+          + (entry.notes ? '\n📝 Notes: ' + entry.notes + '\n' : '')
+          + '\n⏰ ' + ts + '\n'
+          + '═══════════════════════';
+
+        await fetch(new URL('/api/notify', req.url).href, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assistroApiUrl: body._whatsapp.apiUrl,
+            assistroApiKey: body._whatsapp.apiKey,
+            whatsappGroupId: body._whatsapp.groupId,
+            message: msg,
+          }),
+        });
+      } catch (e) { console.error('[Book Call WhatsApp]', e.message); }
+    }
 
     return NextResponse.json({ success: true, submission: entry });
   } catch (e) {

@@ -87,6 +87,37 @@ export default function SettingsPage() {
       .catch(function() { setSyncing(false); });
   }
 
+  function testGroup(type, groupId) {
+    if (!config.assistroApiUrl || !groupId) {
+      setActionResult({ success: false, message: 'Enter the Assistro API URL and Group ID first' });
+      setTimeout(function() { setActionResult(null); }, 4000);
+      return;
+    }
+    var labels = { booked: '📞 BOOKED CALL', deal: '💰 CLOSED DEAL', eod: '📋 EOD REPORT' };
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistroApiUrl: config.assistroApiUrl,
+        assistroApiKey: config.assistroApiKey,
+        whatsappGroupId: groupId,
+        message: '🧪 TEST — ' + labels[type] + ' notifications from Summit CRM are working! ✅',
+      }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        setActionResult({
+          success: !!data.sent,
+          message: data.sent ? ('✅ Test sent to ' + labels[type] + ' group!') : ('❌ Failed: ' + (data.error || data.reason || 'Unknown')),
+        });
+        setTimeout(function() { setActionResult(null); }, 4000);
+      })
+      .catch(function(e) {
+        setActionResult({ success: false, message: '❌ ' + e.message });
+        setTimeout(function() { setActionResult(null); }, 4000);
+      });
+  }
+
   function handleRunNow(endpoint, body) {
     setActionResult(null);
     fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
@@ -270,6 +301,100 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ===== FORM NOTIFICATIONS — INSTANT SEND ===== */}
+        <div className="glass-card overflow-hidden stagger-2">
+          <div className="section-header">
+            <h3><MessageSquare className="w-4 h-4 text-crm-accent" /> Form Notifications</h3>
+            <span className="section-tag">Instant</span>
+          </div>
+          <div className="p-5">
+            <p className="text-xs text-crm-muted mb-5 font-mono">Each form sends to its own WhatsApp group the instant a closer hits submit.</p>
+
+            <div className="space-y-4">
+
+              {/* Booked Call */}
+              <div className="glass-surface p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📞</span>
+                    <span className="text-sm font-display font-semibold" style={{ color: 'var(--crm-text-bright)' }}>Booked Call Notifications</span>
+                  </div>
+                  <button
+                    onClick={function() { updateConfig('bookedCallEnabled', !config.bookedCallEnabled); }}
+                    className={'relative w-10 h-5 rounded-full transition-colors duration-300 ' + (config.bookedCallEnabled ? 'bg-crm-positive' : 'bg-crm-border')}
+                  >
+                    <div className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ' + (config.bookedCallEnabled ? 'translate-x-5' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Group ID</label>
+                <input
+                  type="text"
+                  value={config.bookedCallGroupId}
+                  onChange={function(e) { updateConfig('bookedCallGroupId', e.target.value); }}
+                  placeholder="120363xxxxx@g.us"
+                  className="input-field"
+                />
+              </div>
+
+              {/* Closed Deal */}
+              <div className="glass-surface p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">💰</span>
+                    <span className="text-sm font-display font-semibold" style={{ color: 'var(--crm-text-bright)' }}>Closed Deal Notifications</span>
+                  </div>
+                  <button
+                    onClick={function() { updateConfig('closedDealEnabled', !config.closedDealEnabled); }}
+                    className={'relative w-10 h-5 rounded-full transition-colors duration-300 ' + (config.closedDealEnabled ? 'bg-crm-positive' : 'bg-crm-border')}
+                  >
+                    <div className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ' + (config.closedDealEnabled ? 'translate-x-5' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Group ID</label>
+                <input
+                  type="text"
+                  value={config.closedDealGroupId}
+                  onChange={function(e) { updateConfig('closedDealGroupId', e.target.value); }}
+                  placeholder="120363xxxxx@g.us"
+                  className="input-field"
+                />
+              </div>
+
+              {/* EOD Report */}
+              <div className="glass-surface p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📋</span>
+                    <span className="text-sm font-display font-semibold" style={{ color: 'var(--crm-text-bright)' }}>EOD Report Notifications</span>
+                  </div>
+                  <button
+                    onClick={function() { updateConfig('eodReportEnabled', !config.eodReportEnabled); }}
+                    className={'relative w-10 h-5 rounded-full transition-colors duration-300 ' + (config.eodReportEnabled ? 'bg-crm-positive' : 'bg-crm-border')}
+                  >
+                    <div className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ' + (config.eodReportEnabled ? 'translate-x-5' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Group ID</label>
+                <input
+                  type="text"
+                  value={config.eodReportGroupId}
+                  onChange={function(e) { updateConfig('eodReportGroupId', e.target.value); }}
+                  placeholder="120363xxxxx@g.us"
+                  className="input-field"
+                />
+              </div>
+
+            </div>
+
+            {/* Test buttons */}
+            <div className="flex items-center gap-3 mt-5">
+              <button onClick={function() { testGroup('booked', config.bookedCallGroupId); }} className="btn-ghost text-xs">📞 Test Booked</button>
+              <button onClick={function() { testGroup('deal', config.closedDealGroupId); }} className="btn-ghost text-xs">💰 Test Deal</button>
+              <button onClick={function() { testGroup('eod', config.eodReportGroupId); }} className="btn-ghost text-xs">📋 Test EOD</button>
+            </div>
           </div>
         </div>
 

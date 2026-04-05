@@ -8,6 +8,16 @@ var defaultConfig = {
   timezone: 'America/New_York',
   crmUrl: '',
   schedulerEnabled: true,
+
+  // Per-form instant notification groups
+  bookedCallGroupId: '',
+  bookedCallEnabled: false,
+  closedDealGroupId: '',
+  closedDealEnabled: false,
+  eodReportGroupId: '',
+  eodReportEnabled: false,
+
+  // Scheduled message destinations
   eodReminderEnabled: true,
   eodReminderGroupId: '',
   morningDigestEnabled: true,
