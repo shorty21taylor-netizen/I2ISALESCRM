@@ -13,6 +13,7 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
+    console.log('[Close Deal] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
     // INSTANT WhatsApp
     if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {

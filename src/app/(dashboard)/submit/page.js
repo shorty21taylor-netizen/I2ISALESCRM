@@ -7,12 +7,18 @@ import { getFormConfig } from '@/lib/form-config';
 
 function getWhatsAppForType(formType) {
   var c = getFormConfig();
-  if (!c.assistroApiUrl) return null;
+  if (!c.assistroApiUrl) {
+    console.log('[Submit] No assistroApiUrl in config — WhatsApp disabled');
+    return null;
+  }
   var groupId = '';
   var enabled = false;
-  if (formType === 'book-call') { groupId = c.bookedCallGroupId || ''; enabled = !!c.bookedCallEnabled; }
-  else if (formType === 'close-deal') { groupId = c.closedDealGroupId || ''; enabled = !!c.closedDealEnabled; }
-  else if (formType === 'eod-report') { groupId = c.eodReportGroupId || ''; enabled = !!c.eodReportEnabled; }
+  if (formType === 'book-call') { groupId = c.bookedCallGroupId || c.whatsappGroupId || ''; enabled = !!c.bookedCallEnabled; }
+  else if (formType === 'close-deal') { groupId = c.closedDealGroupId || c.whatsappGroupId || ''; enabled = !!c.closedDealEnabled; }
+  else if (formType === 'eod-report') { groupId = c.eodReportGroupId || c.whatsappGroupId || ''; enabled = !!c.eodReportEnabled; }
+
+  console.log('[Submit] WhatsApp for', formType, '→ enabled:', enabled, '| groupId:', groupId ? groupId.substring(0, 12) + '...' : 'EMPTY');
+
   if (!enabled || !groupId) return null;
   return {
     enabled: true,
@@ -20,6 +26,34 @@ function getWhatsAppForType(formType) {
     apiKey: c.assistroApiKey,
     groupId: groupId,
   };
+}
+
+function WhatsAppStatus(props) {
+  var c = getFormConfig();
+  var groupId = '';
+  var enabled = false;
+  if (props.formType === 'book-call') { groupId = c.bookedCallGroupId || c.whatsappGroupId; enabled = !!c.bookedCallEnabled; }
+  else if (props.formType === 'close-deal') { groupId = c.closedDealGroupId || c.whatsappGroupId; enabled = !!c.closedDealEnabled; }
+  else { groupId = c.eodReportGroupId || c.whatsappGroupId; enabled = !!c.eodReportEnabled; }
+  var ready = c.assistroApiUrl && enabled && groupId;
+  if (ready) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-crm-positive font-mono mt-3">
+        <div className="w-1.5 h-1.5 rounded-full bg-crm-positive animate-pulse" />
+        Sends to WhatsApp instantly
+      </div>
+    );
+  }
+  var missing = [];
+  if (!c.assistroApiUrl) missing.push('API URL');
+  if (!enabled) missing.push('toggle ON');
+  if (!groupId) missing.push('Group ID');
+  return (
+    <div className="flex items-center gap-2 text-xs text-crm-muted font-mono mt-3">
+      <div className="w-1.5 h-1.5 rounded-full bg-crm-muted" />
+      {'WhatsApp off — needs: ' + missing.join(', ') + ' (Settings)'}
+    </div>
+  );
 }
 
 var typeBadge = {
@@ -338,6 +372,7 @@ export default function SubmitPage() {
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Phone className="w-4 h-4" />}
                 {submitting ? 'Submitting...' : 'Book Call & Notify Team'}
               </button>
+              <WhatsAppStatus formType="book-call" />
             </form>
           </div>
         )}
@@ -409,6 +444,7 @@ export default function SubmitPage() {
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <DollarSign className="w-4 h-4" />}
                 {submitting ? 'Submitting...' : 'Close Deal & Celebrate!'}
               </button>
+              <WhatsAppStatus formType="close-deal" />
             </form>
           </div>
         )}
@@ -502,6 +538,7 @@ export default function SubmitPage() {
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
                 {submitting ? 'Submitting...' : 'Submit EOD Report'}
               </button>
+              <WhatsAppStatus formType="eod-report" />
             </form>
           </div>
         )}

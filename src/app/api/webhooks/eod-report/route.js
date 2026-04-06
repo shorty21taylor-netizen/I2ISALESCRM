@@ -14,6 +14,7 @@ export async function POST(req) {
     }
     var totalCash = entry.cashCollectedMYFM + entry.cashCollectedI2I;
     console.log('[EOD]', entry.salesRep, '- dials:', entry.outboundDials, 'closes:', entry.closes, 'cash:', totalCash);
+    console.log('[EOD] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
     // INSTANT WhatsApp
     if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
