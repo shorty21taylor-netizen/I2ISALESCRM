@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addBookedCall, getStore, registerCloser, initStore } from '@/lib/store';
+import { addBookedCall, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
 function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
@@ -16,13 +16,21 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || '');
     }
     console.log('[Book Call]', entry.closer || entry.setter, '->', entry.leadsName);
-    console.log('[Book Call] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
-    // INSTANT WhatsApp — fires right now
-    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
+    // WhatsApp — read config from SERVER store (pushed from browser on page load)
+    var wc = getWhatsappConfig();
+    var waGroupId = wc.bookedCallGroupId || '';
+    var waResult = { sent: false };
+
+    // Also accept client-side _whatsapp as fallback
+    if (!waGroupId && body._whatsapp && body._whatsapp.groupId) {
+      wc = { assistroApiUrl: body._whatsapp.apiUrl, assistroApiKey: body._whatsapp.apiKey };
+      waGroupId = body._whatsapp.groupId;
+    }
+
+    if (wc.assistroApiUrl && waGroupId) {
       try {
         var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-
         var msg = '📞 NEW BOOKED CALL 📞\n'
           + '═══════════════════════\n\n'
           + '👤 Lead: ' + entry.leadsName + '\n'
@@ -37,20 +45,23 @@ export async function POST(req) {
           + '\n⏰ ' + ts + '\n'
           + '═══════════════════════';
 
-        await fetch(new URL('/api/notify', req.url).href, {
+        var notifyRes = await fetch(new URL('/api/notify', req.url).href, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            assistroApiUrl: body._whatsapp.apiUrl,
-            assistroApiKey: body._whatsapp.apiKey,
-            whatsappGroupId: body._whatsapp.groupId,
+            assistroApiUrl: wc.assistroApiUrl,
+            assistroApiKey: wc.assistroApiKey,
+            whatsappGroupId: waGroupId,
             message: msg,
           }),
         });
+        waResult = await notifyRes.json().catch(function() { return { sent: false }; });
       } catch (e) { console.error('[Book Call WhatsApp]', e.message); }
+    } else {
+      console.log('[Book Call] WhatsApp skipped — apiUrl:', !!wc.assistroApiUrl, 'groupId:', !!waGroupId);
     }
 
-    return NextResponse.json({ success: true, submission: entry });
+    return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
   } catch (e) {
     console.error('[Book Call Error]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

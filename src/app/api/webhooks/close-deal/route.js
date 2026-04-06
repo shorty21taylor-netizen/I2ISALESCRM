@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
+import { addClosedDeal, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
 function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
@@ -16,14 +16,21 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
-    console.log('[Close Deal] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
-    // INSTANT WhatsApp
-    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
+    // WhatsApp — read config from SERVER store
+    var wc = getWhatsappConfig();
+    var waGroupId = wc.closedDealGroupId || '';
+    var waResult = { sent: false };
+
+    if (!waGroupId && body._whatsapp && body._whatsapp.groupId) {
+      wc = { assistroApiUrl: body._whatsapp.apiUrl, assistroApiKey: body._whatsapp.apiKey };
+      waGroupId = body._whatsapp.groupId;
+    }
+
+    if (wc.assistroApiUrl && waGroupId) {
       try {
         var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
         var cash = '$' + Number(entry.cashCollected).toLocaleString();
-
         var msg = '🔥💰 CLOSED DEAL 💰🔥\n'
           + '═══════════════════════\n\n'
           + '👤 Lead: ' + entry.leadsName + '\n'
@@ -40,20 +47,23 @@ export async function POST(req) {
           + '⏰ ' + ts + '\n'
           + '═══════════════════════';
 
-        await fetch(new URL('/api/notify', req.url).href, {
+        var notifyRes = await fetch(new URL('/api/notify', req.url).href, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            assistroApiUrl: body._whatsapp.apiUrl,
-            assistroApiKey: body._whatsapp.apiKey,
-            whatsappGroupId: body._whatsapp.groupId,
+            assistroApiUrl: wc.assistroApiUrl,
+            assistroApiKey: wc.assistroApiKey,
+            whatsappGroupId: waGroupId,
             message: msg,
           }),
         });
+        waResult = await notifyRes.json().catch(function() { return { sent: false }; });
       } catch (e) { console.error('[Close Deal WhatsApp]', e.message); }
+    } else {
+      console.log('[Close Deal] WhatsApp skipped — apiUrl:', !!wc.assistroApiUrl, 'groupId:', !!waGroupId);
     }
 
-    return NextResponse.json({ success: true, submission: entry });
+    return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
   } catch (e) {
     console.error('[Close Deal Error]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

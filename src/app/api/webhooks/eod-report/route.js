@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
+import { addEODReport, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 export async function POST(req) {
   await initStore();
@@ -14,10 +14,19 @@ export async function POST(req) {
     }
     var totalCash = entry.cashCollectedMYFM + entry.cashCollectedI2I;
     console.log('[EOD]', entry.salesRep, '- dials:', entry.outboundDials, 'closes:', entry.closes, 'cash:', totalCash);
-    console.log('[EOD] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
-    // INSTANT WhatsApp
-    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
+    // WhatsApp — read config from SERVER store
+    var wc = getWhatsappConfig();
+    var waGroupId = wc.eodReportGroupId || '';
+    var waResult = { sent: false };
+
+    // Fallback to client-side _whatsapp
+    if (!waGroupId && body._whatsapp && body._whatsapp.groupId) {
+      wc = { assistroApiUrl: body._whatsapp.apiUrl, assistroApiKey: body._whatsapp.apiKey };
+      waGroupId = body._whatsapp.groupId;
+    }
+
+    if (wc.assistroApiUrl && waGroupId) {
       try {
         var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
         var cashMYFM = Number(entry.cashCollectedMYFM || 0);
@@ -50,20 +59,23 @@ export async function POST(req) {
           + '\n⏰ ' + ts + '\n'
           + '═══════════════════════';
 
-        await fetch(new URL('/api/notify', req.url).href, {
+        var notifyRes = await fetch(new URL('/api/notify', req.url).href, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            assistroApiUrl: body._whatsapp.apiUrl,
-            assistroApiKey: body._whatsapp.apiKey,
-            whatsappGroupId: body._whatsapp.groupId,
+            assistroApiUrl: wc.assistroApiUrl,
+            assistroApiKey: wc.assistroApiKey,
+            whatsappGroupId: waGroupId,
             message: msg,
           }),
         });
+        waResult = await notifyRes.json().catch(function() { return { sent: false }; });
       } catch (e) { console.error('[EOD WhatsApp]', e.message); }
+    } else {
+      console.log('[EOD] WhatsApp skipped — apiUrl:', !!wc.assistroApiUrl, 'groupId:', !!waGroupId);
     }
 
-    return NextResponse.json({ success: true, submission: entry });
+    return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
   } catch (e) {
     console.error('[EOD Error]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -10,6 +10,16 @@ var store = {
   eodReports: [],
   commissionRates: {},
   closerProfiles: {},
+  whatsappConfig: {
+    assistroApiUrl: '',
+    assistroApiKey: '',
+    bookedCallGroupId: '',
+    bookedCallEnabled: true,
+    closedDealGroupId: '',
+    closedDealEnabled: true,
+    eodReportGroupId: '',
+    eodReportEnabled: true,
+  },
 };
 
 // ============================================
@@ -755,4 +765,29 @@ export function getCloserEmailByName(name) {
 
 export function getAllCloserProfiles() {
   return store.closerProfiles;
+}
+
+// ============================================
+// WHATSAPP CONFIG — server-side, read by webhooks
+// ============================================
+
+export function getWhatsappConfig() {
+  return store.whatsappConfig;
+}
+
+export function setWhatsappConfig(config) {
+  var wc = store.whatsappConfig;
+  if (config.assistroApiUrl !== undefined) wc.assistroApiUrl = config.assistroApiUrl;
+  if (config.assistroApiKey !== undefined) wc.assistroApiKey = config.assistroApiKey;
+  if (config.bookedCallGroupId !== undefined) wc.bookedCallGroupId = config.bookedCallGroupId;
+  if (config.bookedCallEnabled !== undefined) wc.bookedCallEnabled = config.bookedCallEnabled;
+  if (config.closedDealGroupId !== undefined) wc.closedDealGroupId = config.closedDealGroupId;
+  if (config.closedDealEnabled !== undefined) wc.closedDealEnabled = config.closedDealEnabled;
+  if (config.eodReportGroupId !== undefined) wc.eodReportGroupId = config.eodReportGroupId;
+  if (config.eodReportEnabled !== undefined) wc.eodReportEnabled = config.eodReportEnabled;
+  // Also accept legacy whatsappGroupId — set all 3 groups if per-form ones are empty
+  if (config.whatsappGroupId && !wc.bookedCallGroupId) wc.bookedCallGroupId = config.whatsappGroupId;
+  if (config.whatsappGroupId && !wc.closedDealGroupId) wc.closedDealGroupId = config.whatsappGroupId;
+  if (config.whatsappGroupId && !wc.eodReportGroupId) wc.eodReportGroupId = config.whatsappGroupId;
+  console.log('[Store] WhatsApp config updated — apiUrl:', wc.assistroApiUrl ? 'SET' : 'empty', '| booked:', wc.bookedCallGroupId ? 'SET' : 'empty', '| deal:', wc.closedDealGroupId ? 'SET' : 'empty', '| eod:', wc.eodReportGroupId ? 'SET' : 'empty');
 }
