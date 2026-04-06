@@ -5,6 +5,12 @@ import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from '
 import { getUser } from '@/lib/auth';
 import { getFormConfig } from '@/lib/form-config';
 
+var PROGRAMS = [
+  { value: 'saas', label: 'SaaS (Fund2Grow)' },
+  { value: 'coaching', label: 'Coaching (Digital Programs)' },
+  { value: 'dfy-funding', label: 'DFY Funding (Inner Circle)' },
+];
+
 function getWhatsAppForType(formType) {
   var c = getFormConfig();
   if (!c.assistroApiUrl) {
@@ -329,7 +335,10 @@ export default function SubmitPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Program</label>
-                  <input type="text" value={bcProgram} onChange={function(e) { setBcProgram(e.target.value); }} className="input-field" placeholder="e.g. MYFM, I2I, Coaching" />
+                  <select value={bcProgram} onChange={function(e) { setBcProgram(e.target.value); }} className="input-field">
+                    <option value="">Select offer...</option>
+                    {PROGRAMS.map(function(p) { return <option key={p.value} value={p.value}>{p.label}</option>; })}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Qualified?</label>
@@ -412,7 +421,10 @@ export default function SubmitPage() {
                 </div>
                 <div>
                   <label className="form-label">Program</label>
-                  <input type="text" value={cdProgram} onChange={function(e) { setCdProgram(e.target.value); }} className="input-field" placeholder="e.g. MYFM, I2I, Coaching" />
+                  <select value={cdProgram} onChange={function(e) { setCdProgram(e.target.value); }} className="input-field">
+                    <option value="">Select offer...</option>
+                    {PROGRAMS.map(function(p) { return <option key={p.value} value={p.value}>{p.label}</option>; })}
+                  </select>
                 </div>
               </div>
 

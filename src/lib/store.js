@@ -294,6 +294,33 @@ function computeOverviewForRange(startDate, endDate) {
   }).reduce(function(s, d) { return s + (parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0); }, 0);
   var outboundRevenue = totalRevenue - inboundRevenue;
 
+  // PER-OFFER BREAKDOWN
+  var offerBreakdown = {
+    saas: { booked: 0, closes: 0, revenue: 0 },
+    coaching: { booked: 0, closes: 0, revenue: 0 },
+    'dfy-funding': { booked: 0, closes: 0, revenue: 0 },
+    other: { booked: 0, closes: 0, revenue: 0 },
+  };
+
+  function classifyOffer(program) {
+    var p = (program || '').toLowerCase();
+    if (p === 'saas' || p === 'saas (fund2grow)' || p === 'fund2grow') return 'saas';
+    if (p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'coaching';
+    if (p === 'dfy-funding' || p === 'dfy funding' || p === 'dfy funding (inner circle)' || p === 'inner circle' || p === 'funding') return 'dfy-funding';
+    return 'other';
+  }
+
+  rangeBooked.forEach(function(b) {
+    offerBreakdown[classifyOffer(b.program)].booked++;
+  });
+
+  rangeDeals.forEach(function(d) {
+    var key = classifyOffer(d.program);
+    var cash = parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0;
+    offerBreakdown[key].closes++;
+    offerBreakdown[key].revenue += cash;
+  });
+
   return {
     totalRevenue: Math.round(totalRevenue * 100) / 100,
     totalCloses: totalCloses,
@@ -334,6 +361,7 @@ function computeOverviewForRange(startDate, endDate) {
     dealValueTrend: 0, cashPerCallTrend: 0, oneCallCloseTrend: 0, offerRateTrend: 0,
     bookedCallsTrend: 0, showRateTrend: 0, pipelineValueTrend: 0, daysToCloseTrend: 0,
     refundRateTrend: 0, netRetainedTrend: 0, dialsPerHourTrend: 0,
+    offerBreakdown: offerBreakdown,
   };
 }
 

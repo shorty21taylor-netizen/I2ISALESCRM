@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 
+var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
+function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
+
 export async function POST(req) {
   await initStore();
   try {
@@ -26,7 +29,7 @@ export async function POST(req) {
           + '👤 Lead: ' + entry.leadsName + '\n'
           + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
           + '📧 Email: ' + (entry.leadsEmail || 'N/A') + '\n'
-          + '🎯 Program: ' + (entry.program || 'N/A') + '\n\n'
+          + '🎯 Program: ' + offerLabel(entry.program) + '\n\n'
           + '💵 Cash Collected: ' + cash + '\n'
           + '💳 Payment: ' + (entry.paymentDetails || 'N/A') + '\n'
           + '🏦 Processor: ' + (entry.paymentProcessor || 'N/A') + '\n'

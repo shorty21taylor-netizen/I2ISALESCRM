@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { addBookedCall, getStore, registerCloser, initStore } from '@/lib/store';
 
+var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
+function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
+
 export async function POST(req) {
   await initStore();
   try {
@@ -24,7 +27,7 @@ export async function POST(req) {
           + '═══════════════════════\n\n'
           + '👤 Lead: ' + entry.leadsName + '\n'
           + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
-          + '🎯 Program: ' + (entry.program || 'N/A') + '\n'
+          + '🎯 Program: ' + offerLabel(entry.program) + '\n'
           + '✅ Qualified: ' + (entry.qualified || 'N/A') + '\n'
           + '📅 Booked For: ' + (entry.bookedDay || 'TBD') + ' at ' + (entry.bookedTime || 'TBD') + '\n'
           + '🔗 Source: ' + (entry.outboundInbound || 'N/A') + '\n\n'

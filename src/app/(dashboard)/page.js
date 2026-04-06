@@ -238,6 +238,61 @@ export default function DashboardPage() {
         <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'pipeline' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
       </div>
 
+      {/* Offer Breakdown */}
+      {t.offerBreakdown && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-2">
+          {[
+            { key: 'saas', label: 'SaaS', subtitle: 'Fund2Grow', color: '#3b82f6', emoji: '💻' },
+            { key: 'coaching', label: 'Coaching', subtitle: 'Digital Programs', color: '#8b5cf6', emoji: '🎯' },
+            { key: 'dfy-funding', label: 'DFY Funding', subtitle: 'Inner Circle', color: '#f59e0b', emoji: '💰' },
+          ].map(function(offer) {
+            var data = t.offerBreakdown[offer.key] || { booked: 0, closes: 0, revenue: 0 };
+            return (
+              <div key={offer.key} className="glass-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{offer.emoji}</span>
+                    <div>
+                      <p className="text-sm font-display font-bold text-crm-text-bright">{offer.label}</p>
+                      <p className="text-xs font-mono text-crm-muted">{offer.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="w-3 h-3 rounded-full" style={{ background: offer.color, boxShadow: '0 0 8px ' + offer.color + '40' }} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="glass-surface p-3 rounded-lg text-center">
+                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.booked}</p>
+                    <p className="text-[10px] font-mono text-crm-muted">BOOKED</p>
+                  </div>
+                  <div className="glass-surface p-3 rounded-lg text-center">
+                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.closes}</p>
+                    <p className="text-[10px] font-mono text-crm-muted">CLOSES</p>
+                  </div>
+                  <div className="glass-surface p-3 rounded-lg text-center">
+                    <p className="text-lg font-display font-bold" style={{ color: offer.color }}>{formatCurrency(data.revenue)}</p>
+                    <p className="text-[10px] font-mono text-crm-muted">REVENUE</p>
+                  </div>
+                </div>
+                {t.totalRevenue > 0 && (
+                  <div className="mt-3">
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{
+                        width: Math.round((data.revenue / t.totalRevenue) * 100) + '%',
+                        background: offer.color,
+                        boxShadow: '0 0 8px ' + offer.color + '40',
+                      }} />
+                    </div>
+                    <p className="text-[10px] font-mono text-crm-muted mt-1">
+                      {Math.round((data.revenue / t.totalRevenue) * 100)}% of total revenue
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Row 6 — Charts */}
       <div className="grid grid-cols-2 gap-4 relative z-10 stagger-3">
         <ClientOnly><RevenueChart data={revenueByDay} /></ClientOnly>
