@@ -162,17 +162,19 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
         </div>
         <div className="glass-card p-5 stagger-3">
           <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-default"><CheckCircle className="w-5 h-5" /></div>
+            <div className="icon-box-green"><DollarSign className="w-5 h-5" /></div>
           </div>
-          <div className="text-2xl font-display font-bold text-crm-text-bright mb-1">{summary.totalDeals}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Deals</div>
+          <div className="text-2xl font-display font-bold text-crm-positive mb-1">{formatCurrency(summary.i2i ? summary.i2i.commission : 0)}</div>
+          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">I2I (10%)</div>
+          <div className="text-xs font-mono text-crm-muted mt-1">{summary.i2i ? summary.i2i.deals : 0} deals</div>
         </div>
         <div className="glass-card p-5 stagger-4">
           <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-red"><Percent className="w-5 h-5" /></div>
+            <div className="icon-box-default"><DollarSign className="w-5 h-5" /></div>
           </div>
-          <div className="metric-value-red text-2xl mb-1">{(summary.commissionRate * 100).toFixed(0) + '%'}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Commission Rate</div>
+          <div className="text-2xl font-display font-bold" style={{ color: 'var(--crm-warning, #f59e0b)' }}>{formatCurrency(summary.myfm ? summary.myfm.commission : 0)}</div>
+          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">MYFM (7.5%)</div>
+          <div className="text-xs font-mono text-crm-muted mt-1">{summary.myfm ? summary.myfm.deals : 0} deals</div>
         </div>
       </div>
 
@@ -189,8 +191,7 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
                 <th>Date</th>
                 <th>Lead</th>
                 <th>Deal Value</th>
-                <th>Source</th>
-                <th>Payment</th>
+                <th>Rate</th>
                 <th>Commission</th>
                 <th>Status</th>
               </tr>
@@ -205,11 +206,10 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
                     <td className="text-sm text-crm-text-bright">{deal.leadName}</td>
                     <td className="text-sm font-mono text-crm-text-bright">{formatCurrency(deal.dealValue)}</td>
                     <td>
-                      <span className={'inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium ' + (deal.leadSource === 'inbound' ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}>
-                        {deal.leadSource}
+                      <span className={'inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium ' + (deal.brand === 'I2I' ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-crm-warning/10 text-crm-warning border border-crm-warning/20')}>
+                        {deal.brand} ({(deal.commissionRate * 100)}%)
                       </span>
                     </td>
-                    <td className="text-xs font-mono text-crm-muted capitalize">{deal.paymentMethod}</td>
                     <td className="text-sm font-mono metric-positive font-bold">{formatCurrency(deal.commissionAmount)}</td>
                     <td>
                       <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium ' + (statusBadge[deal.status] || statusBadge.pending)}>
@@ -305,6 +305,21 @@ function renderTeamView(allData, handleBulkStatusUpdate) {
         </button>
       </div>
 
+      {/* Commission Rates */}
+      <div className="glass-card p-5 stagger-5">
+        <div className="text-xs font-mono text-crm-muted uppercase tracking-wider mb-3">Commission Rates</div>
+        <div className="flex items-center gap-6">
+          <div>
+            <span className="text-sm font-display font-bold text-crm-positive">10%</span>
+            <span className="text-xs font-mono text-crm-muted ml-2">I2I (Coaching, DFY Funding)</span>
+          </div>
+          <div>
+            <span className="text-sm font-display font-bold text-crm-warning">7.5%</span>
+            <span className="text-xs font-mono text-crm-muted ml-2">MYFM (SaaS / Fund2Grow)</span>
+          </div>
+        </div>
+      </div>
+
       {/* Commission Leaderboard */}
       <div className="glass-card overflow-hidden stagger-6">
         <div className="section-header">
@@ -328,7 +343,8 @@ function renderTeamView(allData, handleBulkStatusUpdate) {
                   <div className="font-medium text-crm-text-bright text-sm truncate">{c.closerName}</div>
                   <div className="flex items-center gap-3 text-xs text-crm-muted font-mono mt-0.5">
                     <span>{s.totalDeals} deals</span>
-                    <span>{(s.commissionRate * 100).toFixed(0)}% rate</span>
+                    <span className="text-crm-positive">{s.i2i ? s.i2i.deals : 0} I2I</span>
+                    <span className="text-crm-warning">{s.myfm ? s.myfm.deals : 0} MYFM</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-right">

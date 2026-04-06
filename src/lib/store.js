@@ -644,6 +644,20 @@ export function getAllCommissionRates() {
   return store.commissionRates;
 }
 
+function getCommissionRateForDeal(deal) {
+  var program = (deal.program || '').toLowerCase();
+  // MYFM / SaaS / Fund2Grow = 7.5%
+  if (program === 'saas' || program === 'saas (fund2grow)' || program === 'fund2grow' || program === 'myfm') {
+    return 0.075;
+  }
+  // I2I / Coaching / DFY Funding / Inner Circle = 10%
+  if (program === 'coaching' || program === 'coaching (digital programs)' || program === 'dfy-funding' || program === 'dfy funding' || program === 'dfy funding (inner circle)' || program === 'inner circle' || program === 'i2i' || program === 'funding') {
+    return 0.10;
+  }
+  // Default to 10% for unknown programs
+  return 0.10;
+}
+
 export function getCommissionsForCloser(closerName) {
   if (!closerName) return { deals: [], summary: getEmptyCommissionSummary() };
 
@@ -651,25 +665,21 @@ export function getCommissionsForCloser(closerName) {
     return d.closer && d.closer.toLowerCase() === closerName.toLowerCase();
   });
 
-  var rate = 0.10;
-  var keys = Object.keys(store.commissionRates);
-  for (var i = 0; i < keys.length; i++) {
-    if (store.commissionRates[keys[i]].name && store.commissionRates[keys[i]].name.toLowerCase() === closerName.toLowerCase()) {
-      rate = store.commissionRates[keys[i]].rate;
-      break;
-    }
-  }
-
   var deals = closerDeals.map(function(deal) {
-    var commission = deal.cashCollected * rate;
+    var rate = getCommissionRateForDeal(deal);
+    var commission = (parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0) * rate;
+    var brandLabel = rate === 0.075 ? 'MYFM' : 'I2I';
     return {
       id: deal.id,
-      leadName: deal.leadsName,
-      dealValue: deal.cashCollected,
+      leadName: deal.leadsName || deal.leadName || '',
+      dealValue: parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0,
       commissionRate: rate,
       commissionAmount: Math.round(commission * 100) / 100,
+      brand: brandLabel,
+      program: deal.program || '',
       paymentProcessor: deal.paymentProcessor,
-      program: deal.program,
+      paymentMethod: deal.paymentDetails || deal.paymentMethod || '',
+      leadSource: deal.leadSource || deal.outboundInbound || '',
       status: deal.commissionStatus || 'pending',
       closedAt: deal.submittedAt,
     };
@@ -681,6 +691,14 @@ export function getCommissionsForCloser(closerName) {
   var pendingCommission = deals.filter(function(d) { return d.status === 'pending'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
   var approvedCommission = deals.filter(function(d) { return d.status === 'approved'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
   var paidCommission = deals.filter(function(d) { return d.status === 'paid'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+
+  // Per-brand breakdown
+  var i2iCommission = deals.filter(function(d) { return d.brand === 'I2I'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+  var myfmCommission = deals.filter(function(d) { return d.brand === 'MYFM'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+  var i2iRevenue = deals.filter(function(d) { return d.brand === 'I2I'; }).reduce(function(s, d) { return s + d.dealValue; }, 0);
+  var myfmRevenue = deals.filter(function(d) { return d.brand === 'MYFM'; }).reduce(function(s, d) { return s + d.dealValue; }, 0);
+  var i2iDeals = deals.filter(function(d) { return d.brand === 'I2I'; }).length;
+  var myfmDeals = deals.filter(function(d) { return d.brand === 'MYFM'; }).length;
 
   var months = {};
   deals.forEach(function(deal) {
@@ -706,9 +724,10 @@ export function getCommissionsForCloser(closerName) {
       pendingCommission: Math.round(pendingCommission * 100) / 100,
       approvedCommission: Math.round(approvedCommission * 100) / 100,
       paidCommission: Math.round(paidCommission * 100) / 100,
-      commissionRate: rate,
       avgDealValue: totalDeals > 0 ? Math.round(totalRevenue / totalDeals) : 0,
       avgCommission: totalDeals > 0 ? Math.round(totalCommission / totalDeals) : 0,
+      i2i: { deals: i2iDeals, revenue: Math.round(i2iRevenue * 100) / 100, commission: Math.round(i2iCommission * 100) / 100, rate: 0.10 },
+      myfm: { deals: myfmDeals, revenue: Math.round(myfmRevenue * 100) / 100, commission: Math.round(myfmCommission * 100) / 100, rate: 0.075 },
     },
     monthlyBreakdown: monthlyBreakdown,
   };
@@ -718,7 +737,9 @@ function getEmptyCommissionSummary() {
   return {
     totalDeals: 0, totalRevenue: 0, totalCommission: 0,
     pendingCommission: 0, approvedCommission: 0, paidCommission: 0,
-    commissionRate: 0.10, avgDealValue: 0, avgCommission: 0,
+    avgDealValue: 0, avgCommission: 0,
+    i2i: { deals: 0, revenue: 0, commission: 0, rate: 0.10 },
+    myfm: { deals: 0, revenue: 0, commission: 0, rate: 0.075 },
   };
 }
 
