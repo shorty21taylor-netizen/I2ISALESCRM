@@ -23,31 +23,53 @@ export function isWhatsAppConfigured() {
   return !!(whatsappConfig.assistroApiUrl && whatsappConfig.assistroApiKey && whatsappConfig.whatsappGroupId);
 }
 
+// Generic send — used by webhook routes directly
+export async function sendWhatsApp(apiUrl, apiKey, groupId, message) {
+  if (!apiUrl || !groupId || !message) {
+    console.log('[WA] Skip — missing:', !apiUrl ? 'apiUrl' : '', !groupId ? 'groupId' : '', !message ? 'message' : '');
+    return { sent: false, reason: 'missing config' };
+  }
+  console.log('[WA] Sending to', groupId.substring(0, 20));
+  try {
+    var res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey || '',
+        'Authorization': apiKey ? 'Bearer ' + apiKey : '',
+      },
+      body: JSON.stringify({ phone: groupId, body: message, type: 2 }),
+    });
+    var status = res.status;
+    var txt = await res.text();
+    if (status === 422) {
+      console.log('[WA] 422 — retrying chatId format');
+      var r2 = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey || '',
+          'Authorization': apiKey ? 'Bearer ' + apiKey : '',
+        },
+        body: JSON.stringify({ chatId: groupId, message: message }),
+      });
+      status = r2.status;
+      txt = await r2.text();
+    }
+    console.log('[WA] Result:', status, txt.substring(0, 100));
+    return { sent: status >= 200 && status < 300, status: status };
+  } catch (e) {
+    console.error('[WA] Error:', e.message);
+    return { sent: false, error: e.message };
+  }
+}
+
 export async function sendGroupMessage(message) {
   if (!isWhatsAppConfigured()) {
     console.log('[WhatsApp] Not configured, skipping group message');
     return { skipped: true };
   }
-  try {
-    var res = await fetch(whatsappConfig.assistroApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + whatsappConfig.assistroApiKey,
-      },
-      body: JSON.stringify({
-        id: whatsappConfig.whatsappGroupId,
-        message: message,
-        type: 2,
-      }),
-    });
-    var data = await res.json();
-    console.log('[WhatsApp] Group message sent:', message.substring(0, 50) + '...');
-    return data;
-  } catch (e) {
-    console.error('[WhatsApp] Group send error:', e.message);
-    return { error: e.message };
-  }
+  return sendWhatsApp(whatsappConfig.assistroApiUrl, whatsappConfig.assistroApiKey, whatsappConfig.whatsappGroupId, message);
 }
 
 export async function sendDirectMessage(phone, message) {
@@ -65,19 +87,17 @@ export async function sendDirectMessage(phone, message) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + whatsappConfig.assistroApiKey,
+        'x-api-key': whatsappConfig.assistroApiKey || '',
+        'Authorization': whatsappConfig.assistroApiKey ? 'Bearer ' + whatsappConfig.assistroApiKey : '',
       },
-      body: JSON.stringify({
-        id: targetPhone,
-        message: message,
-        type: 1,
-      }),
+      body: JSON.stringify({ phone: targetPhone, body: message, type: 1 }),
     });
-    var data = await res.json();
-    console.log('[WhatsApp] Direct message sent to', targetPhone);
-    return data;
+    var status = res.status;
+    var txt = await res.text();
+    console.log('[WhatsApp] Direct message sent to', targetPhone, '→', status);
+    return { sent: status >= 200 && status < 300, status: status };
   } catch (e) {
     console.error('[WhatsApp] Direct send error:', e.message);
-    return { error: e.message };
+    return { sent: false, error: e.message };
   }
 }

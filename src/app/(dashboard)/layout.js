@@ -12,9 +12,9 @@ export default function DashboardLayout({ children }) {
     if (!isLoggedIn()) { router.replace('/login'); return; }
     setReady(true);
 
-    // Push WhatsApp config from localStorage to server-side scheduler
+    // Push WhatsApp config from localStorage to server-side store + scheduler
     var config = getFormConfig();
-    if (config.assistroApiUrl || config.assistroApiKey || config.whatsappGroupId) {
+    if (config.assistroApiUrl || config.bookedCallGroupId || config.closedDealGroupId || config.eodReportGroupId || config.whatsappGroupId) {
       fetch('/api/whatsapp-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

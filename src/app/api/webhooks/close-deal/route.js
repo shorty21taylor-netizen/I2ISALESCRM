@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
+import { addClosedDeal, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
+import { sendWhatsApp } from '@/lib/whatsapp';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
 function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
@@ -16,44 +17,45 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
-    console.log('[Close Deal] _whatsapp:', body._whatsapp ? ('enabled=' + body._whatsapp.enabled + ' groupId=' + (body._whatsapp.groupId || 'NONE').substring(0, 15)) : 'NOT ATTACHED');
 
-    // INSTANT WhatsApp
-    if (body._whatsapp && body._whatsapp.enabled && body._whatsapp.groupId) {
-      try {
-        var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-        var cash = '$' + Number(entry.cashCollected).toLocaleString();
+    // Send WhatsApp — read from server config
+    var waCfg = getWhatsappConfig();
+    var waResult = { sent: false };
 
-        var msg = '🔥💰 CLOSED DEAL 💰🔥\n'
-          + '═══════════════════════\n\n'
-          + '👤 Lead: ' + entry.leadsName + '\n'
-          + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
-          + '📧 Email: ' + (entry.leadsEmail || 'N/A') + '\n'
-          + '🎯 Program: ' + offerLabel(entry.program) + '\n\n'
-          + '💵 Cash Collected: ' + cash + '\n'
-          + '💳 Payment: ' + (entry.paymentDetails || 'N/A') + '\n'
-          + '🏦 Processor: ' + (entry.paymentProcessor || 'N/A') + '\n'
-          + '📄 Agreement: ' + (entry.paymentAgreement || 'N/A') + '\n\n'
-          + '👥 Setter: ' + (entry.setter || 'N/A') + '\n'
-          + '🎯 Closer: ' + (entry.closer || 'N/A') + '\n\n'
-          + '🚀 Let\'s go! Another one! 🚀\n\n'
-          + '⏰ ' + ts + '\n'
-          + '═══════════════════════';
+    var apiUrl = waCfg.assistroApiUrl || '';
+    var apiKey = waCfg.assistroApiKey || '';
+    var groupId = waCfg.closedDealGroupId || '';
+    var enabled = waCfg.closedDealEnabled !== false;
 
-        await fetch(new URL('/api/notify', req.url).href, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assistroApiUrl: body._whatsapp.apiUrl,
-            assistroApiKey: body._whatsapp.apiKey,
-            whatsappGroupId: body._whatsapp.groupId,
-            message: msg,
-          }),
-        });
-      } catch (e) { console.error('[Close Deal WhatsApp]', e.message); }
+    if (!apiUrl && body._whatsapp && body._whatsapp.apiUrl) {
+      apiUrl = body._whatsapp.apiUrl;
+      apiKey = body._whatsapp.apiKey || '';
+      groupId = body._whatsapp.groupId || groupId;
     }
 
-    return NextResponse.json({ success: true, submission: entry });
+    if (apiUrl && enabled && groupId) {
+      var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      var cash = '$' + Number(entry.cashCollected).toLocaleString();
+      var msg = '🔥💰 CLOSED DEAL 💰🔥\n'
+        + '═══════════════════════\n\n'
+        + 'Lead: ' + entry.leadsName + '\n'
+        + 'Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
+        + 'Email: ' + (entry.leadsEmail || 'N/A') + '\n'
+        + 'Program: ' + offerLabel(entry.program) + '\n\n'
+        + 'Cash Collected: ' + cash + '\n'
+        + 'Payment: ' + (entry.paymentDetails || 'N/A') + '\n'
+        + 'Processor: ' + (entry.paymentProcessor || 'N/A') + '\n'
+        + 'Agreement: ' + (entry.paymentAgreement || 'N/A') + '\n\n'
+        + 'Setter: ' + (entry.setter || 'N/A') + '\n'
+        + 'Closer: ' + (entry.closer || 'N/A') + '\n\n'
+        + ts + '\n'
+        + '═══════════════════════';
+      waResult = await sendWhatsApp(apiUrl, apiKey, groupId, msg);
+    } else {
+      console.log('[Deal] WA skip — url:', !!apiUrl, 'on:', enabled, 'gid:', !!groupId);
+    }
+
+    return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
   } catch (e) {
     console.error('[Close Deal Error]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import { setWhatsAppConfig, getWhatsAppConfig, isWhatsAppConfigured } from '@/lib/whatsapp';
 import { updateSchedulerConfig, initScheduler } from '@/lib/scheduler';
-import { initStore } from '@/lib/store';
+import { initStore, getWhatsappConfig, setWhatsappConfig } from '@/lib/store';
 
 export async function POST(req) {
   await initStore();
   try {
     var body = await req.json();
 
-    // Update WhatsApp config
+    // Update WhatsApp config in whatsapp.js (for scheduler)
     if (body.assistroApiUrl !== undefined || body.assistroApiKey !== undefined || body.whatsappGroupId !== undefined || body.adminPhone !== undefined) {
       setWhatsAppConfig(body);
     }
+
+    // Update WhatsApp config in store.js (for webhooks)
+    setWhatsappConfig(body);
 
     // Map per-destination config to scheduler
     var schedulerUpdate = {};
@@ -36,7 +39,17 @@ export async function POST(req) {
     var baseUrl = host ? (proto + '://' + host) : '';
     initScheduler(baseUrl);
 
-    return NextResponse.json({ success: true, configured: isWhatsAppConfigured() });
+    var wc = getWhatsappConfig();
+    return NextResponse.json({
+      success: true,
+      configured: isWhatsAppConfigured(),
+      serverConfig: {
+        hasApiUrl: !!wc.assistroApiUrl,
+        bookedCallGroupId: !!wc.bookedCallGroupId,
+        closedDealGroupId: !!wc.closedDealGroupId,
+        eodReportGroupId: !!wc.eodReportGroupId,
+      },
+    });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -46,6 +59,7 @@ export async function GET() {
   await initStore();
   try {
     var config = getWhatsAppConfig();
+    var wc = getWhatsappConfig();
     return NextResponse.json({
       success: true,
       configured: isWhatsAppConfigured(),
@@ -53,6 +67,12 @@ export async function GET() {
       hasApiKey: !!config.assistroApiKey,
       hasGroupId: !!config.whatsappGroupId,
       hasAdminPhone: !!config.adminPhone,
+      serverConfig: {
+        hasApiUrl: !!wc.assistroApiUrl,
+        bookedCallGroupId: !!wc.bookedCallGroupId,
+        closedDealGroupId: !!wc.closedDealGroupId,
+        eodReportGroupId: !!wc.eodReportGroupId,
+      },
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

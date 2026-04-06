@@ -10,6 +10,16 @@ var store = {
   eodReports: [],
   commissionRates: {},
   closerProfiles: {},
+  whatsappConfig: {
+    assistroApiUrl: '',
+    assistroApiKey: '',
+    bookedCallGroupId: '',
+    bookedCallEnabled: true,
+    closedDealGroupId: '',
+    closedDealEnabled: true,
+    eodReportGroupId: '',
+    eodReportEnabled: true,
+  },
 };
 
 // ============================================
@@ -55,6 +65,34 @@ export async function initStore() {
 
 export function getStore() {
   return store;
+}
+
+// ============================================
+// WHATSAPP CONFIG — server-side per-form config
+// ============================================
+
+export function getWhatsappConfig() {
+  return store.whatsappConfig || {};
+}
+
+export function setWhatsappConfig(c) {
+  if (!c) return;
+  var wc = store.whatsappConfig;
+  if (c.assistroApiUrl !== undefined) wc.assistroApiUrl = c.assistroApiUrl;
+  if (c.assistroApiKey !== undefined) wc.assistroApiKey = c.assistroApiKey;
+  if (c.bookedCallGroupId !== undefined) wc.bookedCallGroupId = c.bookedCallGroupId;
+  if (c.bookedCallEnabled !== undefined) wc.bookedCallEnabled = c.bookedCallEnabled;
+  if (c.closedDealGroupId !== undefined) wc.closedDealGroupId = c.closedDealGroupId;
+  if (c.closedDealEnabled !== undefined) wc.closedDealEnabled = c.closedDealEnabled;
+  if (c.eodReportGroupId !== undefined) wc.eodReportGroupId = c.eodReportGroupId;
+  if (c.eodReportEnabled !== undefined) wc.eodReportEnabled = c.eodReportEnabled;
+  // Legacy fallback: if whatsappGroupId set but per-form IDs empty, fill them
+  if (c.whatsappGroupId) {
+    if (!wc.bookedCallGroupId) wc.bookedCallGroupId = c.whatsappGroupId;
+    if (!wc.closedDealGroupId) wc.closedDealGroupId = c.whatsappGroupId;
+    if (!wc.eodReportGroupId) wc.eodReportGroupId = c.whatsappGroupId;
+  }
+  console.log('[Store] WA config set — api:', !!wc.assistroApiUrl, 'booked:', !!wc.bookedCallGroupId, 'deal:', !!wc.closedDealGroupId, 'eod:', !!wc.eodReportGroupId);
 }
 
 // ============================================
