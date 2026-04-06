@@ -301,7 +301,7 @@ export default function DashboardPage() {
 
       {/* Row 7 — Pipeline + Leaderboard */}
       <div className="grid grid-cols-3 gap-4 relative z-10 stagger-4">
-        <PipelineSplit inboundRevenue={t.inboundRevenue || 0} outboundRevenue={t.outboundRevenue || 0} />
+        <PipelineSplit inboundRevenue={t.inboundRevenue || 0} outboundRevenue={t.outboundRevenue || 0} paymentBreakdown={t.paymentBreakdown} />
         <div className="col-span-2">
           <CloserLeaderboard data={liveClosers} />
         </div>

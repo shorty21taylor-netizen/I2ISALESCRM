@@ -321,6 +321,24 @@ function computeOverviewForRange(startDate, endDate) {
     offerBreakdown[key].revenue += cash;
   });
 
+  // Payment type breakdown (Full Pay vs Payment Plan)
+  var paymentBreakdown = {
+    fullPay: { deals: 0, revenue: 0 },
+    paymentPlan: { deals: 0, revenue: 0 },
+  };
+
+  rangeDeals.forEach(function(d) {
+    var cash = parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0;
+    var pt = (d.paymentDetails || '').toLowerCase();
+    if (pt === 'full pay') {
+      paymentBreakdown.fullPay.deals++;
+      paymentBreakdown.fullPay.revenue += cash;
+    } else if (pt) {
+      paymentBreakdown.paymentPlan.deals++;
+      paymentBreakdown.paymentPlan.revenue += cash;
+    }
+  });
+
   return {
     totalRevenue: Math.round(totalRevenue * 100) / 100,
     totalCloses: totalCloses,
@@ -362,6 +380,7 @@ function computeOverviewForRange(startDate, endDate) {
     bookedCallsTrend: 0, showRateTrend: 0, pipelineValueTrend: 0, daysToCloseTrend: 0,
     refundRateTrend: 0, netRetainedTrend: 0, dialsPerHourTrend: 0,
     offerBreakdown: offerBreakdown,
+    paymentBreakdown: paymentBreakdown,
   };
 }
 

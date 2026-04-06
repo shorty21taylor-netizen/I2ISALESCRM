@@ -431,8 +431,17 @@ export default function SubmitPage() {
               <div className="form-section-title">Payment</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Payment Details</label>
-                  <input type="text" value={cdPaymentDetails} onChange={function(e) { setCdPaymentDetails(e.target.value); }} className="input-field" placeholder="Full pay, 3-pay, etc." />
+                  <label className="form-label">Payment Type</label>
+                  <select value={cdPaymentDetails} onChange={function(e) { setCdPaymentDetails(e.target.value); }} className="input-field">
+                    <option value="">Select payment type...</option>
+                    <option value="Full Pay">Full Pay</option>
+                    <option value="2-Pay">2-Pay</option>
+                    <option value="3-Pay">3-Pay</option>
+                    <option value="4-Pay">4-Pay</option>
+                    <option value="6-Pay">6-Pay</option>
+                    <option value="12-Pay">12-Pay</option>
+                    <option value="Custom Payment Plan">Custom Payment Plan</option>
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Payment Processor</label>
