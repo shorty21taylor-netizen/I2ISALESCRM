@@ -6,32 +6,49 @@ var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital 
 function offerLabel(p) { return OFFER_LABELS[(p || '').toLowerCase()] || p || 'N/A'; }
 
 export async function POST(req) {
+  console.log('[CLOSE-DEAL] === REQUEST RECEIVED ===');
   await initStore();
+  console.log('[CLOSE-DEAL] initStore done');
   try {
     var body = await req.json();
+    console.log('[CLOSE-DEAL] Body parsed, leadsName:', body.leadsName);
+    console.log('[CLOSE-DEAL] body._whatsapp present:', !!body._whatsapp);
+    if (body._whatsapp) {
+      console.log('[CLOSE-DEAL] _whatsapp:', JSON.stringify({ enabled: body._whatsapp.enabled, apiUrl: !!body._whatsapp.apiUrl, apiKey: !!body._whatsapp.apiKey, groupId: body._whatsapp.groupId ? body._whatsapp.groupId.substring(0, 15) : 'NONE' }));
+    }
+
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });
     }
     var entry = addClosedDeal(body);
+    console.log('[CLOSE-DEAL] Saved to store, id:', entry.id);
     if (body.closerEmail || body.closer) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
-    console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
 
-    // Send WhatsApp — read from server config
+    // Read server-side WhatsApp config
     var waCfg = getWhatsappConfig();
+    console.log('[CLOSE-DEAL] Server config — apiUrl:', waCfg.assistroApiUrl ? 'SET' : 'EMPTY');
+    console.log('[CLOSE-DEAL] Server config — apiKey:', waCfg.assistroApiKey ? 'SET' : 'EMPTY');
+    console.log('[CLOSE-DEAL] Server config — closedDealEnabled:', waCfg.closedDealEnabled);
+    console.log('[CLOSE-DEAL] Server config — closedDealGroupId:', waCfg.closedDealGroupId ? 'SET (' + waCfg.closedDealGroupId.substring(0, 15) + '...)' : 'EMPTY');
+
     var waResult = { sent: false };
 
     var apiUrl = waCfg.assistroApiUrl || '';
     var apiKey = waCfg.assistroApiKey || '';
     var groupId = waCfg.closedDealGroupId || '';
     var enabled = waCfg.closedDealEnabled !== false;
+    var source = 'server';
 
     if (!apiUrl && body._whatsapp && body._whatsapp.apiUrl) {
       apiUrl = body._whatsapp.apiUrl;
       apiKey = body._whatsapp.apiKey || '';
       groupId = body._whatsapp.groupId || groupId;
+      source = 'client';
     }
+
+    console.log('[CLOSE-DEAL] WhatsApp source:', (apiUrl && groupId) ? source : 'NONE');
 
     if (apiUrl && enabled && groupId) {
       var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
@@ -50,14 +67,17 @@ export async function POST(req) {
         + 'Closer: ' + (entry.closer || 'N/A') + '\n\n'
         + ts + '\n'
         + '═══════════════════════';
+      console.log('[CLOSE-DEAL] Message built, length:', msg.length);
+      console.log('[CLOSE-DEAL] Calling sendWhatsApp...');
       waResult = await sendWhatsApp(apiUrl, apiKey, groupId, msg);
+      console.log('[CLOSE-DEAL] sendWhatsApp returned:', JSON.stringify(waResult));
     } else {
-      console.log('[Deal] WA skip — url:', !!apiUrl, 'on:', enabled, 'gid:', !!groupId);
+      console.log('[CLOSE-DEAL] NO WHATSAPP — url:', !!apiUrl, 'on:', enabled, 'gid:', !!groupId);
     }
 
     return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
   } catch (e) {
-    console.error('[Close Deal Error]', e);
+    console.error('[CLOSE-DEAL] FATAL ERROR:', e.message, e.stack);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

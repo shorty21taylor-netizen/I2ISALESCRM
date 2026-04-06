@@ -25,12 +25,18 @@ export function isWhatsAppConfigured() {
 
 // Generic send — used by webhook routes directly
 export async function sendWhatsApp(apiUrl, apiKey, groupId, message) {
+  console.log('[WA] sendWhatsApp called');
+  console.log('[WA]   apiUrl:', apiUrl ? 'SET (' + apiUrl.substring(0, 30) + '...)' : 'MISSING');
+  console.log('[WA]   apiKey:', apiKey ? 'SET (' + apiKey.length + ' chars)' : 'MISSING');
+  console.log('[WA]   groupId:', groupId ? 'SET (' + groupId.substring(0, 20) + '...)' : 'MISSING');
+  console.log('[WA]   message length:', message ? message.length : 0);
+
   if (!apiUrl || !groupId || !message) {
-    console.log('[WA] Skip — missing:', !apiUrl ? 'apiUrl' : '', !groupId ? 'groupId' : '', !message ? 'message' : '');
+    console.log('[WA] ABORT — missing required field');
     return { sent: false, reason: 'missing config' };
   }
-  console.log('[WA] Sending to', groupId.substring(0, 20));
   try {
+    console.log('[WA] Attempting fetch — phone+body+type:2 format');
     var res = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -42,8 +48,11 @@ export async function sendWhatsApp(apiUrl, apiKey, groupId, message) {
     });
     var status = res.status;
     var txt = await res.text();
+    console.log('[WA] Response 1 — status:', status);
+    console.log('[WA] Response 1 — body:', txt.substring(0, 200));
+
     if (status === 422) {
-      console.log('[WA] 422 — retrying chatId format');
+      console.log('[WA] Got 422, retrying with chatId+message format');
       var r2 = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -55,11 +64,15 @@ export async function sendWhatsApp(apiUrl, apiKey, groupId, message) {
       });
       status = r2.status;
       txt = await r2.text();
+      console.log('[WA] Response 2 — status:', status);
+      console.log('[WA] Response 2 — body:', txt.substring(0, 200));
     }
-    console.log('[WA] Result:', status, txt.substring(0, 100));
-    return { sent: status >= 200 && status < 300, status: status };
+    var ok = status >= 200 && status < 300;
+    console.log('[WA] Final result:', ok ? 'SENT' : 'FAILED');
+    return { sent: ok, status: status, response: txt.substring(0, 200) };
   } catch (e) {
-    console.error('[WA] Error:', e.message);
+    console.error('[WA] FETCH EXCEPTION:', e.message);
+    console.error('[WA] Stack:', e.stack);
     return { sent: false, error: e.message };
   }
 }

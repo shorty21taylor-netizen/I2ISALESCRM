@@ -7,6 +7,13 @@ export async function POST(req) {
   await initStore();
   try {
     var body = await req.json();
+    console.log('[WA-CONFIG] POST received — keys:', Object.keys(body).join(', '));
+    console.log('[WA-CONFIG] apiUrl:', body.assistroApiUrl ? 'SET' : 'empty');
+    console.log('[WA-CONFIG] apiKey:', body.assistroApiKey ? 'SET' : 'empty');
+    console.log('[WA-CONFIG] bookedCallGroupId:', body.bookedCallGroupId ? body.bookedCallGroupId.substring(0, 15) : 'empty');
+    console.log('[WA-CONFIG] closedDealGroupId:', body.closedDealGroupId ? body.closedDealGroupId.substring(0, 15) : 'empty');
+    console.log('[WA-CONFIG] eodReportGroupId:', body.eodReportGroupId ? body.eodReportGroupId.substring(0, 15) : 'empty');
+    console.log('[WA-CONFIG] whatsappGroupId (legacy):', body.whatsappGroupId ? body.whatsappGroupId.substring(0, 15) : 'empty');
 
     // Update WhatsApp config in whatsapp.js (for scheduler)
     if (body.assistroApiUrl !== undefined || body.assistroApiKey !== undefined || body.whatsappGroupId !== undefined || body.adminPhone !== undefined) {
