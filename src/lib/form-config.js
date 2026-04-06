@@ -9,13 +9,13 @@ var defaultConfig = {
   crmUrl: '',
   schedulerEnabled: true,
 
-  // Per-form instant notification groups
+  // Per-form instant notification groups (enabled by default — toggle OFF to disable)
   bookedCallGroupId: '',
-  bookedCallEnabled: false,
+  bookedCallEnabled: true,
   closedDealGroupId: '',
-  closedDealEnabled: false,
+  closedDealEnabled: true,
   eodReportGroupId: '',
-  eodReportEnabled: false,
+  eodReportEnabled: true,
 
   // Scheduled message destinations
   eodReminderEnabled: true,

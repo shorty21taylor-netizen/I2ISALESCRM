@@ -8,22 +8,33 @@ import { getFormConfig } from '@/lib/form-config';
 function getWhatsAppForType(formType) {
   var c = getFormConfig();
   if (!c.assistroApiUrl) {
-    console.log('[Submit] No assistroApiUrl in config — WhatsApp disabled');
+    console.log('[Submit] No assistroApiUrl — WhatsApp disabled');
     return null;
   }
   var groupId = '';
-  var enabled = false;
-  if (formType === 'book-call') { groupId = c.bookedCallGroupId || c.whatsappGroupId || ''; enabled = !!c.bookedCallEnabled; }
-  else if (formType === 'close-deal') { groupId = c.closedDealGroupId || c.whatsappGroupId || ''; enabled = !!c.closedDealEnabled; }
-  else if (formType === 'eod-report') { groupId = c.eodReportGroupId || c.whatsappGroupId || ''; enabled = !!c.eodReportEnabled; }
+  var disabled = false;
 
-  console.log('[Submit] WhatsApp for', formType, '→ enabled:', enabled, '| groupId:', groupId ? groupId.substring(0, 12) + '...' : 'EMPTY');
+  // Per-form group ID with fallbacks
+  if (formType === 'book-call') {
+    groupId = c.bookedCallGroupId || c.whatsappGroupId || '';
+    disabled = c.bookedCallEnabled === false && c.bookedCallGroupId; // only disabled if explicitly toggled OFF with a group ID set
+  } else if (formType === 'close-deal') {
+    groupId = c.closedDealGroupId || c.whatsappGroupId || '';
+    disabled = c.closedDealEnabled === false && c.closedDealGroupId;
+  } else if (formType === 'eod-report') {
+    groupId = c.eodReportGroupId || c.whatsappGroupId || '';
+    disabled = c.eodReportEnabled === false && c.eodReportGroupId;
+  }
 
-  if (!enabled || !groupId) return null;
+  console.log('[Submit] WhatsApp for', formType, '→ groupId:', groupId ? groupId.substring(0, 15) + '...' : 'EMPTY', '| disabled:', disabled);
+
+  // Send if there's a group ID and it's not explicitly disabled
+  if (!groupId || disabled) return null;
+
   return {
     enabled: true,
     apiUrl: c.assistroApiUrl,
-    apiKey: c.assistroApiKey,
+    apiKey: c.assistroApiKey || '',
     groupId: groupId,
   };
 }
@@ -31,11 +42,10 @@ function getWhatsAppForType(formType) {
 function WhatsAppStatus(props) {
   var c = getFormConfig();
   var groupId = '';
-  var enabled = false;
-  if (props.formType === 'book-call') { groupId = c.bookedCallGroupId || c.whatsappGroupId; enabled = !!c.bookedCallEnabled; }
-  else if (props.formType === 'close-deal') { groupId = c.closedDealGroupId || c.whatsappGroupId; enabled = !!c.closedDealEnabled; }
-  else { groupId = c.eodReportGroupId || c.whatsappGroupId; enabled = !!c.eodReportEnabled; }
-  var ready = c.assistroApiUrl && enabled && groupId;
+  if (props.formType === 'book-call') groupId = c.bookedCallGroupId || c.whatsappGroupId || '';
+  else if (props.formType === 'close-deal') groupId = c.closedDealGroupId || c.whatsappGroupId || '';
+  else groupId = c.eodReportGroupId || c.whatsappGroupId || '';
+  var ready = c.assistroApiUrl && groupId;
   if (ready) {
     return (
       <div className="flex items-center gap-2 text-xs text-crm-positive font-mono mt-3">
@@ -46,7 +56,6 @@ function WhatsAppStatus(props) {
   }
   var missing = [];
   if (!c.assistroApiUrl) missing.push('API URL');
-  if (!enabled) missing.push('toggle ON');
   if (!groupId) missing.push('Group ID');
   return (
     <div className="flex items-center gap-2 text-xs text-crm-muted font-mono mt-3">
