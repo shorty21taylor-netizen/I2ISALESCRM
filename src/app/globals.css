@@ -4,7 +4,7 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; -webkit-text-size-adjust: 100%; }
 
   /* ============================================ */
   /* THEME CSS VARIABLES                          */
@@ -825,6 +825,16 @@
   /* Prevent horizontal overflow */
   html, body { overflow-x: hidden; max-width: 100vw; }
 
+  /* Table scroll wrapper — allows horizontal scroll on mobile */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide scrollbar utility */
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
   /* Input fields: 16px on mobile prevents iOS auto-zoom */
   @media (max-width: 767px) {
     .input-field { font-size: 16px; min-height: 44px; }
@@ -837,6 +847,9 @@
     .glass-surface:hover { transform: none; }
     .data-table thead th { padding: 0.5rem 0.75rem; font-size: 10px; }
     .data-table tbody td { padding: 0.5rem 0.75rem; font-size: 13px; }
+    button, a { min-height: 40px; }
+    .btn-primary:hover { transform: none; }
+    .btn-ghost:hover { transform: none; }
   }
   @media (min-width: 768px) {
     .sidebar { position: fixed; }

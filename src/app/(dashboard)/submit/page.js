@@ -581,7 +581,7 @@ export default function SubmitPage() {
           </div>
           {submissions.length > 0 ? (
             <div className="glass-card overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="table-scroll -mx-4 md:mx-0">
               <table className="data-table min-w-[500px]">
                 <thead>
                   <tr>

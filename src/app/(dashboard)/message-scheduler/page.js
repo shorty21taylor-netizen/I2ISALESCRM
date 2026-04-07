@@ -207,10 +207,10 @@ export default function MessageSchedulerPage() {
             ].map(function(task) {
               var sched = schedulerStatus && schedulerStatus.schedule ? schedulerStatus.schedule[task.key] : null;
               return (
-                <div key={task.key} className="glass-surface p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={'w-2 h-2 rounded-full ' + (sched && sched.enabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
-                    <div>
+                <div key={task.key} className="glass-surface p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={'w-2 h-2 rounded-full flex-shrink-0 ' + (sched && sched.enabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                    <div className="min-w-0">
                       <div className="text-sm font-medium text-crm-text-bright">{task.label}</div>
                       <div className="text-xs text-crm-muted">{task.time} EST &middot; {task.dest} &middot; {task.desc}</div>
                       {sched && sched.lastRun && (
@@ -220,7 +220,7 @@ export default function MessageSchedulerPage() {
                   </div>
                   <button
                     onClick={function() { handleRunBuiltIn(task.action); }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono bg-crm-accent/10 text-crm-accent border border-crm-accent/20 hover:bg-crm-accent/20 transition-colors ml-5 sm:ml-0 self-start sm:self-center"
                   >
                     <Play className="w-3 h-3" /> Run Now
                   </button>
@@ -257,7 +257,7 @@ export default function MessageSchedulerPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Send To</label>
                   <select value={destination} onChange={function(e) { setDestination(e.target.value); }} className="input-field">
@@ -276,7 +276,7 @@ export default function MessageSchedulerPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Frequency</label>
                   <select value={frequency} onChange={function(e) { setFrequency(e.target.value); }} className="input-field">

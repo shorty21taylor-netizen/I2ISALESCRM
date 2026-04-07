@@ -591,15 +591,15 @@ export default function SettingsPage() {
 
             {/* EOD Reminder - 8 PM */}
             <div className="glass-surface p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-3">
-                  <div className={'w-2 h-2 rounded-full ' + (config.eodReminderEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                  <div className={'w-2 h-2 rounded-full flex-shrink-0 ' + (config.eodReminderEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
                     <div className="text-sm font-medium text-crm-text-bright">EOD Reminder</div>
                     <div className="text-xs text-crm-muted">8:00 PM EST &middot; Reminds team to submit end-of-day reports</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-5 sm:ml-0">
                   <button
                     onClick={function() { updateConfig('eodReminderEnabled', !config.eodReminderEnabled); }}
                     className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.eodReminderEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
@@ -621,15 +621,15 @@ export default function SettingsPage() {
 
             {/* Morning Call Digest - 6 AM */}
             <div className="glass-surface p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-3">
-                  <div className={'w-2 h-2 rounded-full ' + (config.morningDigestEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                  <div className={'w-2 h-2 rounded-full flex-shrink-0 ' + (config.morningDigestEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
                     <div className="text-sm font-medium text-crm-text-bright">Morning Call Digest</div>
                     <div className="text-xs text-crm-muted">6:00 AM EST &middot; Sends today&apos;s booked calls to team group</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-5 sm:ml-0">
                   <button
                     onClick={function() { updateConfig('morningDigestEnabled', !config.morningDigestEnabled); }}
                     className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.morningDigestEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}
@@ -651,15 +651,15 @@ export default function SettingsPage() {
 
             {/* Admin Morning Report - 6 AM */}
             <div className="glass-surface p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-3">
-                  <div className={'w-2 h-2 rounded-full ' + (config.adminMorningReportEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                  <div className={'w-2 h-2 rounded-full flex-shrink-0 ' + (config.adminMorningReportEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
                     <div className="text-sm font-medium text-crm-text-bright">Admin Morning Report</div>
                     <div className="text-xs text-crm-muted">6:00 AM EST &middot; Yesterday&apos;s EOD + MTD breakdown to admin DM</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-5 sm:ml-0">
                   <button
                     onClick={function() { updateConfig('adminMorningReportEnabled', !config.adminMorningReportEnabled); }}
                     className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (config.adminMorningReportEnabled ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}

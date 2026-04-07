@@ -59,7 +59,7 @@ export default function InvitesPage() {
         </div>
         <div className="p-6">
           <form onSubmit={handleGenerate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Email (optional)</label>
                 <input

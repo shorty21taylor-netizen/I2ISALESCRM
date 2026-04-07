@@ -89,7 +89,7 @@ export default function RecordingsPage() {
 
                 <p className="text-sm text-crm-text mb-3">{sc.summary}</p>
 
-                <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                   <div className="glass-surface p-2 text-center">
                     <div className="text-xs text-crm-muted mb-1">Discovery</div>
                     {sc.discoveryDone ? <CheckCircle className="w-4 h-4 text-crm-positive mx-auto" /> : <XCircle className="w-4 h-4 text-crm-negative mx-auto" />}

@@ -96,7 +96,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4">
                     {[
                       { label: 'Revenue', value: formatCurrency(perf.totalRevenue), trend: perf.revenueTrend },
                       { label: 'Close Rate', value: perf.closeRate + '%', trend: perf.closeRateTrend },

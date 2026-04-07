@@ -185,7 +185,7 @@ export default function ClosersPage() {
                   <h3><BarChart3 className="w-4 h-4 text-crm-accent" /> Today</h3>
                   <span className="section-tag">Live</span>
                 </div>
-                <div className="grid grid-cols-3 gap-4 p-5">
+                <div className="grid grid-cols-3 gap-3 md:gap-4 p-4 md:p-5">
                   <div className="glass-surface p-3 rounded-xl text-center">
                     <p className="text-lg font-display font-bold text-crm-text-bright">{selected.today.dials}</p>
                     <p className="text-xs font-mono text-crm-muted mt-0.5">Dials</p>

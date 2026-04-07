@@ -211,7 +211,7 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
           <h3>Your closed deals</h3>
           <span className="section-tag">{deals.length} deals</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="table-scroll -mx-4 md:mx-0">
           <table className="data-table min-w-[600px]">
             <thead>
               <tr>
@@ -312,22 +312,22 @@ function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDele
           <div className="text-lg md:text-2xl font-display font-bold text-crm-text-bright mb-1">{formatCurrency(teamRevenue)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Team Revenue</div>
         </div>
-        <div className="glass-card p-5 stagger-2">
-          <div className="metric-value-green text-2xl mb-1">{formatCurrency(teamCommission)}</div>
+        <div className="glass-card p-3 md:p-5 stagger-2">
+          <div className="text-lg md:text-2xl metric-value-green mb-1">{formatCurrency(teamCommission)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Commissions</div>
         </div>
-        <div className="glass-card p-5 stagger-3">
-          <div className="text-2xl font-display font-bold text-crm-warning mb-1">{formatCurrency(teamPending)}</div>
+        <div className="glass-card p-3 md:p-5 stagger-3">
+          <div className="text-lg md:text-2xl font-display font-bold text-crm-warning mb-1">{formatCurrency(teamPending)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Pending Payout</div>
         </div>
-        <div className="glass-card p-5 stagger-4">
-          <div className="text-2xl font-display font-bold text-crm-positive mb-1">{formatCurrency(teamPaid)}</div>
+        <div className="glass-card p-3 md:p-5 stagger-4">
+          <div className="text-lg md:text-2xl font-display font-bold text-crm-positive mb-1">{formatCurrency(teamPaid)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Paid</div>
         </div>
       </div>
 
       {/* Admin Actions */}
-      <div className="flex items-center gap-3 stagger-5">
+      <div className="flex flex-wrap items-center gap-3 stagger-5">
         <button
           onClick={function() { handleBulkStatusUpdate('pending', 'approved'); }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-display font-semibold bg-crm-positive/10 text-crm-positive border border-crm-positive/20 hover:bg-crm-positive/20 transition-colors"
@@ -347,7 +347,7 @@ function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDele
       {/* Commission Rates */}
       <div className="glass-card p-5 stagger-5">
         <div className="text-xs font-mono text-crm-muted uppercase tracking-wider mb-3">Commission Rates</div>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-4 md:gap-6">
           <div>
             <span className="text-sm font-display font-bold text-crm-positive">10%</span>
             <span className="text-xs font-mono text-crm-muted ml-2">I2I (Coaching, DFY Funding)</span>
