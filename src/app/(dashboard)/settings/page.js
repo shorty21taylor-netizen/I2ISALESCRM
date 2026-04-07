@@ -86,7 +86,7 @@ export default function SettingsPage() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          setWaStatus({ configured: data.configured, hasApiUrl: !!(cfg || config).assistroApiUrl, hasApiKey: !!(cfg || config).assistroApiKey, hasGroupId: !!(cfg || config).whatsappGroupId, hasAdminPhone: !!(cfg || config).adminPhone });
+          setWaStatus({ configured: data.configured, hasApiUrl: !!(cfg || config).assistroApiUrl, hasApiKey: !!(cfg || config).assistroApiKey, hasGroupId: !!(cfg || config).whatsappGroupId, hasAdminGroupId: !!(cfg || config).adminGroupId });
         }
         setSyncing(false);
         // Refresh scheduler status
@@ -180,34 +180,50 @@ export default function SettingsPage() {
         + '🎯 Let\'s close some deals today!\n'
         + '═══════════════════════';
     } else if (taskType === 'adminMorningReport') {
-      phone = config.adminMorningReportPhone || config.adminPhone || '';
-      isDirect = true;
-      message = '📊 ADMIN MORNING REPORT 📊\n'
-        + '═══════════════════════\n\n'
-        + 'Yesterday\'s EOD submissions + MTD breakdown.\n\n'
-        + '👉 Open Summit CRM → Reports for full numbers.\n'
-        + '═══════════════════════';
+      // Admin report sends to group (not DM) via /api/admin-morning-report
+      var adminGid = config.adminMorningReportGroupId || config.adminGroupId || '';
+      if (!adminGid) {
+        setActionResult({ success: false, message: 'Save the Admin Report Group ID first' });
+        setTimeout(function() { setActionResult(null); }, 4000);
+        return;
+      }
+      fetch('/api/admin-morning-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: adminGid,
+          assistroApiUrl: config.assistroApiUrl,
+          assistroApiKey: config.assistroApiKey,
+        }),
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          setActionResult({
+            success: !!data.success,
+            message: data.success ? 'Admin Report sent to group!' : ('Failed: ' + (data.error || 'Unknown')),
+          });
+          setTimeout(function() { setActionResult(null); }, 6000);
+        })
+        .catch(function(e) {
+          setActionResult({ success: false, message: e.message });
+          setTimeout(function() { setActionResult(null); }, 6000);
+        });
+      return;
     }
 
-    if (!isDirect && !groupId) {
+    if (!groupId) {
       setActionResult({ success: false, message: 'Save the Group ID for this task first' });
       setTimeout(function() { setActionResult(null); }, 4000);
       return;
     }
-    if (isDirect && !phone) {
-      setActionResult({ success: false, message: 'Save the admin phone first' });
-      setTimeout(function() { setActionResult(null); }, 4000);
-      return;
-    }
 
-    var endpoint = isDirect ? '/api/notify-direct' : '/api/notify';
+    var endpoint = '/api/notify';
     var payload = {
       assistroApiUrl: config.assistroApiUrl,
       assistroApiKey: config.assistroApiKey,
       message: message,
     };
-    if (isDirect) payload.phone = phone;
-    else payload.whatsappGroupId = groupId;
+    payload.whatsappGroupId = groupId;
 
     fetch(endpoint, {
       method: 'POST',
@@ -343,14 +359,15 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Admin Phone (for direct messages)</label>
+                  <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Admin Report Group ID</label>
                   <input
                     type="text"
-                    value={config.adminPhone}
-                    onChange={function(e) { updateConfig('adminPhone', e.target.value); }}
-                    placeholder="+1234567890"
+                    value={config.adminGroupId}
+                    onChange={function(e) { updateConfig('adminGroupId', e.target.value); }}
+                    placeholder="120363xxxxx@g.us"
                     className="input-field"
                   />
+                  <p className="text-[10px] text-crm-muted/50 mt-1">Create a private WhatsApp group (just you). Daily admin reports send here.</p>
                 </div>
               </div>
               <div>
@@ -394,9 +411,9 @@ export default function SettingsPage() {
                   <div className={'w-2 h-2 rounded-full mx-auto mb-1 ' + (waStatus.hasGroupId ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <span className="text-[10px] text-crm-muted">Group ID</span>
                 </div>
-                <div className={'glass-surface p-2 text-center ' + (waStatus.hasAdminPhone ? 'border-crm-positive/20' : '')}>
-                  <div className={'w-2 h-2 rounded-full mx-auto mb-1 ' + (waStatus.hasAdminPhone ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
-                  <span className="text-[10px] text-crm-muted">Admin Phone</span>
+                <div className={'glass-surface p-2 text-center ' + (waStatus.hasAdminGroupId ? 'border-crm-positive/20' : '')}>
+                  <div className={'w-2 h-2 rounded-full mx-auto mb-1 ' + (waStatus.hasAdminGroupId ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
+                  <span className="text-[10px] text-crm-muted">Admin Group</span>
                 </div>
               </div>
             )}
@@ -635,16 +652,16 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Admin Report Phone</label>
+                <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Admin Report Group ID (override)</label>
                 <input
                   type="text"
-                  value={config.adminMorningReportPhone}
-                  onChange={function(e) { updateConfig('adminMorningReportPhone', e.target.value); }}
-                  placeholder="Override admin phone for morning report"
+                  value={config.adminMorningReportGroupId || ''}
+                  onChange={function(e) { updateConfig('adminMorningReportGroupId', e.target.value); }}
+                  placeholder="Override group for admin morning report"
                   className="input-field text-xs"
                 />
               </div>
-              <p className="text-[10px] text-crm-muted/50">Leave blank to use the default WhatsApp Group ID / Admin Phone from above.</p>
+              <p className="text-[10px] text-crm-muted/50">Leave blank to use the Admin Report Group ID from the Connection section above.</p>
             </div>
 
             {/* Action result */}

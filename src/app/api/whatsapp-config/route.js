@@ -16,7 +16,7 @@ export async function POST(req) {
     console.log('[WA-CONFIG] whatsappGroupId (legacy):', body.whatsappGroupId ? body.whatsappGroupId.substring(0, 15) : 'empty');
 
     // Update WhatsApp config in whatsapp.js (for scheduler)
-    if (body.assistroApiUrl !== undefined || body.assistroApiKey !== undefined || body.whatsappGroupId !== undefined || body.adminPhone !== undefined) {
+    if (body.assistroApiUrl !== undefined || body.assistroApiKey !== undefined || body.whatsappGroupId !== undefined || body.adminGroupId !== undefined) {
       setWhatsAppConfig(body);
     }
 
@@ -36,7 +36,7 @@ export async function POST(req) {
     // Per-destination: use specific IDs if provided, fall back to defaults
     schedulerUpdate.eodReminder = { groupId: body.eodReminderGroupId || body.whatsappGroupId || '' };
     schedulerUpdate.morningDigest = { groupId: body.morningDigestGroupId || body.whatsappGroupId || '' };
-    schedulerUpdate.adminMorningReport = { phone: body.adminMorningReportPhone || body.adminPhone || '' };
+    schedulerUpdate.adminMorningReport = { groupId: body.adminMorningReportGroupId || body.adminGroupId || '' };
 
     updateSchedulerConfig(schedulerUpdate);
 
@@ -73,7 +73,7 @@ export async function GET() {
       hasApiUrl: !!config.assistroApiUrl,
       hasApiKey: !!config.assistroApiKey,
       hasGroupId: !!config.whatsappGroupId,
-      hasAdminPhone: !!config.adminPhone,
+      hasAdminGroupId: !!config.adminGroupId,
       serverConfig: {
         hasApiUrl: !!wc.assistroApiUrl,
         bookedCallGroupId: !!wc.bookedCallGroupId,

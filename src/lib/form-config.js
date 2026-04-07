@@ -5,6 +5,7 @@ var defaultConfig = {
   assistroApiKey: '',
   whatsappGroupId: '',
   adminPhone: '',
+  adminGroupId: '',
   timezone: 'America/New_York',
   crmUrl: '',
   schedulerEnabled: true,
@@ -24,6 +25,7 @@ var defaultConfig = {
   morningDigestGroupId: '',
   adminMorningReportEnabled: true,
   adminMorningReportPhone: '',
+  adminMorningReportGroupId: '',
 };
 
 export function getFormConfig() {

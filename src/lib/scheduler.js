@@ -19,7 +19,7 @@ var config = {
   crmUrl: '',
   eodReminder: { groupId: '' },
   morningDigest: { groupId: '' },
-  adminMorningReport: { phone: '' },
+  adminMorningReport: { groupId: '' },
   customMessages: [],
 };
 
@@ -41,7 +41,7 @@ export function getSchedulerState() {
       hasApiKey: !!config.assistroApiKey,
       eodReminderGroupId: config.eodReminder.groupId,
       morningDigestGroupId: config.morningDigest.groupId,
-      adminMorningReportPhone: config.adminMorningReport.phone,
+      adminMorningReportGroupId: config.adminMorningReport.groupId,
     },
   };
 }
@@ -193,8 +193,8 @@ export async function runMorningDigest() {
 }
 
 export async function runAdminMorningReport() {
-  var phone = config.adminMorningReport.phone;
-  if (!phone) { console.log('[Scheduler] Admin report skipped — no phone'); return; }
+  var groupId = config.adminMorningReport.groupId;
+  if (!groupId) { console.log('[Scheduler] Admin report skipped — no group ID'); return; }
 
   if (config.baseUrl) {
     try {
@@ -202,14 +202,14 @@ export async function runAdminMorningReport() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPhone: phone,
+          groupId: groupId,
           assistroApiUrl: config.assistroApiUrl,
           assistroApiKey: config.assistroApiKey,
         }),
       });
       var data = await res.json();
       schedule.adminMorningReport.lastRun = new Date().toISOString();
-      console.log('[Scheduler] Admin morning report sent');
+      console.log('[Scheduler] Admin morning report sent to group');
     } catch (e) {
       console.error('[Scheduler] Admin report error:', e.message);
     }
