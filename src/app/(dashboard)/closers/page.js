@@ -1,15 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail } from 'lucide-react';
+import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { getUser } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function ClosersPage() {
   var s1 = useState([]), closers = s1[0], setClosers = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
   var s3 = useState(''), search = s3[0], setSearch = s3[1];
   var s4 = useState(null), selected = s4[0], setSelected = s4[1];
+  var s5 = useState(null), confirmDelete = s5[0], setConfirmDelete = s5[1];
+
+  var user = getUser();
+  var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
   useEffect(function() {
     fetchClosers();
@@ -30,6 +36,13 @@ export default function ClosersPage() {
         setLoading(false);
       })
       .catch(function() { setLoading(false); });
+  }
+
+  async function handleDelete(email) {
+    await fetch('/api/closers/' + encodeURIComponent(email), { method: 'DELETE' });
+    setConfirmDelete(null);
+    if (selected && selected.email === email) setSelected(null);
+    fetchClosers();
   }
 
   var filtered = closers.filter(function(c) {
@@ -81,7 +94,7 @@ export default function ClosersPage() {
                     <div
                       key={closer.email}
                       onClick={function() { setSelected(closer); }}
-                      className={'flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200 ' + (isSelected ? 'bg-crm-accent/10 border-l-2 border-crm-accent' : 'hover:bg-white/[0.02] border-l-2 border-transparent')}
+                      className={'group flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-200 ' + (isSelected ? 'bg-crm-accent/10 border-l-2 border-crm-accent' : 'hover:bg-white/[0.02] border-l-2 border-transparent')}
                     >
                       <div className="avatar avatar-md text-crm-accent font-display">
                         {closer.name ? closer.name[0].toUpperCase() : '?'}
@@ -90,7 +103,19 @@ export default function ClosersPage() {
                         <p className="text-sm font-display font-semibold text-crm-text-bright truncate">{closer.name}</p>
                         <p className="text-xs font-mono text-crm-muted truncate">{closer.email}</p>
                       </div>
-                      {closer.stats.closedDeals > 0 && (
+                      {isAdmin && (
+                        <button
+                          onClick={function(e) {
+                            e.stopPropagation();
+                            setConfirmDelete({ email: closer.email, label: closer.name });
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-crm-muted hover:text-crm-negative p-1 transition-opacity"
+                          title="Delete closer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      {!isAdmin && closer.stats.closedDeals > 0 && (
                         <span className="text-xs font-mono text-crm-positive">{formatCurrency(closer.stats.totalRevenue)}</span>
                       )}
                     </div>
@@ -211,6 +236,15 @@ export default function ClosersPage() {
         </div>
 
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete Closer Profile?"
+        message={confirmDelete ? 'This will remove ' + confirmDelete.label + ' from the team. Their existing booked calls, deals, and EODs will remain in the system.' : ''}
+        confirmLabel="Delete Closer"
+        onConfirm={function() { handleDelete(confirmDelete.email); }}
+        onCancel={function() { setConfirmDelete(null); }}
+      />
     </div>
   );
 }

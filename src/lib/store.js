@@ -2,7 +2,7 @@
 // On startup, data loads from DB. Every write saves to both memory AND DB.
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, deleteBookedCall as dbDeleteBookedCall, deleteClosedDeal as dbDeleteClosedDeal, deleteEODReport as dbDeleteEODReport, deleteCloserProfile as dbDeleteCloserProfile } from '@/lib/db';
 
 var store = {
   bookedCalls: [],
@@ -182,6 +182,38 @@ export function addEODReport(data) {
   recalcOverview();
   saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   return entry;
+}
+
+// ============================================
+// DELETE RECORDS (admin only — single record by ID)
+// ============================================
+
+export async function removeBookedCall(id) {
+  store.bookedCalls = store.bookedCalls.filter(function(b) { return b.id !== id; });
+  await dbDeleteBookedCall(id).catch(function(e) { console.error('[DB delete]', e.message); });
+  recalcOverview();
+  return { success: true };
+}
+
+export async function removeClosedDeal(id) {
+  store.closedDeals = store.closedDeals.filter(function(d) { return d.id !== id; });
+  await dbDeleteClosedDeal(id).catch(function(e) { console.error('[DB delete]', e.message); });
+  recalcOverview();
+  return { success: true };
+}
+
+export async function removeEODReport(id) {
+  store.eodReports = store.eodReports.filter(function(e) { return e.id !== id; });
+  await dbDeleteEODReport(id).catch(function(e) { console.error('[DB delete]', e.message); });
+  recalcOverview();
+  return { success: true };
+}
+
+export async function removeCloserProfile(email) {
+  var key = email.toLowerCase();
+  delete store.closerProfiles[key];
+  await dbDeleteCloserProfile(key).catch(function(e) { console.error('[DB delete]', e.message); });
+  return { success: true };
 }
 
 // ============================================

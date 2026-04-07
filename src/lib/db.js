@@ -117,3 +117,19 @@ export async function saveCustomMessage(entry) {
 export async function deleteCustomMessageDB(id) {
   return query('DELETE FROM custom_messages WHERE id = $1', [id]);
 }
+
+export async function deleteBookedCall(id) {
+  return query('DELETE FROM booked_calls WHERE id = $1', [id]);
+}
+
+export async function deleteClosedDeal(id) {
+  return query('DELETE FROM closed_deals WHERE id = $1', [id]);
+}
+
+export async function deleteEODReport(id) {
+  return query('DELETE FROM eod_reports WHERE id = $1', [id]);
+}
+
+export async function deleteCloserProfile(email) {
+  return query('DELETE FROM closer_profiles WHERE email = $1', [email.toLowerCase()]);
+}

@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Filter, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, FileText, Trash2 } from 'lucide-react';
 import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
+import { getUser } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 function StatusBadge({ status }) {
   var map = { submitted: 'badge-positive', late: 'badge-warning', missing: 'badge-negative' };
@@ -14,8 +16,16 @@ export default function EODLogsPage() {
   var s2 = useState('all'), filterStatus = s2[0], setFilterStatus = s2[1];
   var s3 = useState([]), liveEODs = s3[0], setLiveEODs = s3[1];
   var s4 = useState([]), closerNames = s4[0], setCloserNames = s4[1];
+  var s5 = useState(null), confirmDelete = s5[0], setConfirmDelete = s5[1];
+
+  var user = getUser();
+  var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
   useEffect(function() {
+    fetchEODs();
+  }, []);
+
+  function fetchEODs() {
     fetch('/api/webhooks/eod-report')
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -28,7 +38,13 @@ export default function EODLogsPage() {
         }
       })
       .catch(function() {});
-  }, []);
+  }
+
+  async function handleDelete(id) {
+    await fetch('/api/webhooks/eod-report/' + encodeURIComponent(id), { method: 'DELETE' });
+    setConfirmDelete(null);
+    fetchEODs();
+  }
 
   var totalCash = liveEODs.reduce(function(s, e) { return s + (e.cashCollectedMYFM || 0) + (e.cashCollectedI2I || 0); }, 0);
   var totalCloses = liveEODs.reduce(function(s, e) { return s + (e.closes || 0); }, 0);
@@ -103,7 +119,18 @@ export default function EODLogsPage() {
                       <div className="text-xs text-crm-muted">Submitted {formatTime(eod.submittedAt)} &middot; {eod.date}</div>
                     </div>
                   </div>
-                  <StatusBadge status={eod.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={eod.status} />
+                    {isAdmin && (
+                      <button
+                        onClick={function() { setConfirmDelete({ id: eod.id, label: eod.salesRep + ' — ' + eod.date }); }}
+                        className="text-crm-muted hover:text-crm-negative p-2 rounded-lg hover:bg-white/5 transition-colors"
+                        title="Delete EOD"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {eod.status !== 'missing' ? (
@@ -158,6 +185,15 @@ export default function EODLogsPage() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete EOD Report?"
+        message={confirmDelete ? 'This will permanently delete the EOD report for ' + confirmDelete.label + '. This cannot be undone.' : ''}
+        confirmLabel="Delete EOD"
+        onConfirm={function() { handleDelete(confirmDelete.id); }}
+        onCancel={function() { setConfirmDelete(null); }}
+      />
     </div>
   );
 }

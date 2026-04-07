@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard, Trash2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 var statusBadge = {
   pending: 'bg-crm-warning/10 text-crm-warning border border-crm-warning/20',
@@ -24,13 +25,22 @@ export default function CommissionsPage() {
   var s3 = useState(true), loading = s3[0], setLoading = s3[1];
   var s4 = useState('personal'), view = s4[0], setView = s4[1];
   var s5 = useState(null), user = s5[0], setUser = s5[1];
+  var s6 = useState(null), confirmDelete = s6[0], setConfirmDelete = s6[1];
+
+  var isAdmin = false;
 
   useEffect(function() {
     var u = getUser();
     setUser(u);
     if (!u) { setLoading(false); return; }
 
-    fetch('/api/commissions?closer=' + encodeURIComponent(u.name))
+    fetchCommissions(u);
+  }, []);
+
+  function fetchCommissions(u) {
+    var who = u || user;
+    if (!who) return;
+    fetch('/api/commissions?closer=' + encodeURIComponent(who.name))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setCommData(data);
@@ -44,7 +54,15 @@ export default function CommissionsPage() {
         if (data.success) setAllData(data);
       })
       .catch(function() {});
-  }, []);
+  }
+
+  async function handleDeleteDeal(id) {
+    await fetch('/api/webhooks/close-deal/' + encodeURIComponent(id), { method: 'DELETE' });
+    setConfirmDelete(null);
+    fetchCommissions();
+  }
+
+  isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
   function handleStatusUpdate(dealId, newStatus) {
     fetch('/api/commissions/status', {
@@ -127,13 +145,22 @@ export default function CommissionsPage() {
       </header>
 
       <div className="px-8 py-6 space-y-6">
-        {view === 'personal' ? renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate) : renderTeamView(allData, handleBulkStatusUpdate)}
+        {view === 'personal' ? renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate, isAdmin, setConfirmDelete) : renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDelete)}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete Closed Deal?"
+        message={confirmDelete ? 'This will permanently delete the deal for ' + confirmDelete.label + '. Commission data will be recalculated. This cannot be undone.' : ''}
+        confirmLabel="Delete Deal"
+        onConfirm={function() { handleDeleteDeal(confirmDelete.id); }}
+        onCancel={function() { setConfirmDelete(null); }}
+      />
     </div>
   );
 }
 
-function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate) {
+function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate, isAdmin, setConfirmDelete) {
   if (!summary || summary.totalDeals === 0) {
     return (
       <div className="glass-card overflow-hidden">
@@ -194,6 +221,7 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
                 <th>Rate</th>
                 <th>Commission</th>
                 <th>Status</th>
+                {isAdmin && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -217,6 +245,17 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
                         {deal.status}
                       </span>
                     </td>
+                    {isAdmin && (
+                      <td className="text-right">
+                        <button
+                          onClick={function() { setConfirmDelete({ id: deal.id, label: deal.leadName }); }}
+                          className="text-crm-muted hover:text-crm-negative p-1 rounded-lg hover:bg-white/5 transition-colors"
+                          title="Delete deal"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -251,7 +290,7 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
   );
 }
 
-function renderTeamView(allData, handleBulkStatusUpdate) {
+function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDelete) {
   if (!allData || !allData.closers || allData.closers.length === 0) {
     return (
       <div className="glass-card overflow-hidden">
