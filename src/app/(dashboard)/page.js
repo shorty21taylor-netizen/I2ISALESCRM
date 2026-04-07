@@ -211,11 +211,11 @@ export default function DashboardPage() {
           <>
             <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} trendLabel="vs prev 30d" icon={DollarSign} accentColor="red" delay={0} />
             <MetricCard label="Total Closes" value={formatNumber(t.totalCloses)} trend={t.closesTrend} trendLabel="vs prev 30d" icon={Target} accentColor="green" delay={50} />
-            <MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} delay={100} />
+            <MetricCard label="Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} delay={100} />
             <MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} delay={150} />
             <MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={200} />
             <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={250} />
-            <MetricCard label="One-Call Close Rate" value={t.oneCallCloseRate + '%'} trend={t.oneCallCloseTrend} icon={CheckCircle} accentColor="green" delay={300} />
+            <MetricCard label="Dial → Book" value={t.dialToBookRate + '%'} icon={Phone} accentColor="green" delay={300} />
             <MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} delay={350} />
           </>
         ) : (
@@ -224,7 +224,7 @@ export default function DashboardPage() {
             <MetricCard label="Show Rate" value={t.showRate + '%'} trend={t.showRateTrend} icon={UserCheck} delay={50} />
             <MetricCard label="Pipeline Value" value={formatCurrency(t.pipelineValue)} trend={t.pipelineValueTrend} icon={TrendingUp} accentColor="green" delay={100} />
             <MetricCard label="Avg Days to Close" value={String(t.avgDaysToClose)} trend={t.daysToCloseTrend ? t.daysToCloseTrend * -1 : 0} trendLabel="faster closing" icon={Clock} accentColor="green" delay={150} />
-            <MetricCard label="Refund Rate" value={t.refundRate + '%'} trend={t.refundRateTrend ? t.refundRateTrend * -1 : 0} trendLabel="fewer refunds" icon={ShieldCheck} accentColor="green" delay={200} />
+            <MetricCard label="Overall Conv." value={t.overallConversion + '%'} icon={TrendingUp} delay={200} />
             <MetricCard label="Net Revenue (30d)" value={formatCurrency(t.netRevenueRetained30d)} trend={t.netRetainedTrend} icon={DollarSign} accentColor="green" delay={250} />
             <MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} />
             <MetricCard label="Dials / Hour" value={String(t.avgDialsPerHour)} trend={t.dialsPerHourTrend} icon={Timer} delay={350} />

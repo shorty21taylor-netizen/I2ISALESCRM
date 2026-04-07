@@ -35,7 +35,7 @@ export default function CloserLeaderboard({ data }) {
           var id = (perf.closer && perf.closer.id) || perf.name || idx;
           var rev = perf.totalRevenue || perf.cash || perf.revenue || 0;
           var dials = perf.totalDials || perf.dials || 0;
-          var cr = perf.closeRate || (perf.callsTaken > 0 ? Math.round((perf.closes / perf.callsTaken) * 1000) / 10 : 0);
+          var cr = perf.closeRate || (perf.pitched > 0 ? Math.round((perf.closes / perf.pitched) * 1000) / 10 : 0);
           var rpd = perf.revenuePerDial || (dials > 0 ? rev / dials : 0);
           var trend = perf.revenueTrend || 0;
           var rank = idx + 1;

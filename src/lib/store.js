@@ -324,11 +324,16 @@ function computeOverviewForRange(startDate, endDate) {
   var totalCash = Math.max(eodCashTotal, dealCashTotal);
 
   // RATES
-  var closeRate = totalCallsTaken > 0 ? Math.round((totalCloses / totalCallsTaken) * 1000) / 10 : 0;
+  // CLOSE RATE = closes / calls taken & pitched (true closing skill)
+  var closeRate = totalCallsPitched > 0 ? Math.round((totalCloses / totalCallsPitched) * 1000) / 10 : 0;
   var avgDealValue = totalCloses > 0 ? Math.round(totalRevenue / totalCloses) : 0;
   var cashPerCall = totalCallsTaken > 0 ? Math.round(totalRevenue / totalCallsTaken) : 0;
   var offerRate = totalCallsTaken > 0 ? Math.round((totalCallsPitched / totalCallsTaken) * 1000) / 10 : 0;
   var showRate = totalCallsOnCalendar > 0 ? Math.round((totalCallsTaken / totalCallsOnCalendar) * 1000) / 10 : 0;
+  // DIAL TO BOOK RATE = booked / dials (cold outreach efficiency)
+  var dialToBookRate = totalDials > 0 ? Math.round((totalNewBooked / totalDials) * 1000) / 10 : 0;
+  // OVERALL CONVERSION = closes / dials (full funnel)
+  var overallConversion = totalDials > 0 ? Math.round((totalCloses / totalDials) * 10000) / 100 : 0;
 
   // ACTIVE CLOSERS
   var closerNames = {};
@@ -424,6 +429,8 @@ function computeOverviewForRange(startDate, endDate) {
     eodComplianceRate: eodComplianceRate,
     bookedCallsThisWeek: rangeBooked.length + totalNewBooked,
     showRate: showRate,
+    dialToBookRate: dialToBookRate,
+    overallConversion: overallConversion,
     pipelineValue: 0,
     avgDaysToClose: 0,
     refundRate: 0,
