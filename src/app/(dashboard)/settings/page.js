@@ -233,8 +233,8 @@ export default function SettingsPage() {
   if (!config) return null;
 
   return (
-    <div className="p-6 max-w-[1200px] mx-auto">
-      <h1 className="font-display text-2xl font-bold text-crm-text-bright mb-6">Settings</h1>
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1200px] mx-auto">
+      <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright mb-4 md:mb-6">Settings</h1>
 
       <div className="space-y-6">
 
@@ -276,7 +276,7 @@ export default function SettingsPage() {
           </div>
           <div className="p-5">
             {liveStatus ? (
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="glass-surface p-3 text-center">
                   <div className="text-2xl font-display font-bold text-crm-text-bright">{liveStatus.counts.bookedCalls}</div>
                   <div className="text-xs text-crm-muted mt-1">Booked Calls</div>
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                   className="input-field"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">WhatsApp Group ID</label>
                   <input
@@ -381,7 +381,7 @@ export default function SettingsPage() {
 
             {/* Connection Status Indicators */}
             {waStatus && (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className={'glass-surface p-2 text-center ' + (waStatus.hasApiUrl ? 'border-crm-positive/20' : '')}>
                   <div className={'w-2 h-2 rounded-full mx-auto mb-1 ' + (waStatus.hasApiUrl ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <span className="text-[10px] text-crm-muted">API URL</span>
@@ -612,7 +612,7 @@ export default function SettingsPage() {
 
             {/* Per-destination overrides */}
             <div className="space-y-3 mt-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">EOD Reminder Group ID</label>
                   <input
@@ -706,7 +706,7 @@ export default function SettingsPage() {
           <div className="section-header">
             <h3>Integrations</h3>
           </div>
-          <div className="p-5 grid grid-cols-2 gap-3">
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               { name: 'WhatsApp (Assistro)', icon: MessageSquare, status: waStatus && waStatus.configured ? 'connected' : 'pending', description: 'Team group + admin direct notifications' },
               { name: 'Fathom', icon: Video, status: 'pending', description: 'AI call recording and analysis' },

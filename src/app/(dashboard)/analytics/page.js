@@ -60,10 +60,10 @@ function ChartEmpty({ title, subtitle }) {
 
 export default function AnalyticsPage() {
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
       <h1 className="font-display text-2xl font-bold text-crm-text-bright mb-6">Analytics</h1>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Revenue Area Chart */}
         <div className="glass-card overflow-hidden stagger-1">
           <div className="section-header">
@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Dials vs Revenue Scatter */}
         <div className="glass-card overflow-hidden stagger-3">
           <div className="section-header">

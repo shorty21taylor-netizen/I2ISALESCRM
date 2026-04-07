@@ -26,9 +26,9 @@ export default function RecordingsPage() {
   });
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-2xl font-bold text-crm-text-bright">Recordings</h1>
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4 md:mb-6">
+        <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright">Recordings</h1>
         <div className="flex items-center gap-2 text-xs text-crm-muted glass-surface px-3 py-1.5">
           <PlayCircle className="w-4 h-4" />
           <span>{recentCalls.length} recordings with AI analysis</span>
@@ -36,18 +36,18 @@ export default function RecordingsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 md:mb-6">
         <Filter className="w-4 h-4 text-crm-muted" />
-        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Closers</option>
           {closers.map(function(c) { return <option key={c.id} value={c.id}>{c.name}</option>; })}
         </select>
-        <select value={filterOutcome} onChange={function(e) { setFilterOutcome(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterOutcome} onChange={function(e) { setFilterOutcome(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Outcomes</option>
           <option value="closed">Closed</option>
           <option value="no-close">No Close</option>
         </select>
-        <select value={filterScore} onChange={function(e) { setFilterScore(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterScore} onChange={function(e) { setFilterScore(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Scores</option>
           <option value="high">80+ (High)</option>
           <option value="mid">60-79 (Mid)</option>
@@ -61,7 +61,7 @@ export default function RecordingsPage() {
           <EmptyState icon={PlayCircle} title="No recordings yet" subtitle="Recordings appear when calls are logged via JustCall and Fathom" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(function(call) {
             var sc = call.aiScorecard;
             return (

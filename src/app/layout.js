@@ -7,6 +7,12 @@ export var metadata = {
   description: 'Sales team performance tracking with AI-powered insights.',
 };
 
+export var viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>

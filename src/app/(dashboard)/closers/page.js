@@ -54,7 +54,7 @@ export default function ClosersPage() {
   return (
     <div className="min-h-screen">
       <header className="page-header">
-        <div className="flex items-center justify-between px-8 h-16">
+        <div className="flex items-center justify-between px-4 md:px-8 h-16">
           <div>
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Closers</h1>
             <p className="text-xs text-crm-muted font-mono">{closers.length} team member{closers.length !== 1 ? 's' : ''} registered</p>
@@ -62,10 +62,10 @@ export default function ClosersPage() {
         </div>
       </header>
 
-      <div className="flex px-8 py-6 gap-6">
+      <div className="flex flex-col md:flex-row px-4 md:px-8 py-4 md:py-6 gap-4 md:gap-6">
 
         {/* Left panel — closer list */}
-        <div className="w-80 flex-shrink-0">
+        <div className="w-full md:w-80 flex-shrink-0">
           <div className="glass-card overflow-hidden">
             {/* Search */}
             <div className="p-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
@@ -87,7 +87,7 @@ export default function ClosersPage() {
             ) : filtered.length === 0 ? (
               <EmptyState icon={Users} title="No closers yet" subtitle="Closers appear when team members sign up and submit data" />
             ) : (
-              <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div className="max-h-[300px] md:max-h-[calc(100vh-200px)] overflow-y-auto">
                 {filtered.map(function(closer) {
                   var isSelected = selected && selected.email === closer.email;
                   return (
@@ -159,7 +159,7 @@ export default function ClosersPage() {
                 </div>
 
                 {/* Stats grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="glass-surface p-3 rounded-xl text-center">
                     <p className="text-lg font-display font-bold text-crm-text-bright">{selected.stats.closedDeals}</p>
                     <p className="text-xs font-mono text-crm-muted mt-0.5">Deals Closed</p>

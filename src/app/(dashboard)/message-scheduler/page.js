@@ -169,8 +169,8 @@ export default function MessageSchedulerPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1200px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1200px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
           <h1 className="font-display text-2xl font-bold text-crm-text-bright">Message Scheduler</h1>
           <p className="text-xs text-crm-muted font-mono mt-1">Schedule automated WhatsApp messages to your team</p>

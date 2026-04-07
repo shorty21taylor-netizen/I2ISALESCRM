@@ -10,9 +10,9 @@ export default function ReportsPage() {
   var t = teamOverview;
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-2xl font-bold text-crm-text-bright">AI Reports</h1>
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 md:mb-6">
+        <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright">AI Reports</h1>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 glass-surface p-1">
             <button onClick={function() { setView('team'); }} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ' + (view === 'team' ? 'bg-crm-accent/20 text-crm-accent' : 'text-crm-muted hover:text-crm-text')}>
@@ -33,7 +33,7 @@ export default function ReportsPage() {
       {view === 'team' ? (
         <div className="space-y-6">
           {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {[
               { label: 'Revenue', value: formatCurrency(t.totalRevenue), trend: t.revenueTrend },
               { label: 'Close Rate', value: t.teamCloseRate + '%', trend: t.closeRateTrend },

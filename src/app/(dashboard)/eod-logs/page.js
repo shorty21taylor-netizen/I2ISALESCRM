@@ -58,16 +58,16 @@ export default function EODLogsPage() {
   });
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-2xl font-bold text-crm-text-bright">EOD Logs</h1>
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4 md:mb-6">
+        <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright">EOD Logs</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm font-mono text-crm-text-bright">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </div>
       </div>
 
       {/* Summary Bar */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         {[
           { label: 'Total Cash', value: formatCurrency(totalCash), color: 'metric-positive' },
           { label: 'Total Closes', value: totalCloses, color: 'text-crm-text-bright' },
@@ -84,13 +84,13 @@ export default function EODLogsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
         <Filter className="w-4 h-4 text-crm-muted" />
-        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Reps</option>
           {closerNames.map(function(name) { return <option key={name} value={name}>{name}</option>; })}
         </select>
-        <select value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Status</option>
           <option value="submitted">Submitted</option>
           <option value="late">Late</option>
@@ -135,7 +135,7 @@ export default function EODLogsPage() {
 
                 {eod.status !== 'missing' ? (
                   <>
-                    <div className="grid grid-cols-6 gap-3 mb-4">
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 mb-4">
                       {[
                         { label: 'Outbound Dials', value: eod.outboundDials || 0 },
                         { label: 'Net New Booked', value: eod.netNewCallsBooked || 0 },
@@ -152,7 +152,7 @@ export default function EODLogsPage() {
                         );
                       })}
                     </div>
-                    <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
                       {[
                         { label: 'No-Showed', value: eod.callsNoShowed || 0 },
                         { label: 'Canceled', value: eod.callsCanceled || 0 },

@@ -33,11 +33,11 @@ export default function CallsPage() {
   var avgScore = totalCalls > 0 ? Math.round(filtered.reduce(function(s, c) { return s + c.aiScorecard.overallScore; }, 0) / totalCalls) : 0;
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      <h1 className="font-display text-2xl font-bold text-crm-text-bright mb-6">Call Center</h1>
+    <div className="px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
+      <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright mb-4 md:mb-6">Call Center</h1>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         {[
           { label: 'Total Calls', value: totalCalls },
           { label: 'Closed', value: closedCalls },
@@ -54,23 +54,23 @@ export default function CallsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
         <Filter className="w-4 h-4 text-crm-muted" />
-        <select value={filterRange} onChange={function(e) { setFilterRange(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterRange} onChange={function(e) { setFilterRange(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="7d">Last 7 days</option>
           <option value="30d">Last 30 days</option>
           <option value="90d">Last 90 days</option>
         </select>
-        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterCloser} onChange={function(e) { setFilterCloser(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Closers</option>
           {closers.map(function(c) { return <option key={c.id} value={c.id}>{c.name}</option>; })}
         </select>
-        <select value={filterSource} onChange={function(e) { setFilterSource(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterSource} onChange={function(e) { setFilterSource(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Sources</option>
           <option value="inbound">Inbound</option>
           <option value="outbound">Outbound</option>
         </select>
-        <select value={filterOutcome} onChange={function(e) { setFilterOutcome(e.target.value); }} className="input-field w-auto py-1.5">
+        <select value={filterOutcome} onChange={function(e) { setFilterOutcome(e.target.value); }} className="input-field w-auto py-1.5 text-sm">
           <option value="all">All Outcomes</option>
           <option value="closed">Closed</option>
           <option value="no-close">No Close</option>
@@ -90,7 +90,7 @@ export default function CallsPage() {
                 <div key={call.id} className="border-b border-crm-border/50 last:border-0">
                   <button
                     onClick={function() { setExpandedId(expanded ? null : call.id); }}
-                    className="w-full flex items-center gap-3 p-4 hover:bg-white/[0.02] transition-colors text-left"
+                    className="w-full flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3 p-3 md:p-4 hover:bg-white/[0.02] transition-colors text-left"
                   >
                     <div className="avatar avatar-sm text-crm-text">
                       {getInitials(call.closerName)}
@@ -109,7 +109,7 @@ export default function CallsPage() {
                   {expanded && (
                     <div className="px-4 pb-4">
                       <p className="text-sm text-crm-text mb-3">{sc.summary}</p>
-                      <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                         <div className="glass-surface p-2 text-center">
                           <div className="text-xs text-crm-muted mb-1">Discovery</div>
                           {sc.discoveryDone ? <CheckCircle className="w-4 h-4 text-crm-positive mx-auto" /> : <XCircle className="w-4 h-4 text-crm-negative mx-auto" />}

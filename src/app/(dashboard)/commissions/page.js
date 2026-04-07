@@ -128,7 +128,7 @@ export default function CommissionsPage() {
   return (
     <div>
       <header className="page-header">
-        <div className="flex items-center justify-between px-8 h-16">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 px-4 md:px-8 h-auto py-3 md:h-16 md:py-0">
           <div>
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Commissions</h1>
             <p className="text-xs text-crm-muted font-mono">{user ? user.name + ' \u2014 earnings from closed deals' : 'Your earnings from closed deals'}</p>
@@ -144,7 +144,7 @@ export default function CommissionsPage() {
         </div>
       </header>
 
-      <div className="px-8 py-6 space-y-6">
+      <div className="px-4 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6">
         {view === 'personal' ? renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate, isAdmin, setConfirmDelete) : renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDelete)}
       </div>
 
@@ -172,12 +172,12 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
   return (
     <>
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="glass-card p-5 stagger-1">
-          <div className="flex items-start justify-between mb-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="glass-card p-3 md:p-5 stagger-1">
+          <div className="flex items-start justify-between mb-2 md:mb-3">
             <div className="icon-box-green"><DollarSign className="w-5 h-5" /></div>
           </div>
-          <div className="metric-value-green text-2xl mb-1">{formatCurrency(summary.totalCommission)}</div>
+          <div className="metric-value-green text-lg md:text-2xl mb-1">{formatCurrency(summary.totalCommission)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Earned</div>
         </div>
         <div className="glass-card p-5 stagger-2">
@@ -212,7 +212,7 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
           <span className="section-tag">{deals.length} deals</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="data-table">
+          <table className="data-table min-w-[600px]">
             <thead>
               <tr>
                 <th>Date</th>
@@ -307,9 +307,9 @@ function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDele
   return (
     <>
       {/* Team Summary */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="glass-card p-5 stagger-1">
-          <div className="text-2xl font-display font-bold text-crm-text-bright mb-1">{formatCurrency(teamRevenue)}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="glass-card p-3 md:p-5 stagger-1">
+          <div className="text-lg md:text-2xl font-display font-bold text-crm-text-bright mb-1">{formatCurrency(teamRevenue)}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Team Revenue</div>
         </div>
         <div className="glass-card p-5 stagger-2">
@@ -386,7 +386,7 @@ function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDele
                     <span className="text-crm-warning">{s.myfm ? s.myfm.deals : 0} MYFM</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-right">
+                <div className="hidden md:flex items-center gap-4 text-right">
                   <div>
                     <div className="text-xs text-crm-muted font-mono">Revenue</div>
                     <div className="text-sm font-mono text-crm-text-bright">{formatCurrency(s.totalRevenue)}</div>
@@ -403,6 +403,10 @@ function renderTeamView(allData, handleBulkStatusUpdate, isAdmin, setConfirmDele
                     <div className="text-xs text-crm-muted font-mono">Paid</div>
                     <div className="text-sm font-mono text-crm-positive">{formatCurrency(s.paidCommission)}</div>
                   </div>
+                </div>
+                <div className="md:hidden text-right">
+                  <div className="text-sm font-mono metric-positive font-bold">{formatCurrency(s.totalCommission)}</div>
+                  <div className="text-[10px] text-crm-muted font-mono">earned</div>
                 </div>
               </div>
             );

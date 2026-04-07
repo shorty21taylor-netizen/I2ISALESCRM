@@ -268,7 +268,7 @@ export default function SubmitPage() {
   return (
     <div>
       <header className="page-header">
-        <div className="flex items-center justify-between px-8 h-16">
+        <div className="flex items-center justify-between px-4 md:px-8 h-16">
           <div>
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Submit reports</h1>
             <p className="text-xs text-crm-muted font-mono">Book calls, log closes, and submit your end-of-day</p>
@@ -276,11 +276,11 @@ export default function SubmitPage() {
         </div>
       </header>
 
-      <div className="px-8 py-8 space-y-6">
+      <div className="px-4 md:px-8 py-6 md:py-8 space-y-6">
 
         {/* Tab Toggle */}
         <div className="flex items-center justify-center">
-          <div className="glass-surface inline-flex rounded-xl p-1">
+          <div className="glass-surface inline-flex flex-wrap rounded-xl p-1">
             {tabs.map(function(tab) {
               var isActive = activeTab === tab.id;
               var TabIcon = tab.icon;
@@ -289,8 +289,8 @@ export default function SubmitPage() {
                   key={tab.id}
                   onClick={function() { setActiveTab(tab.id); setError(''); setSuccessMsg(null); }}
                   className={isActive
-                    ? 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
-                    : 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
+                    ? 'flex items-center gap-2 px-3 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
+                    : 'flex items-center gap-2 px-3 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
                 >
                   <TabIcon className="w-4 h-4" />
                   {tab.label}
@@ -322,7 +322,7 @@ export default function SubmitPage() {
             </div>
             <form onSubmit={handleSubmitBookCall} className="p-6 space-y-5">
               <div className="form-section-title">Lead Information</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label form-label-required">Lead&apos;s Name</label>
                   <input type="text" value={bcLeadsName} onChange={function(e) { setBcLeadsName(e.target.value); }} className="input-field" placeholder="John Smith" required />
@@ -332,7 +332,7 @@ export default function SubmitPage() {
                   <input type="text" value={bcLeadsPhone} onChange={function(e) { setBcLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Program</label>
                   <select value={bcProgram} onChange={function(e) { setBcProgram(e.target.value); }} className="input-field">
@@ -351,7 +351,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Scheduling</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Booked Day</label>
                   <input type="date" value={bcBookedDay} onChange={function(e) { setBcBookedDay(e.target.value); }} className="input-field" />
@@ -363,7 +363,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Team</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Setter</label>
                   <input type="text" value={bcSetter} onChange={function(e) { setBcSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
@@ -373,7 +373,7 @@ export default function SubmitPage() {
                   <input type="text" value={bcCloser} onChange={function(e) { setBcCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Source</label>
                   <select value={bcSource} onChange={function(e) { setBcSource(e.target.value); }} className="input-field">
@@ -404,7 +404,7 @@ export default function SubmitPage() {
             </div>
             <form onSubmit={handleSubmitCloseDeal} className="p-6 space-y-5">
               <div className="form-section-title">Lead Information</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label form-label-required">Lead&apos;s Name</label>
                   <input type="text" value={cdLeadsName} onChange={function(e) { setCdLeadsName(e.target.value); }} className="input-field" placeholder="John Smith" required />
@@ -414,7 +414,7 @@ export default function SubmitPage() {
                   <input type="text" value={cdLeadsPhone} onChange={function(e) { setCdLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Lead&apos;s Email</label>
                   <input type="email" value={cdLeadsEmail} onChange={function(e) { setCdLeadsEmail(e.target.value); }} className="input-field" placeholder="john@email.com" />
@@ -429,7 +429,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Payment</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Payment Type</label>
                   <select value={cdPaymentDetails} onChange={function(e) { setCdPaymentDetails(e.target.value); }} className="input-field">
@@ -448,7 +448,7 @@ export default function SubmitPage() {
                   <input type="text" value={cdPaymentProcessor} onChange={function(e) { setCdPaymentProcessor(e.target.value); }} className="input-field" placeholder="Stripe, PayPal, etc." />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Payment Agreement</label>
                   <input type="text" value={cdPaymentAgreement} onChange={function(e) { setCdPaymentAgreement(e.target.value); }} className="input-field" placeholder="Agreement URL or details" />
@@ -460,7 +460,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Team</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Setter</label>
                   <input type="text" value={cdSetter} onChange={function(e) { setCdSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
@@ -487,7 +487,7 @@ export default function SubmitPage() {
               <span className="section-tag">CRM only</span>
             </div>
             <form onSubmit={handleSubmitEOD} className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label form-label-required">Sales Rep</label>
                   <input type="text" value={eodSalesRep} onChange={function(e) { setEodSalesRep(e.target.value); }} className="input-field" placeholder="Your name" required />
@@ -499,7 +499,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Call Metrics</div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Net New Calls Booked</label>
                   <input type="number" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
@@ -527,7 +527,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Performance</div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Calls Taken &amp; Pitched</label>
                   <input type="number" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
@@ -543,7 +543,7 @@ export default function SubmitPage() {
               </div>
 
               <div className="form-section-title">Revenue</div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Cash Collected (MYFM)</label>
                   <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
@@ -581,7 +581,8 @@ export default function SubmitPage() {
           </div>
           {submissions.length > 0 ? (
             <div className="glass-card overflow-hidden">
-              <table className="data-table">
+              <div className="overflow-x-auto">
+              <table className="data-table min-w-[500px]">
                 <thead>
                   <tr>
                     <th>Time</th>
@@ -610,6 +611,7 @@ export default function SubmitPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : (
             <div className="glass-card p-8 text-center text-sm text-crm-muted">

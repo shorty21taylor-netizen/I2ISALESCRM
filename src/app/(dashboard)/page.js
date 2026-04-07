@@ -103,19 +103,19 @@ export default function DashboardPage() {
   })();
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto bg-orbs relative">
+    <div className="px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto bg-orbs relative">
       {/* Header */}
-      <div className="flex items-center justify-between stagger-1 relative z-10">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 stagger-1 relative z-10">
         <div>
-          <h1 className="font-display text-2xl font-bold text-crm-text-bright">Good afternoon, Anthony</h1>
-          <p className="text-sm text-crm-muted mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright">Good afternoon, Anthony</h1>
+          <p className="text-xs md:text-sm text-crm-muted mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <div className="live-indicator">
             <div className={liveData ? 'glow-dot-green' : 'w-1.5 h-1.5 rounded-full bg-crm-muted'} />
             <span className={liveData ? 'text-crm-positive' : 'text-crm-muted'}>{liveData ? 'Live' : 'Connecting...'}</span>
           </div>
-          <div className="flex items-center gap-4 glass-surface px-4 py-2">
+          <div className="hidden md:flex items-center gap-4 glass-surface px-4 py-2">
             <span className="text-xs font-mono text-crm-muted">{rangeLabel}: <span className="metric-value-green text-sm">{formatCurrency(todayCash)}</span></span>
             <span className="text-xs font-mono text-crm-muted">{todayCloses} closes</span>
             <span className="text-xs font-mono text-crm-muted">{todayDials} dials</span>
@@ -128,8 +128,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ===== DATE RANGE PICKER ===== */}
-      <div className="flex items-center justify-between relative z-10 stagger-2">
-        <div className="glass-surface inline-flex rounded-xl p-1 gap-0.5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 relative z-10 stagger-2">
+        <div className="glass-surface inline-flex flex-wrap rounded-xl p-1 gap-0.5">
           {[
             { id: 'today', label: 'Today' },
             { id: 'yesterday', label: 'Yesterday' },
@@ -294,15 +294,15 @@ export default function DashboardPage() {
       )}
 
       {/* Row 6 — Charts */}
-      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10 stagger-3">
         <ClientOnly><RevenueChart data={revenueByDay} /></ClientOnly>
         <ClientOnly><DialActivityChart data={dialsByCloser} /></ClientOnly>
       </div>
 
       {/* Row 7 — Pipeline + Leaderboard */}
-      <div className="grid grid-cols-3 gap-4 relative z-10 stagger-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-4">
         <PipelineSplit inboundRevenue={t.inboundRevenue || 0} outboundRevenue={t.outboundRevenue || 0} paymentBreakdown={t.paymentBreakdown} />
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <CloserLeaderboard data={liveClosers} />
         </div>
       </div>
@@ -311,7 +311,7 @@ export default function DashboardPage() {
       <div className="relative z-10 stagger-5"><EODTable reports={displayEODs} /></div>
 
       {/* Row 9 — Calls + Insights */}
-      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10 stagger-6">
         <RecentCalls calls={recentCalls} />
         <AIInsights performances={liveClosers} />
       </div>
