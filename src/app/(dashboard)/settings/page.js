@@ -142,8 +142,8 @@ export default function SettingsPage() {
       });
   }
 
-  // Fire a scheduled message NOW using the SAVED localStorage config — bypasses the
-  // server-side scheduler state entirely so it works even if config wasn't pushed.
+  // Fire a scheduled message NOW using the SAVED localStorage config.
+  // Uses /api/notify directly — same code path as the working Test buttons.
   function runSavedTask(taskType) {
     setActionResult(null);
     if (!config.assistroApiUrl) {
@@ -152,98 +152,150 @@ export default function SettingsPage() {
       return;
     }
 
-    var groupId = '';
-    var phone = '';
-    var message = '';
-    var isDirect = false;
-
     if (taskType === 'eodReminder') {
-      groupId = config.eodReminderGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
-      message = '⏰ EOD REMINDER ⏰\n'
-        + '═══════════════════════\n\n'
-        + 'Team — time to submit your End of Day report!\n\n'
-        + '👉 Log into Summit CRM → Submit → End of Day\n\n'
-        + 'Don\'t forget:\n'
-        + '📞 Net new calls booked\n'
-        + '🗣️ Calls taken & pitched\n'
-        + '🏆 Closes & cash collected\n'
-        + '📱 Outbound dials\n'
-        + '🔮 Your plan for tomorrow\n\n'
-        + '💪 Get it in before you clock out!\n'
-        + '═══════════════════════';
-    } else if (taskType === 'morningDigest') {
-      groupId = config.morningDigestGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
-      message = '☀️ MORNING CALL DIGEST ☀️\n'
-        + '═══════════════════════\n\n'
-        + 'Good morning team! Here are today\'s booked calls.\n\n'
-        + '👉 Check Summit CRM for the full list\n\n'
-        + '🎯 Let\'s close some deals today!\n'
-        + '═══════════════════════';
-    } else if (taskType === 'adminMorningReport') {
-      // Admin report sends to group (not DM) via /api/admin-morning-report
-      var adminGid = config.adminMorningReportGroupId || config.adminGroupId || '';
-      if (!adminGid) {
-        setActionResult({ success: false, message: 'Save the Admin Report Group ID first' });
+      var eodGid = config.eodReminderGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
+      if (!eodGid) {
+        setActionResult({ success: false, message: 'Save the EOD Reminder Group ID first' });
         setTimeout(function() { setActionResult(null); }, 4000);
         return;
       }
-      fetch('/api/admin-morning-report', {
+      var crmLink = config.crmUrl || (typeof window !== 'undefined' ? window.location.origin + '/submit' : 'the CRM');
+      var eodMsg = 'EOD REMINDER\n'
+        + '===========================\n\n'
+        + 'Team -- time to submit your End of Day report!\n\n'
+        + 'Log in and go to Submit -> End of Day:\n'
+        + crmLink + '\n\n'
+        + 'Include:\n'
+        + '- Net new calls booked\n'
+        + '- Calls taken and pitched\n'
+        + '- Closes and cash collected\n'
+        + '- Outbound dials\n'
+        + '- Your plan for tomorrow\n\n'
+        + 'Get it in before you clock out!\n'
+        + '===========================';
+
+      fetch('/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: adminGid,
           assistroApiUrl: config.assistroApiUrl,
           assistroApiKey: config.assistroApiKey,
+          whatsappGroupId: eodGid,
+          message: eodMsg,
         }),
       })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-          setActionResult({
-            success: !!data.success,
-            message: data.success ? 'Admin Report sent to group!' : ('Failed: ' + (data.error || 'Unknown')),
-          });
+          setActionResult({ success: !!data.sent, message: data.sent ? 'EOD Reminder sent!' : ('Failed: ' + (data.error || data.reason || 'Unknown')) });
           setTimeout(function() { setActionResult(null); }, 6000);
         })
         .catch(function(e) {
           setActionResult({ success: false, message: e.message });
           setTimeout(function() { setActionResult(null); }, 6000);
         });
-      return;
-    }
 
-    if (!groupId) {
-      setActionResult({ success: false, message: 'Save the Group ID for this task first' });
-      setTimeout(function() { setActionResult(null); }, 4000);
-      return;
-    }
+    } else if (taskType === 'morningDigest') {
+      var digestGid = config.morningDigestGroupId || config.bookedCallGroupId || config.whatsappGroupId || '';
+      if (!digestGid) {
+        setActionResult({ success: false, message: 'Save the Morning Digest Group ID first' });
+        setTimeout(function() { setActionResult(null); }, 4000);
+        return;
+      }
 
-    var endpoint = '/api/notify';
-    var payload = {
-      assistroApiUrl: config.assistroApiUrl,
-      assistroApiKey: config.assistroApiKey,
-      message: message,
-    };
-    payload.whatsappGroupId = groupId;
+      // Fetch today's booked calls, build the message, then send via /api/notify
+      var today = new Date().toISOString().split('T')[0];
+      var dayName = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-    fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        setActionResult({
-          success: !!data.sent,
-          message: data.sent
-            ? '✅ Sent!'
-            : '❌ Failed (' + (data.status || '?') + '): ' + (data.error || data.reason || JSON.stringify(data.result || {}).substring(0, 150)),
+      fetch('/api/webhooks/book-call')
+        .then(function(r) { return r.json(); })
+        .then(function(callsData) {
+          var allCalls = (callsData.data || []).filter(function(b) { return b.bookedDay === today; });
+          var digestMsg;
+
+          if (allCalls.length === 0) {
+            digestMsg = 'TODAY\'S BOOKED CALLS\n===========================\n\n' + dayName + '\n\nNo calls on the books for today.\n\n===========================';
+          } else {
+            var byCloser = {};
+            allCalls.forEach(function(call) {
+              var closer = call.closer || 'Unassigned';
+              if (!byCloser[closer]) byCloser[closer] = [];
+              byCloser[closer].push(call);
+            });
+
+            digestMsg = 'TODAY\'S BOOKED CALLS\n===========================\n\n' + dayName + '\nTotal Calls Today: ' + allCalls.length + '\n';
+            Object.keys(byCloser).forEach(function(closer) {
+              var calls = byCloser[closer];
+              digestMsg += '\n' + closer.toUpperCase() + ' (' + calls.length + ' calls)\n';
+              calls.forEach(function(call, i) {
+                digestMsg += '  ' + (i + 1) + '. ' + (call.leadsName || 'Unknown') + ' -- ' + (call.bookedTime || 'TBD') + '\n';
+                digestMsg += '     Program: ' + (call.program || 'N/A') + ' | Source: ' + (call.outboundInbound || 'N/A') + '\n';
+                if (call.leadsPhone) digestMsg += '     Phone: ' + call.leadsPhone + '\n';
+              });
+            });
+            digestMsg += '\n===========================';
+          }
+
+          return fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assistroApiUrl: config.assistroApiUrl,
+              assistroApiKey: config.assistroApiKey,
+              whatsappGroupId: digestGid,
+              message: digestMsg,
+            }),
+          });
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          setActionResult({ success: !!data.sent, message: data.sent ? 'Morning Digest sent!' : ('Failed: ' + (data.error || data.reason || 'Unknown')) });
+          setTimeout(function() { setActionResult(null); }, 6000);
+        })
+        .catch(function(e) {
+          setActionResult({ success: false, message: e.message });
+          setTimeout(function() { setActionResult(null); }, 6000);
         });
-        setTimeout(function() { setActionResult(null); }, 6000);
+
+    } else if (taskType === 'adminMorningReport') {
+      var adminGid = config.adminMorningReportGroupId || config.adminGroupId || '';
+      if (!adminGid) {
+        setActionResult({ success: false, message: 'Save the Admin Report Group ID first' });
+        setTimeout(function() { setActionResult(null); }, 4000);
+        return;
+      }
+
+      // Get report content from /api/admin-morning-report (just generate, don't send)
+      // Then send via /api/notify (the known-working path)
+      fetch('/api/admin-morning-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       })
-      .catch(function(e) {
-        setActionResult({ success: false, message: '❌ ' + e.message });
-        setTimeout(function() { setActionResult(null); }, 6000);
-      });
+        .then(function(r) { return r.json(); })
+        .then(function(reportData) {
+          var adminMsg = reportData.message || 'DAILY ADMIN REPORT\n===========================\n\nNo data available yet.\n===========================';
+
+          return fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assistroApiUrl: config.assistroApiUrl,
+              assistroApiKey: config.assistroApiKey,
+              whatsappGroupId: adminGid,
+              message: adminMsg,
+            }),
+          });
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          setActionResult({ success: !!data.sent, message: data.sent ? 'Admin Report sent!' : ('Failed: ' + (data.error || data.reason || 'Unknown')) });
+          setTimeout(function() { setActionResult(null); }, 6000);
+        })
+        .catch(function(e) {
+          setActionResult({ success: false, message: e.message });
+          setTimeout(function() { setActionResult(null); }, 6000);
+        });
+    }
   }
 
   if (!config) return null;
