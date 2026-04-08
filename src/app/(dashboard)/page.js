@@ -16,7 +16,7 @@ import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay
 export default function DashboardPage() {
   var s = useState('performance'), metricPage = s[0], setMetricPage = s[1];
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
-  var s3 = useState('today'), dateRange = s3[0], setDateRange = s3[1];
+  var s3 = useState('30d'), dateRange = s3[0], setDateRange = s3[1];
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
   var s5 = useState(''), customEnd = s5[0], setCustomEnd = s5[1];
   var s6 = useState(''), lastFetch = s6[0], setLastFetch = s6[1];

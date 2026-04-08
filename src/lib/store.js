@@ -140,14 +140,15 @@ export function addClosedDeal(data) {
     setter: data.setter || '',
     closer: data.closer || '',
     closerEmail: data.closerEmail || '',
+    outboundInbound: data.outboundInbound || data.leadSource || '',
     commissionStatus: 'pending',
     submittedAt: new Date().toISOString(),
   };
+  entry.closedAt = entry.submittedAt;
   store.closedDeals.unshift(entry);
   if (store.closedDeals.length > 500) store.closedDeals = store.closedDeals.slice(0, 500);
   saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save closed deal error:', e.message); });
   recalcOverview();
-  saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save deal error:', e.message); });
   return entry;
 }
 
@@ -322,6 +323,8 @@ function computeOverviewForRange(startDate, endDate) {
   // Use the HIGHER of EOD-reported revenue vs deal-reported revenue
   var totalRevenue = Math.max(eodRevenue, dealCashTotal);
   var totalCash = Math.max(eodCashTotal, dealCashTotal);
+
+  console.log('[Overview] Range:', start, '→', end, '| Deals:', rangeDeals.length, '(eodCloses:', eodCloses, ') → totalCloses:', totalCloses, '| Revenue: $' + Math.round(totalRevenue));
 
   // RATES
   // CLOSE RATE = closes / calls taken & pitched (true closing skill)
