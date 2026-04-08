@@ -35,20 +35,14 @@ export async function POST(req) {
 
     var waResult = { sent: false };
 
-    var apiUrl = waCfg.assistroApiUrl || '';
-    var apiKey = waCfg.assistroApiKey || '';
-    var groupId = waCfg.closedDealGroupId || '';
+    // Merge server + client config: prefer server, fill gaps from client _whatsapp
+    var clientWa = body._whatsapp || {};
+    var apiUrl = waCfg.assistroApiUrl || clientWa.apiUrl || '';
+    var apiKey = waCfg.assistroApiKey || clientWa.apiKey || '';
+    var groupId = waCfg.closedDealGroupId || clientWa.groupId || '';
     var enabled = waCfg.closedDealEnabled !== false;
-    var source = 'server';
 
-    if (!apiUrl && body._whatsapp && body._whatsapp.apiUrl) {
-      apiUrl = body._whatsapp.apiUrl;
-      apiKey = body._whatsapp.apiKey || '';
-      groupId = body._whatsapp.groupId || groupId;
-      source = 'client';
-    }
-
-    console.log('[CLOSE-DEAL] WhatsApp source:', (apiUrl && groupId) ? source : 'NONE');
+    console.log('[CLOSE-DEAL] Merged config — apiUrl:', apiUrl ? 'SET' : 'EMPTY', 'groupId:', groupId ? groupId.substring(0, 15) + '...' : 'EMPTY');
 
     if (apiUrl && enabled && groupId) {
       var ts = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
