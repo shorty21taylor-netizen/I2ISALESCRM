@@ -332,7 +332,11 @@ function computeOverviewForRange(startDate, endDate) {
   var avgDealValue = totalCloses > 0 ? Math.round(totalRevenue / totalCloses) : 0;
   var cashPerCall = totalCallsTaken > 0 ? Math.round(totalRevenue / totalCallsTaken) : 0;
   var offerRate = totalCallsTaken > 0 ? Math.round((totalCallsPitched / totalCallsTaken) * 1000) / 10 : 0;
-  var showRate = totalCallsOnCalendar > 0 ? Math.round((totalCallsTaken / totalCallsOnCalendar) * 1000) / 10 : 0;
+  var showRateRaw = totalCallsOnCalendar > 0 ? (totalCallsTaken / totalCallsOnCalendar) * 100 : 0;
+  var showRate = Math.min(Math.round(showRateRaw * 10) / 10, 100);
+  if (showRateRaw > 100) {
+    console.log('[Show Rate] Capped from', showRateRaw.toFixed(1) + '% to 100% — taken:', totalCallsTaken, 'calendar:', totalCallsOnCalendar, '(EOD reps may be filling callsTaken without callsOnCalendar)');
+  }
   // DIAL TO BOOK RATE = booked / dials (cold outreach efficiency)
   var dialToBookRate = totalDials > 0 ? Math.round((totalNewBooked / totalDials) * 1000) / 10 : 0;
   // OVERALL CONVERSION = closes / dials (full funnel)
