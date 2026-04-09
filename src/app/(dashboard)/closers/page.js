@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, Trash2 } from 'lucide-react';
+import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, Trash2, GitMerge } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { getUser } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
@@ -13,6 +13,9 @@ export default function ClosersPage() {
   var s3 = useState(''), search = s3[0], setSearch = s3[1];
   var s4 = useState(null), selected = s4[0], setSelected = s4[1];
   var s5 = useState(null), confirmDelete = s5[0], setConfirmDelete = s5[1];
+  var s6 = useState(false), mergeMode = s6[0], setMergeMode = s6[1];
+  var s7 = useState(null), keepTarget = s7[0], setKeepTarget = s7[1];
+  var s8 = useState(null), mergeResult = s8[0], setMergeResult = s8[1];
 
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
@@ -45,6 +48,44 @@ export default function ClosersPage() {
     fetchClosers();
   }
 
+  function startMerge(closer) {
+    if (!keepTarget) {
+      setKeepTarget(closer);
+    } else if (keepTarget.email !== closer.email) {
+      // keepTarget is set, this click picks the merge source
+      setMergeResult({ keep: keepTarget, merge: closer, confirming: true });
+    }
+  }
+
+  async function executeMerge() {
+    if (!mergeResult) return;
+    var res = await fetch('/api/closers/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        keepName: mergeResult.keep.name,
+        mergeName: mergeResult.merge.name,
+        keepEmail: mergeResult.keep.email,
+      }),
+    });
+    var data = await res.json();
+    if (data.success) {
+      setMergeResult({ done: true, message: data.message, counts: data.counts });
+      setKeepTarget(null);
+      setMergeMode(false);
+      if (selected && selected.email === mergeResult.merge.email) setSelected(null);
+      fetchClosers();
+    } else {
+      setMergeResult({ done: true, message: 'Error: ' + (data.error || 'Unknown error'), counts: null });
+    }
+  }
+
+  function cancelMerge() {
+    setMergeMode(false);
+    setKeepTarget(null);
+    setMergeResult(null);
+  }
+
   var filtered = closers.filter(function(c) {
     if (!search) return true;
     var q = search.toLowerCase();
@@ -59,6 +100,15 @@ export default function ClosersPage() {
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Closers</h1>
             <p className="text-xs text-crm-muted font-mono">{closers.length} team member{closers.length !== 1 ? 's' : ''} registered</p>
           </div>
+          {isAdmin && closers.length >= 2 && (
+            <button
+              onClick={function() { mergeMode ? cancelMerge() : setMergeMode(true); }}
+              className={'btn-ghost text-xs flex items-center gap-1.5 ' + (mergeMode ? 'text-crm-accent' : '')}
+            >
+              <GitMerge className="w-3.5 h-3.5" />
+              {mergeMode ? 'Cancel Merge' : 'Merge Closers'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -66,6 +116,19 @@ export default function ClosersPage() {
 
         {/* Left panel — closer list */}
         <div className="w-full md:w-80 flex-shrink-0">
+          {mergeMode && (
+            <div className="glass-card p-3 mb-3 border border-crm-accent/30">
+              <p className="text-xs font-mono text-crm-accent mb-1">
+                <GitMerge className="w-3 h-3 inline mr-1" />
+                {!keepTarget ? 'Step 1: Click the closer to KEEP' : 'Step 2: Click the closer to MERGE into "' + keepTarget.name + '"'}
+              </p>
+              {keepTarget && (
+                <button onClick={function() { setKeepTarget(null); }} className="text-xs text-crm-muted hover:text-crm-text-bright font-mono mt-1">
+                  Reset selection
+                </button>
+              )}
+            </div>
+          )}
           <div className="glass-card overflow-hidden">
             {/* Search */}
             <div className="p-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
@@ -103,7 +166,19 @@ export default function ClosersPage() {
                         <p className="text-sm font-display font-semibold text-crm-text-bright truncate">{closer.name}</p>
                         <p className="text-xs font-mono text-crm-muted truncate">{closer.email}</p>
                       </div>
-                      {isAdmin && (
+                      {isAdmin && mergeMode && (
+                        <button
+                          onClick={function(e) {
+                            e.stopPropagation();
+                            startMerge(closer);
+                          }}
+                          className={'text-xs font-mono px-2 py-1 rounded transition-colors ' + (keepTarget && keepTarget.email === closer.email ? 'bg-crm-accent/20 text-crm-accent' : 'text-crm-muted hover:text-crm-accent hover:bg-crm-accent/10')}
+                          title={!keepTarget ? 'Keep this closer' : 'Merge into ' + keepTarget.name}
+                        >
+                          {keepTarget && keepTarget.email === closer.email ? 'KEEP' : (!keepTarget ? 'Select' : 'Merge')}
+                        </button>
+                      )}
+                      {isAdmin && !mergeMode && (
                         <button
                           onClick={function(e) {
                             e.stopPropagation();
@@ -245,6 +320,32 @@ export default function ClosersPage() {
         onConfirm={function() { handleDelete(confirmDelete.email); }}
         onCancel={function() { setConfirmDelete(null); }}
       />
+
+      <ConfirmDialog
+        open={!!(mergeResult && mergeResult.confirming)}
+        title="Merge Closer Profiles?"
+        message={mergeResult && mergeResult.confirming ? 'This will merge all data from "' + mergeResult.merge.name + '" into "' + mergeResult.keep.name + '". All booked calls, closed deals, and EOD reports will be reassigned. The merged profile will be deleted. This cannot be undone.' : ''}
+        confirmLabel="Merge Closers"
+        onConfirm={function() { executeMerge(); }}
+        onCancel={function() { setMergeResult(null); setKeepTarget(null); }}
+      />
+
+      {mergeResult && mergeResult.done && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={function() { setMergeResult(null); }}>
+          <div className="glass-card p-6 max-w-sm mx-4" onClick={function(e) { e.stopPropagation(); }}>
+            <h3 className="font-display font-bold text-crm-text-bright mb-2">Merge Complete</h3>
+            <p className="text-sm text-crm-muted font-mono mb-3">{mergeResult.message}</p>
+            {mergeResult.counts && (
+              <div className="text-xs font-mono text-crm-muted space-y-1 mb-4">
+                <p>Booked calls reassigned: {mergeResult.counts.bookedCalls}</p>
+                <p>Closed deals reassigned: {mergeResult.counts.closedDeals}</p>
+                <p>EOD reports reassigned: {mergeResult.counts.eodReports}</p>
+              </div>
+            )}
+            <button onClick={function() { setMergeResult(null); }} className="btn-primary w-full text-sm">Done</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

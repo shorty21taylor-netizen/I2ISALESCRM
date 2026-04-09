@@ -118,7 +118,6 @@ export function addBookedCall(data) {
   if (store.bookedCalls.length > 500) store.bookedCalls = store.bookedCalls.slice(0, 500);
   saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   recalcOverview();
-  saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   return entry;
 }
 
@@ -181,7 +180,6 @@ export function addEODReport(data) {
   if (store.eodReports.length > 500) store.eodReports = store.eodReports.slice(0, 500);
   saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   recalcOverview();
-  saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   return entry;
 }
 
@@ -223,7 +221,7 @@ export async function removeCloserProfile(email) {
 
 var overview = null;
 
-function recalcOverview() {
+export function recalcOverview() {
   var today = new Date().toISOString().split('T')[0];
   overview = computeOverviewForRange(today, today);
 }
@@ -819,12 +817,17 @@ export function updateCommissionStatus(dealId, status) {
 // ============================================
 
 export function registerCloser(email, name) {
-  if (!email) return;
+  if (!email) {
+    console.warn('[Store] registerCloser called without email — skipping');
+    return;
+  }
   var key = email.toLowerCase().trim();
   if (store.closerProfiles[key]) {
-    // Update existing profile login time and name if provided
     store.closerProfiles[key].lastLogin = new Date().toISOString();
-    if (name) store.closerProfiles[key].name = name;
+    // Only update name if profile has no name or name is just the email
+    if (name && (!store.closerProfiles[key].name || store.closerProfiles[key].name === key)) {
+      store.closerProfiles[key].name = name;
+    }
   } else {
     store.closerProfiles[key] = {
       name: name || email,
@@ -842,11 +845,7 @@ export function registerCloser(email, name) {
     saveCommissionRate(key, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save commission rate error:', e.message); });
   }
   saveCloserProfile(key, store.closerProfiles[key]).catch(function(e) { console.error('[DB] Save closer profile error:', e.message); });
-  console.log('[Store] Registered closer:', name, '(' + key + ')');
-  saveCloserProfile(key, store.closerProfiles[key]).catch(function(e) { console.error('[DB] Save profile error:', e.message); });
-  if (store.commissionRates[key]) {
-    saveCommissionRate(key, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save rate error:', e.message); });
-  }
+  console.log('[Store] Registered closer:', store.closerProfiles[key].name, '(' + key + ')');
   return store.closerProfiles[key];
 }
 
