@@ -26,13 +26,13 @@ export default function DashboardLayout({ children }) {
   }, [router]);
   if (!ready) return <div className="flex items-center justify-center min-h-screen bg-crm-bg"><div className="w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full animate-spin" /></div>;
   return (
-    <div className="flex min-h-screen">
+    <>
       <div className="hidden md:block">
         <Sidebar />
       </div>
       <MobileAppBar />
-      <main className="flex-1 min-w-0 mobile-main md:pt-0 md:ml-[240px] transition-all duration-300">{children}</main>
+      <main className="mobile-main md:pt-0 md:ml-[240px] min-h-screen">{children}</main>
       <MobileTabBar />
-    </div>
+    </>
   );
 }
