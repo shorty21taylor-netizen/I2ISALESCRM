@@ -372,31 +372,37 @@ function computeOverviewForRange(startDate, endDate) {
   }).reduce(function(s, d) { return s + (parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0); }, 0);
   var outboundRevenue = totalRevenue - inboundRevenue;
 
-  // PER-OFFER BREAKDOWN
-  var offerBreakdown = {
-    saas: { booked: 0, closes: 0, revenue: 0 },
-    coaching: { booked: 0, closes: 0, revenue: 0 },
-    'dfy-funding': { booked: 0, closes: 0, revenue: 0 },
-    other: { booked: 0, closes: 0, revenue: 0 },
-  };
-
-  function classifyOffer(program) {
-    var p = (program || '').toLowerCase();
-    if (p === 'saas' || p === 'saas (fund2grow)' || p === 'fund2grow') return 'saas';
-    if (p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'coaching';
-    if (p === 'dfy-funding' || p === 'dfy funding' || p === 'dfy funding (inner circle)' || p === 'inner circle' || p === 'funding') return 'dfy-funding';
+  // PER-OFFER BREAKDOWN (5 offers)
+  function getOfferBucket(program) {
+    var p = (program || '').toLowerCase().trim();
+    if (p === 'dfy funding' || p === 'dfy-funding') return 'dfy-funding';
+    if (p === 'inner circle mentorship' || p === 'inner circle' || p === 'dfy funding (inner circle)') return 'inner-circle';
+    if (p === 'coaching digital offer' || p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'coaching-digital';
+    if (p === 'coaching funding offer') return 'coaching-funding';
+    if (p === 'myfm coaching offer' || p === 'myfm' || p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'myfm';
     return 'other';
   }
 
+  var offerBreakdown = {
+    'dfy-funding':      { key: 'dfy-funding',      label: 'DFY Funding',            subtitle: 'Funding-for-Hire',       booked: 0, closes: 0, revenue: 0, color: '#f59e0b' },
+    'coaching-digital': { key: 'coaching-digital',  label: 'Coaching Digital Offer',  subtitle: 'Digital Programs',       booked: 0, closes: 0, revenue: 0, color: '#8b5cf6' },
+    'coaching-funding': { key: 'coaching-funding',  label: 'Coaching Funding Offer',  subtitle: 'Funding Coaching',       booked: 0, closes: 0, revenue: 0, color: '#06b6d4' },
+    'inner-circle':     { key: 'inner-circle',      label: 'Inner Circle Mentorship', subtitle: 'Mentorship',             booked: 0, closes: 0, revenue: 0, color: '#dc2626' },
+    'myfm':             { key: 'myfm',              label: 'MYFM Coaching Offer',     subtitle: 'Make Your First Million', booked: 0, closes: 0, revenue: 0, color: '#3b82f6' },
+  };
+
   rangeBooked.forEach(function(b) {
-    offerBreakdown[classifyOffer(b.program)].booked++;
+    var bucket = getOfferBucket(b.program);
+    if (offerBreakdown[bucket]) offerBreakdown[bucket].booked++;
   });
 
   rangeDeals.forEach(function(d) {
-    var key = classifyOffer(d.program);
+    var bucket = getOfferBucket(d.program);
     var cash = parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0;
-    offerBreakdown[key].closes++;
-    offerBreakdown[key].revenue += cash;
+    if (offerBreakdown[bucket]) {
+      offerBreakdown[bucket].closes++;
+      offerBreakdown[bucket].revenue += cash;
+    }
   });
 
   // Payment type breakdown (Full Pay vs Payment Plan)
@@ -687,17 +693,19 @@ export function getAllCommissionRates() {
 }
 
 function getCommissionRateForDeal(deal) {
-  var program = (deal.program || '').toLowerCase();
-  // MYFM / SaaS / Fund2Grow = 7.5%
-  if (program === 'saas' || program === 'saas (fund2grow)' || program === 'fund2grow' || program === 'myfm') {
+  var program = (deal.program || '').toLowerCase().trim();
+  // MYFM Coaching Offer = 7.5% (includes legacy saas/fund2grow names)
+  if (program === 'myfm coaching offer' || program === 'myfm' || program === 'saas' || program === 'fund2grow' || program === 'saas (fund2grow)') {
     return 0.075;
   }
-  // I2I / Coaching / DFY Funding / Inner Circle = 10%
-  if (program === 'coaching' || program === 'coaching (digital programs)' || program === 'dfy-funding' || program === 'dfy funding' || program === 'dfy funding (inner circle)' || program === 'inner circle' || program === 'i2i' || program === 'funding') {
-    return 0.10;
-  }
-  // Default to 10% for unknown programs
+  // I2I offers (DFY Funding, Coaching Digital, Coaching Funding, Inner Circle) = 10%
   return 0.10;
+}
+
+function getBrandForProgram(program) {
+  var p = (program || '').toLowerCase().trim();
+  if (p === 'myfm coaching offer' || p === 'myfm' || p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'MYFM';
+  return 'I2I';
 }
 
 export function getCommissionsForCloser(closerName) {
@@ -710,7 +718,7 @@ export function getCommissionsForCloser(closerName) {
   var deals = closerDeals.map(function(deal) {
     var rate = getCommissionRateForDeal(deal);
     var commission = (parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0) * rate;
-    var brandLabel = rate === 0.075 ? 'MYFM' : 'I2I';
+    var brandLabel = getBrandForProgram(deal.program);
     return {
       id: deal.id,
       leadName: deal.leadsName || deal.leadName || '',

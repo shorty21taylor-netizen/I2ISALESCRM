@@ -6,9 +6,11 @@ import { getUser } from '@/lib/auth';
 import { getFormConfig } from '@/lib/form-config';
 
 var PROGRAMS = [
-  { value: 'saas', label: 'SaaS (Fund2Grow)' },
-  { value: 'coaching', label: 'Coaching (Digital Programs)' },
-  { value: 'dfy-funding', label: 'DFY Funding (Inner Circle)' },
+  { value: 'DFY Funding', label: 'DFY Funding' },
+  { value: 'Coaching Digital Offer', label: 'Coaching Digital Offer' },
+  { value: 'Coaching Funding Offer', label: 'Coaching Funding Offer' },
+  { value: 'Inner Circle Mentorship', label: 'Inner Circle Mentorship' },
+  { value: 'MYFM Coaching Offer', label: 'MYFM Coaching Offer' },
 ];
 
 function getWhatsAppForType(formType) {
@@ -84,6 +86,7 @@ export default function SubmitPage() {
   var s4 = useState(null), successMsg = s4[0], setSuccessMsg = s4[1];
   var s5 = useState(''), error = s5[0], setError = s5[1];
   var s6 = useState(null), user = s6[0], setUser = s6[1];
+  var s7 = useState([]), reps = s7[0], setReps = s7[1];
 
   // Book a Call form
   var b1 = useState(''), bcLeadsName = b1[0], setBcLeadsName = b1[1];
@@ -141,6 +144,11 @@ export default function SubmitPage() {
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
       })
+      .catch(function() {});
+
+    fetch('/api/closers')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.success) setReps((d.closers || []).filter(Boolean)); })
       .catch(function() {});
   }, []);
 
@@ -366,11 +374,17 @@ export default function SubmitPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Setter</label>
-                  <input type="text" value={bcSetter} onChange={function(e) { setBcSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
+                  <select value={bcSetter} onChange={function(e) { setBcSetter(e.target.value); }} className="input-field">
+                    <option value="">Select setter...</option>
+                    {reps.map(function(r) { return <option key={r.email} value={r.name}>{r.name}</option>; })}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Closer</label>
-                  <input type="text" value={bcCloser} onChange={function(e) { setBcCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
+                  <select value={bcCloser} onChange={function(e) { setBcCloser(e.target.value); }} className="input-field">
+                    <option value="">Select closer...</option>
+                    {reps.map(function(r) { return <option key={r.email} value={r.name}>{r.name}</option>; })}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -463,11 +477,17 @@ export default function SubmitPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Setter</label>
-                  <input type="text" value={cdSetter} onChange={function(e) { setCdSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
+                  <select value={cdSetter} onChange={function(e) { setCdSetter(e.target.value); }} className="input-field">
+                    <option value="">Select setter...</option>
+                    {reps.map(function(r) { return <option key={r.email} value={r.name}>{r.name}</option>; })}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Closer</label>
-                  <input type="text" value={cdCloser} onChange={function(e) { setCdCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
+                  <select value={cdCloser} onChange={function(e) { setCdCloser(e.target.value); }} className="input-field">
+                    <option value="">Select closer...</option>
+                    {reps.map(function(r) { return <option key={r.email} value={r.name}>{r.name}</option>; })}
+                  </select>
                 </div>
               </div>
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">

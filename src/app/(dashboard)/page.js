@@ -238,55 +238,38 @@ export default function DashboardPage() {
         <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'pipeline' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
       </div>
 
-      {/* Offer Breakdown */}
+      {/* Offer Breakdown — 5 offers */}
       {t.offerBreakdown && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-2">
-          {[
-            { key: 'saas', label: 'SaaS', subtitle: 'Fund2Grow', color: '#3b82f6', emoji: '💻' },
-            { key: 'coaching', label: 'Coaching', subtitle: 'Digital Programs', color: '#8b5cf6', emoji: '🎯' },
-            { key: 'dfy-funding', label: 'DFY Funding', subtitle: 'Inner Circle', color: '#f59e0b', emoji: '💰' },
-          ].map(function(offer) {
-            var data = t.offerBreakdown[offer.key] || { booked: 0, closes: 0, revenue: 0 };
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 relative z-10 stagger-2">
+          {Object.values(t.offerBreakdown).map(function(b) {
+            var totalRev = t.totalRevenue || 0;
+            var pct = totalRev > 0 ? Math.round((b.revenue / totalRev) * 100) : 0;
             return (
-              <div key={offer.key} className="glass-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{offer.emoji}</span>
-                    <div>
-                      <p className="text-sm font-display font-bold text-crm-text-bright">{offer.label}</p>
-                      <p className="text-xs font-mono text-crm-muted">{offer.subtitle}</p>
-                    </div>
+              <div key={b.key} className="glass-card p-4 overflow-hidden">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{b.label}</p>
+                    <p className="text-[10px] font-mono uppercase truncate" style={{ color: 'var(--crm-text-muted)' }}>{b.subtitle}</p>
                   </div>
-                  <div className="w-3 h-3 rounded-full" style={{ background: offer.color, boxShadow: '0 0 8px ' + offer.color + '40' }} />
+                  <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: b.color, boxShadow: '0 0 8px ' + b.color }} />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.booked}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">BOOKED</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="text-center">
+                    <p className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{b.booked}</p>
+                    <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Booked</p>
                   </div>
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.closes}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">CLOSES</p>
+                  <div className="text-center">
+                    <p className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{b.closes}</p>
+                    <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Closes</p>
                   </div>
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold" style={{ color: offer.color }}>{formatCurrency(data.revenue)}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">REVENUE</p>
+                  <div className="text-center">
+                    <p className="text-base font-display font-bold" style={{ color: b.color }}>{formatCurrency(b.revenue)}</p>
+                    <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Revenue</p>
                   </div>
                 </div>
-                {t.totalRevenue > 0 && (
-                  <div className="mt-3">
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{
-                        width: Math.round((data.revenue / t.totalRevenue) * 100) + '%',
-                        background: offer.color,
-                        boxShadow: '0 0 8px ' + offer.color + '40',
-                      }} />
-                    </div>
-                    <p className="text-[10px] font-mono text-crm-muted mt-1">
-                      {Math.round((data.revenue / t.totalRevenue) * 100)}% of total revenue
-                    </p>
-                  </div>
-                )}
+                <div className="mt-3 pt-2" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>
+                  <p className="text-[10px] font-mono text-center" style={{ color: 'var(--crm-text-muted)' }}>{pct}% of total revenue</p>
+                </div>
               </div>
             );
           })}
