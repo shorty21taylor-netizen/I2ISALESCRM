@@ -195,21 +195,39 @@ export async function runMorningDigest() {
 export async function runAdminMorningReport() {
   var groupId = config.adminMorningReport.groupId;
   if (!groupId) { console.log('[Scheduler] Admin report skipped — no group ID'); return; }
+  if (!config.assistroApiUrl) { console.log('[Scheduler] Admin report skipped — no API URL'); return; }
 
   if (config.baseUrl) {
     try {
-      var res = await fetch(config.baseUrl + '/api/admin-morning-report', {
+      // Step 1: Generate report content only
+      var reportRes = await fetch(config.baseUrl + '/api/admin-morning-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ generateOnly: true }),
+      });
+      var reportData = await reportRes.json();
+      var msg = reportData.message;
+
+      if (!msg) {
+        console.error('[Scheduler] Admin report — could not generate content');
+        return;
+      }
+
+      // Step 2: Send via /api/notify (same multi-format path as test buttons)
+      var sendRes = await fetch(config.baseUrl + '/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupId: groupId,
           assistroApiUrl: config.assistroApiUrl,
           assistroApiKey: config.assistroApiKey,
+          whatsappGroupId: groupId,
+          message: msg,
         }),
       });
-      var data = await res.json();
+      var sendData = await sendRes.json();
+
       schedule.adminMorningReport.lastRun = new Date().toISOString();
-      console.log('[Scheduler] Admin morning report sent to group');
+      console.log('[Scheduler] Admin morning report', sendData.sent ? 'sent to group' : 'FAILED', sendData.format || sendData.error || '');
     } catch (e) {
       console.error('[Scheduler] Admin report error:', e.message);
     }

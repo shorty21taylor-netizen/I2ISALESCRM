@@ -269,7 +269,7 @@ export default function SettingsPage() {
       fetch('/api/admin-morning-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ generateOnly: true }),
       })
         .then(function(r) { return r.json(); })
         .then(function(reportData) {
@@ -656,7 +656,7 @@ export default function SettingsPage() {
                   <div className={'w-2 h-2 rounded-full flex-shrink-0 ' + (config.adminMorningReportEnabled ? 'bg-crm-positive' : 'bg-crm-muted/30')} />
                   <div>
                     <div className="text-sm font-medium text-crm-text-bright">Admin Morning Report</div>
-                    <div className="text-xs text-crm-muted">6:00 AM EST &middot; Yesterday&apos;s EOD + MTD breakdown to admin DM</div>
+                    <div className="text-xs text-crm-muted">6:00 AM EST &middot; Yesterday&apos;s EOD + MTD breakdown to Admin Group</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-5 sm:ml-0">
