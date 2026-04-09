@@ -321,14 +321,16 @@ function computeOverviewForRange(startDate, endDate) {
   }, 0);
 
   // Use the HIGHER of EOD-reported revenue vs deal-reported revenue
-  var totalRevenue = Math.max(eodRevenue, dealCashTotal);
-  var totalCash = Math.max(eodCashTotal, dealCashTotal);
+  // Use EOD MYFM+I2I as canonical total (matches EOD Logs), fallback to deals or eodRevenue
+  var totalCash = eodCashTotal > 0 ? eodCashTotal : Math.max(dealCashTotal, eodRevenue);
+  var totalRevenue = totalCash;
 
-  console.log('[Overview] Range:', start, '→', end, '| Deals:', rangeDeals.length, '(eodCloses:', eodCloses, ') → totalCloses:', totalCloses, '| Revenue: $' + Math.round(totalRevenue));
+  console.log('[Overview] Range:', start, '→', end, '| Deals:', rangeDeals.length, '(eodCloses:', eodCloses, ') → totalCloses:', totalCloses, '| Revenue: $' + Math.round(totalRevenue), '| eodCash:', Math.round(eodCashTotal), '| dealCash:', Math.round(dealCashTotal), '| eodRev:', Math.round(eodRevenue));
 
   // RATES
-  // CLOSE RATE = closes / calls taken & pitched (true closing skill)
-  var closeRate = totalCallsPitched > 0 ? Math.round((totalCloses / totalCallsPitched) * 1000) / 10 : 0;
+  // CLOSE RATE = closes / calls taken & pitched (true closing skill), capped at 100%
+  var closeRateRaw = totalCallsPitched > 0 ? (totalCloses / totalCallsPitched) * 100 : 0;
+  var closeRate = Math.min(Math.round(closeRateRaw * 10) / 10, 100);
   var avgDealValue = totalCloses > 0 ? Math.round(totalRevenue / totalCloses) : 0;
   var cashPerCall = totalCallsTaken > 0 ? Math.round(totalRevenue / totalCallsTaken) : 0;
   var offerRate = totalCallsTaken > 0 ? Math.round((totalCallsPitched / totalCallsTaken) * 1000) / 10 : 0;

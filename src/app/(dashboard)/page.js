@@ -76,9 +76,9 @@ export default function DashboardPage() {
 
   var displayOverview = liveData && liveData.overview ? liveData.overview : teamOverview;
   var t = displayOverview;
-  var todayCash = t.todayCash || t.totalCash || 0;
-  var todayCloses = t.todayCloses || t.totalCloses || 0;
-  var todayDials = t.todayDials || t.totalDials || 0;
+  var todayCash = t.totalRevenue || t.totalCash || 0;
+  var todayCloses = t.totalCloses || 0;
+  var todayDials = t.totalDials || 0;
 
   var liveClosers = liveData && liveData.closers ? liveData.closers : closerPerformances;
 
