@@ -318,9 +318,8 @@ function computeOverviewForRange(startDate, endDate) {
     return s + (parseFloat(e.revenueOnDay) || 0);
   }, 0);
 
-  // Use the HIGHER of EOD-reported revenue vs deal-reported revenue
-  // Use EOD MYFM+I2I as canonical total (matches EOD Logs), fallback to deals or eodRevenue
-  var totalCash = eodCashTotal > 0 ? eodCashTotal : Math.max(dealCashTotal, eodRevenue);
+  // Canonical cash: highest of the three sources (EOD MYFM+I2I, closed deals, EOD revenueOnDay)
+  var totalCash = Math.max(dealCashTotal, eodCashTotal, eodRevenue);
   var totalRevenue = totalCash;
 
   console.log('[Overview] Range:', start, '→', end, '| Deals:', rangeDeals.length, '(eodCloses:', eodCloses, ') → totalCloses:', totalCloses, '| Revenue: $' + Math.round(totalRevenue), '| eodCash:', Math.round(eodCashTotal), '| dealCash:', Math.round(dealCashTotal), '| eodRev:', Math.round(eodRevenue));
@@ -459,6 +458,9 @@ function computeOverviewForRange(startDate, endDate) {
     cashMYFM: Math.round(cashMYFM * 100) / 100,
     cashI2I: Math.round(cashI2I * 100) / 100,
     totalCash: Math.round(totalCash * 100) / 100,
+    dealCashTotal: Math.round(dealCashTotal * 100) / 100,
+    eodCashTotal: Math.round(eodCashTotal * 100) / 100,
+    eodRevenueOnDay: Math.round(eodRevenue * 100) / 100,
     todayCash: Math.round(totalCash * 100) / 100,
     todayCloses: totalCloses,
     todayDials: totalDials,
