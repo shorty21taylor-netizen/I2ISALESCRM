@@ -259,9 +259,9 @@ function computeOverviewForRange(startDate, endDate) {
     return s + (parseFloat(e.revenueOnDay) || 0);
   }, 0);
 
-  // Use the HIGHER of EOD-reported revenue vs deal-reported revenue
-  var totalRevenue = Math.max(eodRevenue, dealCashTotal);
-  var totalCash = Math.max(eodCashTotal, dealCashTotal);
+  // Canonical cash: highest of the three sources (EOD MYFM+I2I, closed deals, EOD revenueOnDay)
+  var totalCash = Math.max(dealCashTotal, eodCashTotal, eodRevenue);
+  var totalRevenue = totalCash;
 
   // RATES
   var closeRate = totalCallsTaken > 0 ? Math.round((totalCloses / totalCallsTaken) * 1000) / 10 : 0;
@@ -361,6 +361,9 @@ function computeOverviewForRange(startDate, endDate) {
     cashMYFM: Math.round(cashMYFM * 100) / 100,
     cashI2I: Math.round(cashI2I * 100) / 100,
     totalCash: Math.round(totalCash * 100) / 100,
+    dealCashTotal: Math.round(dealCashTotal * 100) / 100,
+    eodCashTotal: Math.round(eodCashTotal * 100) / 100,
+    eodRevenueOnDay: Math.round(eodRevenue * 100) / 100,
     todayCash: Math.round(totalCash * 100) / 100,
     todayCloses: totalCloses,
     todayDials: totalDials,
