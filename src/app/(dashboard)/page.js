@@ -4,13 +4,10 @@ import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-rea
 import CloserLeaderboard from '@/components/CloserLeaderboard';
 import RevenueChart from '@/components/RevenueChart';
 import DialActivityChart from '@/components/DialActivityChart';
-import EODTable from '@/components/EODTable';
-import RecentCalls from '@/components/RecentCalls';
 import PipelineSplit from '@/components/PipelineSplit';
-import AIInsights from '@/components/AIInsights';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
-import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay, dialsByCloser } from '@/lib/mock-data';
+import { teamOverview, closerPerformances, revenueByDay, dialsByCloser } from '@/lib/mock-data';
 
 export default function DashboardPage() {
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
@@ -18,6 +15,7 @@ export default function DashboardPage() {
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
   var s5 = useState(''), customEnd = s5[0], setCustomEnd = s5[1];
   var s6 = useState(''), lastFetch = s6[0], setLastFetch = s6[1];
+  var s7 = useState([]), allEODs = s7[0], setAllEODs = s7[1];
 
   function getDateParams() {
     var today = new Date();
@@ -64,6 +62,13 @@ export default function DashboardPage() {
         }
       })
       .catch(function(e) { console.error('Dashboard fetch error:', e); });
+
+    fetch('/api/webhooks/eod-report')
+      .then(function(r) { return r.json(); })
+      .then(function(eodsData) {
+        setAllEODs((eodsData.data || []).filter(Boolean));
+      })
+      .catch(function(e) { console.error('EOD fetch error:', e); });
   }, [dateRange, customStart, customEnd]);
 
   useEffect(function() {
@@ -80,9 +85,19 @@ export default function DashboardPage() {
 
   var liveClosers = liveData && liveData.closers ? liveData.closers : closerPerformances;
 
-  // Build live EOD data for the table from the API
-  var liveEODReports = liveData && liveData.activity ? liveData.activity.filter(function(a) { return a.type === 'eod-report'; }) : [];
-  var displayEODs = recentEODs.length > 0 ? recentEODs : [];
+  // Compute yesterday's date
+  var yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  var yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  // Filter EODs to yesterday
+  var yesterdayEODs = (allEODs || []).filter(function(e) {
+    return e.date === yesterdayStr;
+  }).sort(function(a, b) {
+    var cashA = (parseFloat(a.cashCollectedMYFM) || 0) + (parseFloat(a.cashCollectedI2I) || 0);
+    var cashB = (parseFloat(b.cashCollectedMYFM) || 0) + (parseFloat(b.cashCollectedI2I) || 0);
+    return cashB - cashA;
+  });
 
   var rangeLabel = (function() {
     if (dateRange === 'today') return 'Today';
@@ -330,13 +345,89 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 8 — EOD Table */}
-      <div className="relative z-10 stagger-5"><EODTable reports={displayEODs} /></div>
+      {/* Yesterday's EODs — morning review */}
+      <div className="glass-card overflow-hidden mt-6 relative z-10 stagger-5">
+        <div className="section-header">
+          <h3 className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>Yesterday's EODs</h3>
+          <span className="section-tag">{yesterdayEODs.length} {yesterdayEODs.length === 1 ? 'report' : 'reports'}</span>
+        </div>
 
-      {/* Row 9 — Calls + Insights */}
-      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-6">
-        <RecentCalls calls={recentCalls} />
-        <AIInsights performances={liveClosers} />
+        {yesterdayEODs.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-sm" style={{ color: 'var(--crm-text-muted)' }}>No EOD reports from yesterday</p>
+          </div>
+        ) : (
+          <div className="divide-y" style={{ borderColor: 'var(--crm-divider)' }}>
+            {yesterdayEODs.map(function(eod) {
+              var rep = eod.salesRep || eod.closerName || 'Unknown';
+              var initials = rep.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+              var dials = parseInt(eod.outboundDials) || 0;
+              var taken = parseInt(eod.callsTaken) || 0;
+              var pitched = parseInt(eod.callsTakenAndPitched) || 0;
+              var closes = parseInt(eod.closes) || 0;
+              var booked = parseInt(eod.netNewCallsBooked) || 0;
+              var noShows = parseInt(eod.callsNoShowed) || 0;
+              var cashM = parseFloat(eod.cashCollectedMYFM) || 0;
+              var cashI = parseFloat(eod.cashCollectedI2I) || 0;
+              var totalCash = cashM + cashI;
+              var closeRate = pitched > 0 ? Math.min(Math.round((closes / pitched) * 100), 100) : 0;
+
+              return (
+                <div key={eod.id} className="p-4 md:p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(220,38,38,0.15)', color: 'var(--crm-accent)' }}>
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
+                      <p className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>
+                        {eod.date || 'Yesterday'}
+                      </p>
+                    </div>
+                    {totalCash > 0 && (
+                      <span className="text-sm font-display font-bold" style={{ color: '#22c55e' }}>
+                        ${totalCash.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{dials}</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Dials</p>
+                    </div>
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{booked}</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Booked</p>
+                    </div>
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{taken}</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Taken</p>
+                    </div>
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: noShows > 0 ? '#ef4444' : 'var(--crm-text-bright)' }}>{noShows}</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>No Shows</p>
+                    </div>
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: closes > 0 ? '#22c55e' : 'var(--crm-text-bright)' }}>{closes}</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Closes</p>
+                    </div>
+                    <div className="glass-surface rounded-lg p-2 text-center">
+                      <p className="text-sm font-display font-bold" style={{ color: closeRate >= 30 ? '#22c55e' : closeRate >= 15 ? '#f59e0b' : 'var(--crm-text-bright)' }}>{closeRate}%</p>
+                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Close %</p>
+                    </div>
+                  </div>
+
+                  {eod.improvementPlan && (
+                    <p className="text-xs font-mono mt-3" style={{ color: 'var(--crm-text-muted)' }}>
+                      Tomorrow: {eod.improvementPlan}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Footer */}
