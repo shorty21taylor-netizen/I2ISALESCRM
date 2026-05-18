@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2 } from 'lucide-react';
+import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 
 var navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/closers', label: 'Closers', icon: Users },
   { href: '/submit', label: 'Submit', icon: ClipboardList },
+  { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
   { href: '/commissions', label: 'Commissions', icon: CreditCard },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
