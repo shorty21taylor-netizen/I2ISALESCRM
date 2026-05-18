@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Users, FileText, ClipboardList, Phone, PlayCircle, Brain, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare } from 'lucide-react';
+import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 
 var navItems = [
@@ -11,9 +11,6 @@ var navItems = [
   { href: '/submit', label: 'Submit', icon: ClipboardList },
   { href: '/commissions', label: 'Commissions', icon: CreditCard },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
-  { href: '/calls', label: 'Call Center', icon: Phone },
-  { href: '/recordings', label: 'Recordings', icon: PlayCircle },
-  { href: '/reports', label: 'AI Reports', icon: Brain },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
