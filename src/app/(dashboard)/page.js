@@ -1,13 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
-import CloserLeaderboard from '@/components/CloserLeaderboard';
-import RevenueChart from '@/components/RevenueChart';
-import DialActivityChart from '@/components/DialActivityChart';
-import PipelineSplit from '@/components/PipelineSplit';
-import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
-import { teamOverview, closerPerformances, revenueByDay, dialsByCloser } from '@/lib/mock-data';
+import { teamOverview } from '@/lib/mock-data';
 
 export default function DashboardPage() {
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
@@ -83,7 +78,6 @@ export default function DashboardPage() {
   var todayCloses = t.todayCloses || t.totalCloses || 0;
   var todayDials = t.todayDials || t.totalDials || 0;
 
-  var liveClosers = liveData && liveData.closers ? liveData.closers : closerPerformances;
 
   // Compute yesterday's date
   var yesterday = new Date();
@@ -330,20 +324,6 @@ export default function DashboardPage() {
           })}
         </div>
       )}
-
-      {/* Row 6 — Charts */}
-      <div className="grid grid-cols-2 gap-4 relative z-10 stagger-3">
-        <ClientOnly><RevenueChart data={revenueByDay} /></ClientOnly>
-        <ClientOnly><DialActivityChart data={dialsByCloser} /></ClientOnly>
-      </div>
-
-      {/* Row 7 — Pipeline + Leaderboard */}
-      <div className="grid grid-cols-3 gap-4 relative z-10 stagger-4">
-        <PipelineSplit inboundRevenue={t.inboundRevenue || 0} outboundRevenue={t.outboundRevenue || 0} />
-        <div className="col-span-2">
-          <CloserLeaderboard data={liveClosers} />
-        </div>
-      </div>
 
       {/* Yesterday's EODs — morning review */}
       <div className="glass-card overflow-hidden mt-6 relative z-10 stagger-5">
