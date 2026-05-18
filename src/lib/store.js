@@ -3,6 +3,7 @@
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
+import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers } from '@/lib/db';
 
 var store = {
   bookedCalls: [],
@@ -10,6 +11,7 @@ var store = {
   eodReports: [],
   commissionRates: {},
   closerProfiles: {},
+  workspaces: [],
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -58,6 +60,11 @@ export async function initStore() {
       );
       recalcOverview();
     }
+
+    try {
+      var ws = await loadWorkspaces();
+      if (ws && ws.length > 0) { store.workspaces = ws; console.log('[Store] Loaded', ws.length, 'workspaces'); }
+    } catch (e) { console.error('[Store] Workspace load:', e.message); }
   } catch (e) {
     console.error('[Store] Init error:', e.message);
   }
@@ -809,4 +816,80 @@ export function setWhatsappConfig(config) {
   if (config.whatsappGroupId && !wc.closedDealGroupId) wc.closedDealGroupId = config.whatsappGroupId;
   if (config.whatsappGroupId && !wc.eodReportGroupId) wc.eodReportGroupId = config.whatsappGroupId;
   console.log('[Store] WhatsApp config updated — apiUrl:', wc.assistroApiUrl ? 'SET' : 'empty', '| booked:', wc.bookedCallGroupId ? 'SET' : 'empty', '| deal:', wc.closedDealGroupId ? 'SET' : 'empty', '| eod:', wc.eodReportGroupId ? 'SET' : 'empty');
+}
+
+// ============================================
+// MULTI-WORKSPACE
+// ============================================
+
+export function getWorkspaces() { return store.workspaces; }
+
+export function getWorkspace(id) {
+  return store.workspaces.find(function(w) { return w.id === id; }) || null;
+}
+
+export async function createWorkspace(data) {
+  var id = 'ws-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+  var ws = {
+    id: id,
+    name: data.companyName || 'New Workspace',
+    slug: (data.companyName || 'workspace').toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 30),
+    ownerEmail: (data.ownerEmail || '').toLowerCase(),
+    teamPassword: data.teamPassword || '',
+    branding: {
+      primaryColor: data.primaryColor || '#dc2626',
+      secondaryColor: data.secondaryColor || '#22c55e',
+      companyName: data.companyName || '',
+    },
+    onboarding: {
+      companyName: data.companyName || '',
+      industry: data.industry || '',
+      teamSize: data.teamSize || '',
+      funnels: data.funnels || [],
+      monthlyAdSpend: data.monthlyAdSpend || '',
+      avgDealSize: data.avgDealSize || '',
+    },
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+  store.workspaces.push(ws);
+  await saveWorkspace(ws).catch(function(e) { console.error('[DB]', e.message); });
+
+  if (data.ownerEmail) {
+    await addUserToWorkspace(id, data.ownerEmail, data.ownerName || '', 'owner');
+  }
+  return ws;
+}
+
+export async function updateWorkspace(id, updates) {
+  var ws = getWorkspace(id);
+  if (!ws) return null;
+  Object.assign(ws, updates);
+  ws.updatedAt = new Date().toISOString();
+  await saveWorkspace(ws).catch(function(e) { console.error('[DB]', e.message); });
+  return ws;
+}
+
+export async function addUserToWorkspace(workspaceId, email, name, role) {
+  var user = {
+    id: 'wu-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    workspaceId: workspaceId,
+    email: email.toLowerCase(),
+    name: name || email,
+    role: role || 'closer',
+    joinedAt: new Date().toISOString(),
+  };
+  await saveWorkspaceUser(user).catch(function(e) { console.error('[DB]', e.message); });
+  return user;
+}
+
+export async function getUserWorkspace(email) {
+  if (email.toLowerCase() === 'shorty21taylor@gmail.com') {
+    return { workspaceId: 'default', role: 'super_admin' };
+  }
+  return findUserWorkspace(email);
+}
+
+export async function getWorkspaceUserList(workspaceId) {
+  return loadWorkspaceUsers(workspaceId);
 }

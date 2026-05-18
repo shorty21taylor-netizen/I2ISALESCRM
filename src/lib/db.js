@@ -54,6 +54,31 @@ export async function initDatabase() {
     await p.query('CREATE TABLE IF NOT EXISTS closer_profiles (email TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())');
     await p.query('CREATE TABLE IF NOT EXISTS commission_rates (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())');
     await p.query('CREATE TABLE IF NOT EXISTS custom_messages (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())');
+
+    // ===== MULTI-WORKSPACE =====
+    await p.query("CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
+    await p.query("CREATE TABLE IF NOT EXISTS workspace_users (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, email TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
+    var migrateTables = ['booked_calls', 'closed_deals', 'eod_reports', 'closer_profiles', 'commission_rates', 'custom_messages'];
+    for (var i = 0; i < migrateTables.length; i++) {
+      await p.query("ALTER TABLE " + migrateTables[i] + " ADD COLUMN IF NOT EXISTS workspace_id TEXT DEFAULT 'default'").catch(function() {});
+    }
+
+    await p.query(
+      "INSERT INTO workspaces (id, data) VALUES ('default', $1) ON CONFLICT (id) DO NOTHING",
+      [JSON.stringify({
+        name: 'Influence2Impact',
+        slug: 'i2i',
+        ownerEmail: 'shorty21taylor@gmail.com',
+        teamPassword: 'I2I2026!',
+        branding: { primaryColor: '#dc2626', secondaryColor: '#22c55e', companyName: 'Influence2Impact' },
+        onboarding: { companyName: 'Influence2Impact', industry: 'Sales Coaching', teamSize: '5-10' },
+        active: true,
+        createdAt: new Date().toISOString(),
+      })]
+    ).catch(function() {});
+
     console.log('[DB] Tables ready');
     return true;
   } catch (e) {
@@ -116,4 +141,38 @@ export async function saveCustomMessage(entry) {
 
 export async function deleteCustomMessageDB(id) {
   return query('DELETE FROM custom_messages WHERE id = $1', [id]);
+}
+
+// ===== MULTI-WORKSPACE =====
+
+export async function saveWorkspace(ws) {
+  return query('INSERT INTO workspaces (id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()', [ws.id, JSON.stringify(ws)]);
+}
+
+export async function loadWorkspaces() {
+  var r = await query('SELECT id, data FROM workspaces ORDER BY created_at ASC');
+  if (!r) return [];
+  return r.rows.map(function(row) { var w = row.data; w.id = row.id; return w; });
+}
+
+export async function loadWorkspace(id) {
+  var r = await query('SELECT data FROM workspaces WHERE id = $1', [id]);
+  if (!r || r.rows.length === 0) return null;
+  var w = r.rows[0].data; w.id = id; return w;
+}
+
+export async function saveWorkspaceUser(user) {
+  return query('INSERT INTO workspace_users (id, workspace_id, email, data) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET data = $4', [user.id, user.workspaceId, user.email.toLowerCase(), JSON.stringify(user)]);
+}
+
+export async function findUserWorkspace(email) {
+  var r = await query('SELECT workspace_id, data FROM workspace_users WHERE email = $1 LIMIT 1', [email.toLowerCase()]);
+  if (!r || r.rows.length === 0) return null;
+  return { workspaceId: r.rows[0].workspace_id, user: r.rows[0].data };
+}
+
+export async function loadWorkspaceUsers(workspaceId) {
+  var r = await query('SELECT data FROM workspace_users WHERE workspace_id = $1 ORDER BY created_at ASC', [workspaceId]);
+  if (!r) return [];
+  return r.rows.map(function(row) { return row.data; });
 }
