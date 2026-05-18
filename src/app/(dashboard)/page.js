@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, Target, Percent, Phone, TrendingUp, ClipboardCheck, Zap, Calendar, UserCheck, Clock, Timer, CheckCircle, ShieldCheck } from 'lucide-react';
-import MetricCard from '@/components/MetricCard';
+import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
 import CloserLeaderboard from '@/components/CloserLeaderboard';
 import RevenueChart from '@/components/RevenueChart';
 import DialActivityChart from '@/components/DialActivityChart';
@@ -10,11 +9,10 @@ import RecentCalls from '@/components/RecentCalls';
 import PipelineSplit from '@/components/PipelineSplit';
 import AIInsights from '@/components/AIInsights';
 import ClientOnly from '@/components/ClientOnly';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay, dialsByCloser } from '@/lib/mock-data';
 
 export default function DashboardPage() {
-  var s = useState('performance'), metricPage = s[0], setMetricPage = s[1];
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
   var s3 = useState('today'), dateRange = s3[0], setDateRange = s3[1];
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
@@ -183,59 +181,84 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===== METRIC PAGE TOGGLE ===== */}
-      <div className="flex items-center justify-center relative z-10">
-        <div className="glass-surface inline-flex rounded-xl p-1">
-          <button
-            onClick={function() { setMetricPage('performance'); }}
-            className={metricPage === 'performance'
-              ? 'px-5 py-2 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
-              : 'px-5 py-2 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
-          >
-            Performance
-          </button>
-          <button
-            onClick={function() { setMetricPage('pipeline'); }}
-            className={metricPage === 'pipeline'
-              ? 'px-5 py-2 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300'
-              : 'px-5 py-2 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}
-          >
-            Pipeline &amp; Health
-          </button>
+      {/* 5 Core KPIs — no toggle, no pages */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6 relative z-10">
+
+        {/* Cash Collected */}
+        <div className="glass-card p-4 md:p-5">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.1)' }}>
+              <DollarSign className="w-4 h-4" style={{ color: '#22c55e' }} />
+            </div>
+          </div>
+          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#22c55e' }}>
+            {formatCurrency(displayOverview.totalCash || displayOverview.totalRevenue || 0)}
+          </p>
+          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            Cash Collected
+          </p>
         </div>
-      </div>
 
-      {/* ===== KPI CARDS — 8 at a time ===== */}
-      <div key={metricPage} className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
-        {metricPage === 'performance' ? (
-          <>
-            <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} trendLabel="vs prev 30d" icon={DollarSign} accentColor="red" delay={0} />
-            <MetricCard label="Total Closes" value={formatNumber(t.totalCloses)} trend={t.closesTrend} trendLabel="vs prev 30d" icon={Target} accentColor="green" delay={50} />
-            <MetricCard label="Team Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} delay={100} />
-            <MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} delay={150} />
-            <MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={200} />
-            <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={250} />
-            <MetricCard label="One-Call Close Rate" value={t.oneCallCloseRate + '%'} trend={t.oneCallCloseTrend} icon={CheckCircle} accentColor="green" delay={300} />
-            <MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} delay={350} />
-          </>
-        ) : (
-          <>
-            <MetricCard label="Booked This Week" value={String(t.bookedCallsThisWeek)} trend={t.bookedCallsTrend} icon={Calendar} delay={0} />
-            <MetricCard label="Show Rate" value={t.showRate + '%'} trend={t.showRateTrend} icon={UserCheck} delay={50} />
-            <MetricCard label="Pipeline Value" value={formatCurrency(t.pipelineValue)} trend={t.pipelineValueTrend} icon={TrendingUp} accentColor="green" delay={100} />
-            <MetricCard label="Avg Days to Close" value={String(t.avgDaysToClose)} trend={t.daysToCloseTrend ? t.daysToCloseTrend * -1 : 0} trendLabel="faster closing" icon={Clock} accentColor="green" delay={150} />
-            <MetricCard label="Refund Rate" value={t.refundRate + '%'} trend={t.refundRateTrend ? t.refundRateTrend * -1 : 0} trendLabel="fewer refunds" icon={ShieldCheck} accentColor="green" delay={200} />
-            <MetricCard label="Net Revenue (30d)" value={formatCurrency(t.netRevenueRetained30d)} trend={t.netRetainedTrend} icon={DollarSign} accentColor="green" delay={250} />
-            <MetricCard label="EOD Compliance" value={t.eodComplianceRate + '%'} icon={ClipboardCheck} accentColor="green" delay={300} />
-            <MetricCard label="Dials / Hour" value={String(t.avgDialsPerHour)} trend={t.dialsPerHourTrend} icon={Timer} delay={350} />
-          </>
-        )}
-      </div>
+        {/* Revenue */}
+        <div className="glass-card p-4 md:p-5">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.1)' }}>
+              <TrendingUp className="w-4 h-4" style={{ color: '#22c55e' }} />
+            </div>
+          </div>
+          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#22c55e' }}>
+            {formatCurrency(displayOverview.totalRevenue || 0)}
+          </p>
+          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            Revenue
+          </p>
+        </div>
 
-      {/* ===== PAGE INDICATOR DOTS ===== */}
-      <div className="flex items-center justify-center gap-2 relative z-10">
-        <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'performance' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
-        <div style={{ transition: 'all 0.3s ease' }} className={metricPage === 'pipeline' ? 'w-6 h-1.5 rounded-full bg-crm-accent' : 'w-1.5 h-1.5 rounded-full bg-crm-muted/30'} />
+        {/* Outbound Dials */}
+        <div className="glass-card p-4 md:p-5">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(220,38,38,0.1)' }}>
+              <Phone className="w-4 h-4" style={{ color: '#dc2626' }} />
+            </div>
+          </div>
+          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
+            {(displayOverview.totalDials || 0).toLocaleString()}
+          </p>
+          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            Outbound Dials
+          </p>
+        </div>
+
+        {/* Calls Taken */}
+        <div className="glass-card p-4 md:p-5">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(59,130,246,0.1)' }}>
+              <PhoneIncoming className="w-4 h-4" style={{ color: '#3b82f6' }} />
+            </div>
+          </div>
+          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
+            {displayOverview.totalCallsTaken || 0}
+          </p>
+          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            Calls Taken
+          </p>
+        </div>
+
+        {/* Deals Closed */}
+        <div className="glass-card p-4 md:p-5 col-span-2 md:col-span-1">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.1)' }}>
+              <Trophy className="w-4 h-4" style={{ color: '#f59e0b' }} />
+            </div>
+          </div>
+          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#f59e0b' }}>
+            {displayOverview.totalCloses || 0}
+          </p>
+          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            Deals Closed
+          </p>
+        </div>
+
       </div>
 
       {/* Offer Breakdown */}
