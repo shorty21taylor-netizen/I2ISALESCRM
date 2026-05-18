@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
-import { getFormConfig } from '@/lib/form-config';
+import { getFormConfig, getPartners } from '@/lib/form-config';
 
-var PROGRAMS = [
-  { value: 'saas', label: 'SaaS (Fund2Grow)' },
-  { value: 'coaching', label: 'Coaching (Digital Programs)' },
-  { value: 'dfy-funding', label: 'DFY Funding (Inner Circle)' },
-];
+function buildProgramString(brand, myfmDuration, subProgram, partnerName) {
+  if (brand === 'MYFM') return 'MYFM - ' + (myfmDuration || '6 Month Coaching');
+  if (brand === 'I2I') return 'I2I - ' + (subProgram || 'Digital Program');
+  if (brand === 'Partner') return 'Partner - ' + (partnerName || 'Unknown');
+  return '';
+}
 
 function getWhatsAppForType(formType) {
   var c = getFormConfig();
@@ -88,7 +89,6 @@ export default function SubmitPage() {
   // Book a Call form
   var b1 = useState(''), bcLeadsName = b1[0], setBcLeadsName = b1[1];
   var b2 = useState(''), bcLeadsPhone = b2[0], setBcLeadsPhone = b2[1];
-  var b3 = useState(''), bcProgram = b3[0], setBcProgram = b3[1];
   var b4 = useState('yes'), bcQualified = b4[0], setBcQualified = b4[1];
   var b5 = useState(''), bcBookedDay = b5[0], setBcBookedDay = b5[1];
   var b6 = useState(''), bcBookedTime = b6[0], setBcBookedTime = b6[1];
@@ -96,18 +96,29 @@ export default function SubmitPage() {
   var b8 = useState(''), bcSetter = b8[0], setBcSetter = b8[1];
   var b9 = useState(''), bcCloser = b9[0], setBcCloser = b9[1];
   var b10 = useState('inbound'), bcSource = b10[0], setBcSource = b10[1];
+  var bb1 = useState(''), bcBrand = bb1[0], setBcBrand = bb1[1];
+  var bb2 = useState(''), bcSubProgram = bb2[0], setBcSubProgram = bb2[1];
+  var bb3 = useState(''), bcPartnerName = bb3[0], setBcPartnerName = bb3[1];
+  var bb4 = useState(''), bcMyfmDuration = bb4[0], setBcMyfmDuration = bb4[1];
+  var bb5 = useState(''), bcPricePoint = bb5[0], setBcPricePoint = bb5[1];
 
   // Close a Deal form
   var c1 = useState(''), cdLeadsName = c1[0], setCdLeadsName = c1[1];
   var c2 = useState(''), cdLeadsPhone = c2[0], setCdLeadsPhone = c2[1];
   var c3 = useState(''), cdLeadsEmail = c3[0], setCdLeadsEmail = c3[1];
-  var c4 = useState(''), cdProgram = c4[0], setCdProgram = c4[1];
   var c5 = useState(''), cdPaymentDetails = c5[0], setCdPaymentDetails = c5[1];
   var c6 = useState(''), cdPaymentProcessor = c6[0], setCdPaymentProcessor = c6[1];
   var c7 = useState(''), cdPaymentAgreement = c7[0], setCdPaymentAgreement = c7[1];
   var c8 = useState(''), cdCashCollected = c8[0], setCdCashCollected = c8[1];
   var c9 = useState(''), cdSetter = c9[0], setCdSetter = c9[1];
   var c10 = useState(''), cdCloser = c10[0], setCdCloser = c10[1];
+  var cb1 = useState(''), cdBrand = cb1[0], setCdBrand = cb1[1];
+  var cb2 = useState(''), cdSubProgram = cb2[0], setCdSubProgram = cb2[1];
+  var cb3 = useState(''), cdPartnerName = cb3[0], setCdPartnerName = cb3[1];
+  var cb4 = useState(''), cdMyfmDuration = cb4[0], setCdMyfmDuration = cb4[1];
+  var cb5 = useState(''), cdPricePoint = cb5[0], setCdPricePoint = cb5[1];
+
+  var partners = getPartners();
 
   // EOD Report form
   var e1 = useState(''), eodSalesRep = e1[0], setEodSalesRep = e1[1];
@@ -145,15 +156,17 @@ export default function SubmitPage() {
   }, []);
 
   function clearBookCall() {
-    setBcLeadsName(''); setBcLeadsPhone(''); setBcProgram(''); setBcQualified('yes');
+    setBcLeadsName(''); setBcLeadsPhone(''); setBcQualified('yes');
     setBcBookedDay(''); setBcBookedTime(''); setBcNotes(''); setBcSetter('');
     setBcCloser(user ? user.name : ''); setBcSource('inbound');
+    setBcBrand(''); setBcSubProgram(''); setBcPartnerName(''); setBcMyfmDuration(''); setBcPricePoint('');
   }
 
   function clearCloseDeal() {
-    setCdLeadsName(''); setCdLeadsPhone(''); setCdLeadsEmail(''); setCdProgram('');
+    setCdLeadsName(''); setCdLeadsPhone(''); setCdLeadsEmail('');
     setCdPaymentDetails(''); setCdPaymentProcessor(''); setCdPaymentAgreement('');
     setCdCashCollected(''); setCdSetter(''); setCdCloser(user ? user.name : '');
+    setCdBrand(''); setCdSubProgram(''); setCdPartnerName(''); setCdMyfmDuration(''); setCdPricePoint('');
   }
 
   function clearEOD() {
@@ -174,7 +187,11 @@ export default function SubmitPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadsName: bcLeadsName, leadsPhone: bcLeadsPhone, program: bcProgram,
+          leadsName: bcLeadsName, leadsPhone: bcLeadsPhone,
+          program: buildProgramString(bcBrand, bcMyfmDuration, bcSubProgram, bcPartnerName),
+          brand: bcBrand,
+          subProgram: bcSubProgram || bcMyfmDuration || bcPartnerName || '',
+          pricePoint: bcBrand === 'MYFM' ? bcPricePoint : '',
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
           notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
           closerEmail: user ? user.email : '',
@@ -202,7 +219,11 @@ export default function SubmitPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadsName: cdLeadsName, leadsPhone: cdLeadsPhone, leadsEmail: cdLeadsEmail,
-          program: cdProgram, paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
+          program: buildProgramString(cdBrand, cdMyfmDuration, cdSubProgram, cdPartnerName),
+          brand: cdBrand,
+          subProgram: cdSubProgram || cdMyfmDuration || cdPartnerName || '',
+          pricePoint: cdBrand === 'MYFM' ? cdPricePoint : '',
+          paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
           setter: cdSetter, closer: cdCloser, closerEmail: user ? user.email : '',
           _whatsapp: waCD,
@@ -332,14 +353,78 @@ export default function SubmitPage() {
                   <input type="text" value={bcLeadsPhone} onChange={function(e) { setBcLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label">Program</label>
-                  <select value={bcProgram} onChange={function(e) { setBcProgram(e.target.value); }} className="input-field">
-                    <option value="">Select offer...</option>
-                    {PROGRAMS.map(function(p) { return <option key={p.value} value={p.value}>{p.label}</option>; })}
-                  </select>
+              {/* PROGRAM SELECTION — 3-step */}
+              <div>
+                <label className="form-label">Program</label>
+
+                <div className="flex gap-2 mb-3">
+                  {['MYFM', 'I2I', 'Partner'].map(function(bnd) {
+                    return (
+                      <button
+                        key={bnd}
+                        type="button"
+                        onClick={function() {
+                          setBcBrand(bnd);
+                          setBcSubProgram('');
+                          setBcPartnerName('');
+                          setBcMyfmDuration('');
+                          setBcPricePoint('');
+                        }}
+                        className={'flex-1 px-4 py-3 rounded-xl text-sm font-display font-bold transition-all ' +
+                          (bcBrand === bnd ? 'text-white' : 'text-crm-muted')}
+                        style={bcBrand === bnd ? {
+                          background: bnd === 'MYFM' ? '#3b82f6' : bnd === 'I2I' ? '#8b5cf6' : '#f59e0b',
+                          boxShadow: '0 0 20px ' + (bnd === 'MYFM' ? 'rgba(59,130,246,0.3)' : bnd === 'I2I' ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.3)')
+                        } : { background: 'var(--crm-surface-bg)', border: '1px solid var(--crm-border)' }}
+                      >
+                        {bnd}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {bcBrand === 'MYFM' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">Duration</label>
+                      <select value={bcMyfmDuration} onChange={function(e) { setBcMyfmDuration(e.target.value); }} className="input-field">
+                        <option value="">Select duration...</option>
+                        <option value="6 Month Coaching">6 Month Coaching</option>
+                        <option value="12 Month Coaching">12 Month Coaching</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label">Price Point</label>
+                      <input type="number" value={bcPricePoint} onChange={function(e) { setBcPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
+                    </div>
+                  </div>
+                )}
+
+                {bcBrand === 'I2I' && (
+                  <div>
+                    <label className="form-label">Offer</label>
+                    <select value={bcSubProgram} onChange={function(e) { setBcSubProgram(e.target.value); }} className="input-field">
+                      <option value="">Select offer...</option>
+                      <option value="Skool Sales">Skool Sales</option>
+                      <option value="Funding Program">Funding Program</option>
+                      <option value="Digital Program">Digital Program</option>
+                      <option value="Inner Circle">Inner Circle</option>
+                    </select>
+                  </div>
+                )}
+
+                {bcBrand === 'Partner' && (
+                  <div>
+                    <label className="form-label">Partner</label>
+                    <select value={bcPartnerName} onChange={function(e) { setBcPartnerName(e.target.value); }} className="input-field">
+                      <option value="">Select partner...</option>
+                      {partners.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Qualified?</label>
                   <select value={bcQualified} onChange={function(e) { setBcQualified(e.target.value); }} className="input-field">
@@ -419,13 +504,77 @@ export default function SubmitPage() {
                   <label className="form-label">Lead&apos;s Email</label>
                   <input type="email" value={cdLeadsEmail} onChange={function(e) { setCdLeadsEmail(e.target.value); }} className="input-field" placeholder="john@email.com" />
                 </div>
-                <div>
-                  <label className="form-label">Program</label>
-                  <select value={cdProgram} onChange={function(e) { setCdProgram(e.target.value); }} className="input-field">
-                    <option value="">Select offer...</option>
-                    {PROGRAMS.map(function(p) { return <option key={p.value} value={p.value}>{p.label}</option>; })}
-                  </select>
+              </div>
+
+              {/* PROGRAM SELECTION — 3-step */}
+              <div>
+                <label className="form-label">Program</label>
+
+                <div className="flex gap-2 mb-3">
+                  {['MYFM', 'I2I', 'Partner'].map(function(bnd) {
+                    return (
+                      <button
+                        key={bnd}
+                        type="button"
+                        onClick={function() {
+                          setCdBrand(bnd);
+                          setCdSubProgram('');
+                          setCdPartnerName('');
+                          setCdMyfmDuration('');
+                          setCdPricePoint('');
+                        }}
+                        className={'flex-1 px-4 py-3 rounded-xl text-sm font-display font-bold transition-all ' +
+                          (cdBrand === bnd ? 'text-white' : 'text-crm-muted')}
+                        style={cdBrand === bnd ? {
+                          background: bnd === 'MYFM' ? '#3b82f6' : bnd === 'I2I' ? '#8b5cf6' : '#f59e0b',
+                          boxShadow: '0 0 20px ' + (bnd === 'MYFM' ? 'rgba(59,130,246,0.3)' : bnd === 'I2I' ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.3)')
+                        } : { background: 'var(--crm-surface-bg)', border: '1px solid var(--crm-border)' }}
+                      >
+                        {bnd}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {cdBrand === 'MYFM' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">Duration</label>
+                      <select value={cdMyfmDuration} onChange={function(e) { setCdMyfmDuration(e.target.value); }} className="input-field">
+                        <option value="">Select duration...</option>
+                        <option value="6 Month Coaching">6 Month Coaching</option>
+                        <option value="12 Month Coaching">12 Month Coaching</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label">Price Point</label>
+                      <input type="number" value={cdPricePoint} onChange={function(e) { setCdPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
+                    </div>
+                  </div>
+                )}
+
+                {cdBrand === 'I2I' && (
+                  <div>
+                    <label className="form-label">Offer</label>
+                    <select value={cdSubProgram} onChange={function(e) { setCdSubProgram(e.target.value); }} className="input-field">
+                      <option value="">Select offer...</option>
+                      <option value="Skool Sales">Skool Sales</option>
+                      <option value="Funding Program">Funding Program</option>
+                      <option value="Digital Program">Digital Program</option>
+                      <option value="Inner Circle">Inner Circle</option>
+                    </select>
+                  </div>
+                )}
+
+                {cdBrand === 'Partner' && (
+                  <div>
+                    <label className="form-label">Partner</label>
+                    <select value={cdPartnerName} onChange={function(e) { setCdPartnerName(e.target.value); }} className="input-field">
+                      <option value="">Select partner...</option>
+                      {partners.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="form-section-title">Payment</div>

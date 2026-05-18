@@ -306,17 +306,33 @@ function computeOverviewForRange(startDate, endDate) {
 
   // PER-OFFER BREAKDOWN
   var offerBreakdown = {
-    saas: { booked: 0, closes: 0, revenue: 0 },
-    coaching: { booked: 0, closes: 0, revenue: 0 },
-    'dfy-funding': { booked: 0, closes: 0, revenue: 0 },
-    other: { booked: 0, closes: 0, revenue: 0 },
+    'myfm':             { key: 'myfm',             label: 'MYFM',            subtitle: 'Coaching', booked: 0, closes: 0, revenue: 0, color: '#3b82f6' },
+    'i2i-skool':        { key: 'i2i-skool',        label: 'Skool Sales',     subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#8b5cf6' },
+    'i2i-funding':      { key: 'i2i-funding',      label: 'Funding Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#f59e0b' },
+    'i2i-digital':      { key: 'i2i-digital',      label: 'Digital Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#06b6d4' },
+    'i2i-inner-circle': { key: 'i2i-inner-circle', label: 'Inner Circle',    subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#dc2626' },
+    'partner':          { key: 'partner',          label: 'Partner',         subtitle: 'External', booked: 0, closes: 0, revenue: 0, color: '#22c55e' },
+    'other':            { key: 'other',            label: 'Other',           subtitle: '',         booked: 0, closes: 0, revenue: 0, color: '#6b6b6b' },
   };
 
   function classifyOffer(program) {
-    var p = (program || '').toLowerCase();
-    if (p === 'saas' || p === 'saas (fund2grow)' || p === 'fund2grow') return 'saas';
-    if (p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'coaching';
-    if (p === 'dfy-funding' || p === 'dfy funding' || p === 'dfy funding (inner circle)' || p === 'inner circle' || p === 'funding') return 'dfy-funding';
+    var p = (program || '').toLowerCase().trim();
+
+    // New program names
+    if (p.startsWith('myfm')) return 'myfm';
+    if (p.startsWith('i2i - skool')) return 'i2i-skool';
+    if (p.startsWith('i2i - funding')) return 'i2i-funding';
+    if (p.startsWith('i2i - digital')) return 'i2i-digital';
+    if (p.startsWith('i2i - inner')) return 'i2i-inner-circle';
+    if (p.startsWith('i2i')) return 'i2i-digital'; // catch-all I2I
+    if (p.startsWith('partner')) return 'partner';
+
+    // Legacy names
+    if (p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'myfm';
+    if (p === 'coaching digital offer' || p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'i2i-digital';
+    if (p === 'coaching funding offer') return 'i2i-funding';
+    if (p === 'dfy funding' || p === 'dfy-funding' || p === 'funding') return 'i2i-funding';
+    if (p === 'inner circle' || p === 'inner circle mentorship' || p === 'dfy funding (inner circle)') return 'i2i-inner-circle';
     return 'other';
   }
 

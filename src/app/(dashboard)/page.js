@@ -274,9 +274,12 @@ export default function DashboardPage() {
       {t.offerBreakdown && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-2">
           {[
-            { key: 'saas', label: 'SaaS', subtitle: 'Fund2Grow', color: '#3b82f6', emoji: '💻' },
-            { key: 'coaching', label: 'Coaching', subtitle: 'Digital Programs', color: '#8b5cf6', emoji: '🎯' },
-            { key: 'dfy-funding', label: 'DFY Funding', subtitle: 'Inner Circle', color: '#f59e0b', emoji: '💰' },
+            { key: 'myfm', label: 'MYFM', subtitle: 'Coaching', color: '#3b82f6', emoji: '🚀' },
+            { key: 'i2i-skool', label: 'Skool Sales', subtitle: 'I2I', color: '#8b5cf6', emoji: '🎓' },
+            { key: 'i2i-funding', label: 'Funding Program', subtitle: 'I2I', color: '#f59e0b', emoji: '💰' },
+            { key: 'i2i-digital', label: 'Digital Program', subtitle: 'I2I', color: '#06b6d4', emoji: '💻' },
+            { key: 'i2i-inner-circle', label: 'Inner Circle', subtitle: 'I2I', color: '#dc2626', emoji: '⭐' },
+            { key: 'partner', label: 'Partner', subtitle: 'External', color: '#22c55e', emoji: '🤝' },
           ].map(function(offer) {
             var data = t.offerBreakdown[offer.key] || { booked: 0, closes: 0, revenue: 0 };
             return (

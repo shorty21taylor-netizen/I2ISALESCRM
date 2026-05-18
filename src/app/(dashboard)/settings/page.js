@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCircle, AlertCircle, Clock, Play, Pause, RefreshCw, Webhook, Phone, Zap, FileText, Video, Sun, Moon } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
-import { getFormConfig, saveFormConfig } from '@/lib/form-config';
+import { getFormConfig, saveFormConfig, getPartners, addPartner, removePartner } from '@/lib/form-config';
 import { getTheme, setTheme } from '@/lib/theme';
 
 export default function SettingsPage() {
@@ -19,11 +19,14 @@ export default function SettingsPage() {
   var s11 = useState(false), savedConnection = s11[0], setSavedConnection = s11[1];
   var s12 = useState(false), savedNotifications = s12[0], setSavedNotifications = s12[1];
   var s13 = useState(false), savedScheduled = s13[0], setSavedScheduled = s13[1];
+  var s14 = useState([]), partnersList = s14[0], setPartnersList = s14[1];
+  var s15 = useState(''), newPartner = s15[0], setNewPartner = s15[1];
 
   useEffect(function() {
     setCurrentTheme(getTheme());
     var cfg = getFormConfig();
     setConfig(cfg);
+    setPartnersList(getPartners());
     setOrigin(window.location.origin);
 
     fetch('/api/dashboard')
@@ -405,6 +408,60 @@ export default function SettingsPage() {
               {savedConnection && <span className="text-xs font-mono text-crm-positive">✓ Saved</span>}
               <button onClick={function() { saveSection(setSavedConnection); }} className="btn-primary text-sm ml-auto flex items-center gap-2">
                 <Save className="w-3.5 h-3.5" /> Save Connection
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== PARTNER MANAGEMENT ===== */}
+        <div className="glass-card overflow-hidden stagger-2">
+          <div className="section-header">
+            <h3 className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>Partner Management</h3>
+          </div>
+          <div className="p-5">
+            <p className="text-xs font-mono mb-4" style={{ color: 'var(--crm-text-muted)' }}>
+              Partners appear in the program dropdown on Book a Call and Close a Deal forms.
+            </p>
+
+            <div className="space-y-2 mb-4">
+              {partnersList.map(function(p) {
+                return (
+                  <div key={p} className="flex items-center justify-between glass-surface rounded-lg px-4 py-2.5">
+                    <span className="text-sm font-display" style={{ color: 'var(--crm-text-bright)' }}>{p}</span>
+                    <button
+                      onClick={function() {
+                        var updated = removePartner(p);
+                        setPartnersList(updated);
+                      }}
+                      className="text-xs font-mono px-2 py-1 rounded-lg hover:bg-white/5"
+                      style={{ color: 'var(--crm-negative)' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                value={newPartner}
+                onChange={function(e) { setNewPartner(e.target.value); }}
+                placeholder="New partner name..."
+                className="input-field flex-1"
+              />
+              <button
+                onClick={function() {
+                  if (newPartner.trim()) {
+                    var updated = addPartner(newPartner.trim());
+                    setPartnersList(updated);
+                    setNewPartner('');
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm font-display font-bold text-white"
+                style={{ background: 'var(--crm-accent)' }}
+              >
+                Add
               </button>
             </div>
           </div>
