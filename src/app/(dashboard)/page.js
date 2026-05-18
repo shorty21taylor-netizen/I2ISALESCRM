@@ -182,79 +182,79 @@ export default function DashboardPage() {
       )}
 
       {/* 5 Core KPIs — no toggle, no pages */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6 relative z-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5 mb-6 relative z-10">
 
         {/* Cash Collected */}
-        <div className="glass-card p-4 md:p-5">
-          <div className="flex items-start justify-between mb-2">
-            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.1)' }}>
-              <DollarSign className="w-4 h-4" style={{ color: '#22c55e' }} />
+        <div className="glass-card p-6 md:p-8">
+          <div className="flex items-start justify-between mb-3 md:mb-4">
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
+              <DollarSign className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#22c55e' }} />
             </div>
           </div>
-          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#22c55e' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
             {formatCurrency(displayOverview.totalCash || displayOverview.totalRevenue || 0)}
           </p>
-          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Cash Collected
           </p>
         </div>
 
         {/* Revenue */}
-        <div className="glass-card p-4 md:p-5">
-          <div className="flex items-start justify-between mb-2">
-            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.1)' }}>
-              <TrendingUp className="w-4 h-4" style={{ color: '#22c55e' }} />
+        <div className="glass-card p-6 md:p-8">
+          <div className="flex items-start justify-between mb-3 md:mb-4">
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
+              <TrendingUp className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#22c55e' }} />
             </div>
           </div>
-          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#22c55e' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
             {formatCurrency(displayOverview.totalRevenue || 0)}
           </p>
-          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Revenue
           </p>
         </div>
 
         {/* Outbound Dials */}
-        <div className="glass-card p-4 md:p-5">
-          <div className="flex items-start justify-between mb-2">
-            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(220,38,38,0.1)' }}>
-              <Phone className="w-4 h-4" style={{ color: '#dc2626' }} />
+        <div className="glass-card p-6 md:p-8">
+          <div className="flex items-start justify-between mb-3 md:mb-4">
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(220,38,38,0.1)' }}>
+              <Phone className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#dc2626' }} />
             </div>
           </div>
-          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
             {(displayOverview.totalDials || 0).toLocaleString()}
           </p>
-          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Outbound Dials
           </p>
         </div>
 
         {/* Calls Taken */}
-        <div className="glass-card p-4 md:p-5">
-          <div className="flex items-start justify-between mb-2">
-            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(59,130,246,0.1)' }}>
-              <PhoneIncoming className="w-4 h-4" style={{ color: '#3b82f6' }} />
+        <div className="glass-card p-6 md:p-8">
+          <div className="flex items-start justify-between mb-3 md:mb-4">
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.1)' }}>
+              <PhoneIncoming className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#3b82f6' }} />
             </div>
           </div>
-          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
             {displayOverview.totalCallsTaken || 0}
           </p>
-          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Calls Taken
           </p>
         </div>
 
         {/* Deals Closed */}
-        <div className="glass-card p-4 md:p-5 col-span-2 md:col-span-1">
-          <div className="flex items-start justify-between mb-2">
-            <div className="p-1.5 md:p-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.1)' }}>
-              <Trophy className="w-4 h-4" style={{ color: '#f59e0b' }} />
+        <div className="glass-card p-6 md:p-8 col-span-2 md:col-span-1">
+          <div className="flex items-start justify-between mb-3 md:mb-4">
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)' }}>
+              <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#f59e0b' }} />
             </div>
           </div>
-          <p className="text-xl md:text-2xl font-display font-bold" style={{ color: '#f59e0b' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#f59e0b' }}>
             {displayOverview.totalCloses || 0}
           </p>
-          <p className="text-[10px] md:text-xs font-mono uppercase mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Deals Closed
           </p>
         </div>
