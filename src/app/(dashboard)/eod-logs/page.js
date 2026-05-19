@@ -64,17 +64,66 @@ export default function EODLogsPage() {
     }
   }
 
-  var closerNames = closers.map(function(c) { return c.name; }).filter(Boolean).sort();
+  // Build closer list with emails
+  var closerList = closers.map(function(c) {
+    return { name: c.name, email: (c.email || '').toLowerCase() };
+  }).filter(function(c) { return c.name; }).sort(function(a, b) { return a.name > b.name ? 1 : -1; });
 
+  // Deduplicate by email — if two profiles have the same email, keep the first
+  var emailSeen = {};
+  var dedupedClosers = [];
+  closerList.forEach(function(c) {
+    if (c.email && emailSeen[c.email]) return; // skip duplicate email
+    if (c.email) emailSeen[c.email] = true;
+    dedupedClosers.push(c);
+  });
+
+  // Build submission map keyed by email (primary) or name (fallback)
   var submissionMap = {};
-  closerNames.forEach(function(name) { submissionMap[name] = {}; });
+  dedupedClosers.forEach(function(c) {
+    var key = c.email || c.name.toLowerCase();
+    submissionMap[key] = { name: c.name, email: c.email, submissions: {} };
+  });
+
   eods.forEach(function(e) {
+    var email = (e.closerEmail || '').toLowerCase();
     var name = e.salesRep || e.closerName || '';
     var date = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
-    if (name && date) {
-      if (!submissionMap[name]) submissionMap[name] = {};
-      submissionMap[name][date] = e;
+    if (!date) return;
+
+    // Try email match first
+    if (email && submissionMap[email]) {
+      submissionMap[email].submissions[date] = e;
+      return;
     }
+
+    // Fall back to name match (case-insensitive)
+    var nameLower = name.toLowerCase().trim();
+    var found = false;
+    Object.keys(submissionMap).forEach(function(key) {
+      if (found) return;
+      if (submissionMap[key].name.toLowerCase().trim() === nameLower) {
+        submissionMap[key].submissions[date] = e;
+        found = true;
+      }
+    });
+
+    // If no match at all, create a temporary entry (orphaned submission)
+    if (!found && name) {
+      var tempKey = 'orphan-' + nameLower;
+      if (!submissionMap[tempKey]) {
+        submissionMap[tempKey] = { name: name + ' (unlinked)', email: '', submissions: {} };
+      }
+      submissionMap[tempKey].submissions[date] = e;
+    }
+  });
+
+  // Convert to array for rendering
+  var trackerRows = Object.values(submissionMap).sort(function(a, b) {
+    // Put orphans at the bottom
+    if (a.name.includes('(unlinked)') && !b.name.includes('(unlinked)')) return 1;
+    if (!a.name.includes('(unlinked)') && b.name.includes('(unlinked)')) return -1;
+    return a.name > b.name ? 1 : -1;
   });
 
   var monthStart = viewMonth.toISOString().split('T')[0];
@@ -82,7 +131,7 @@ export default function EODLogsPage() {
   var monthEods = eods.filter(function(e) { var date = e.date || ''; return date >= monthStart && date <= monthEnd; });
   var totalSubmissions = monthEods.length;
   var pastWorkDays = workDays.filter(function(d) { return d.isPast; });
-  var expectedSubmissions = pastWorkDays.length * closerNames.length;
+  var expectedSubmissions = pastWorkDays.length * dedupedClosers.length;
   var missedSubmissions = Math.max(0, expectedSubmissions - totalSubmissions);
   var complianceRate = expectedSubmissions > 0 ? Math.round((totalSubmissions / expectedSubmissions) * 100) : 0;
   var totalCash = monthEods.reduce(function(s, e) { return s + (parseFloat(e.cashCollectedMYFM) || 0) + (parseFloat(e.cashCollectedI2I) || 0); }, 0);
@@ -94,12 +143,12 @@ export default function EODLogsPage() {
     var daySubmitted = [];
     var dayMissed = [];
 
-    closerNames.forEach(function(name) {
-      var eod = submissionMap[name] && submissionMap[name][selectedDay];
+    trackerRows.forEach(function(row) {
+      var eod = row.submissions[selectedDay];
       if (eod) {
-        daySubmitted.push({ name: name, eod: eod });
-      } else if (dayInfo && (dayInfo.isPast || dayInfo.isToday)) {
-        dayMissed.push(name);
+        daySubmitted.push({ name: row.name, eod: eod });
+      } else if (dayInfo && (dayInfo.isPast || dayInfo.isToday) && !row.name.includes('(unlinked)')) {
+        dayMissed.push(row.name);
       }
     });
 
@@ -295,20 +344,28 @@ export default function EODLogsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {closerNames.map(function(name) {
-                      var subs = submissionMap[name] || {};
+                    {trackerRows.map(function(row) {
+                      var submissions = row.submissions;
                       var submitted = 0;
                       var expected = 0;
+                      var isOrphan = row.name.includes('(unlinked)');
 
                       return (
-                        <tr key={name} className="border-t" style={{ borderColor: 'var(--crm-divider)' }}>
-                          <td className="sticky left-0 z-10 px-3 py-2 text-xs font-display font-medium truncate" style={{ color: 'var(--crm-text-bright)', background: 'var(--crm-bg)', maxWidth: '140px' }}>{name}</td>
+                        <tr key={row.email || row.name} className="border-t" style={{ borderColor: 'var(--crm-divider)' }}>
+                          <td className="sticky left-0 z-10 px-3 py-2 text-xs font-display font-medium truncate" style={{
+                            color: isOrphan ? '#f59e0b' : 'var(--crm-text-bright)',
+                            background: 'var(--crm-bg)',
+                            maxWidth: '140px',
+                          }}>
+                            {row.name}
+                            {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}
+                          </td>
                           {workDays.map(function(day) {
-                            var eod = subs[day.date];
+                            var eod = submissions[day.date];
                             var didSubmit = !!eod;
                             var isSelected = selectedDay === day.date;
 
-                            if (day.isPast || day.isToday) expected++;
+                            if ((day.isPast || day.isToday) && !isOrphan) expected++;
                             if (didSubmit) submitted++;
 
                             var bg = isSelected ? 'rgba(220,38,38,0.08)' : 'transparent';
@@ -317,10 +374,10 @@ export default function EODLogsPage() {
                             if (didSubmit) {
                               bg = isSelected ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.12)';
                               icon = <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />;
-                            } else if (day.isPast) {
+                            } else if (day.isPast && !isOrphan) {
                               bg = isSelected ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.08)';
                               icon = <XCircle className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />;
-                            } else if (day.isToday) {
+                            } else if (day.isToday && !isOrphan) {
                               bg = isSelected ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.08)';
                               icon = <Clock className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />;
                             }
@@ -337,7 +394,7 @@ export default function EODLogsPage() {
                           })}
                           <td className="text-center px-3 py-2">
                             <span className="text-xs font-mono font-bold" style={{ color: expected > 0 && submitted / expected >= 0.9 ? '#22c55e' : expected > 0 && submitted / expected >= 0.7 ? '#f59e0b' : expected > 0 ? '#ef4444' : 'var(--crm-text-muted)' }}>
-                              {expected > 0 ? Math.round((submitted / expected) * 100) : 0}%
+                              {expected > 0 ? Math.round((submitted / expected) * 100) : isOrphan ? '—' : '0%'}
                             </span>
                           </td>
                         </tr>
@@ -423,7 +480,7 @@ export default function EODLogsPage() {
             <div className="flex flex-wrap gap-3 mb-4">
               <select value={filterRep} onChange={function(e) { setFilterRep(e.target.value); }} className="input-field w-auto text-sm">
                 <option value="">All Reps</option>
-                {closerNames.map(function(c) { return <option key={c} value={c}>{c}</option>; })}
+                {dedupedClosers.map(function(c) { return <option key={c.email || c.name} value={c.name}>{c.name}</option>; })}
               </select>
             </div>
             {filteredEods.length === 0 ? (

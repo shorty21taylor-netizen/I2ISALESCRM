@@ -59,6 +59,16 @@ export async function GET() {
       };
     });
 
+    // Deduplicate by email (safety net)
+    var seenEmail = {};
+    closers = closers.filter(function(c) {
+      var e = (c.email || '').toLowerCase();
+      if (!e) return true;
+      if (seenEmail[e]) return false;
+      seenEmail[e] = true;
+      return true;
+    });
+
     closers.sort(function(a, b) { return b.stats.totalRevenue - a.stats.totalRevenue; });
 
     return NextResponse.json({ success: true, closers: closers, count: closers.length });

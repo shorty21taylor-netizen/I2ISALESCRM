@@ -733,15 +733,23 @@ export function updateCommissionStatus(dealId, status) {
 // ============================================
 
 export function registerCloser(email, name) {
-  if (!email) return;
+  if (!email) {
+    console.log('[Register] No email for closer:', name);
+    return;
+  }
   var key = email.toLowerCase().trim();
+  var cleanName = (name || '').trim().split(' ').filter(Boolean).map(function(w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
   if (store.closerProfiles[key]) {
     // Update existing profile login time and name if provided
     store.closerProfiles[key].lastLogin = new Date().toISOString();
-    if (name) store.closerProfiles[key].name = name;
+    if (cleanName && (!store.closerProfiles[key].name || store.closerProfiles[key].name === key)) {
+      store.closerProfiles[key].name = cleanName;
+    }
   } else {
     store.closerProfiles[key] = {
-      name: name || email,
+      name: cleanName || key,
       email: key,
       registeredAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
@@ -750,7 +758,7 @@ export function registerCloser(email, name) {
   if (!store.commissionRates[key]) {
     store.commissionRates[key] = {
       rate: 0.10,
-      name: name || email,
+      name: cleanName || key,
       updatedAt: new Date().toISOString(),
     };
     saveCommissionRate(key, store.commissionRates[key]).catch(function(e) { console.error('[DB] Save commission rate error:', e.message); });
