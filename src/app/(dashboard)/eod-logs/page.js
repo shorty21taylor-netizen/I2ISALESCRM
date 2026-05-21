@@ -69,26 +69,36 @@ export default function EODLogsPage() {
     return { name: (c.name || '').trim(), email: (c.email || '').toLowerCase().trim() };
   }).filter(function(c) { return c.name; });
 
-  // Combine duplicate closers — ONLY when normalized email matches.
-  // Same email -> merge into one row, keeping the longest/most descriptive name.
-  // No email + same name -> merge (both lack an email, treat as same person).
-  // Different emails (or one missing) -> keep separate (different people, by user's rule).
+  // Combine duplicate closer rows. Two-pass merge:
+  //   1) Same normalized email -> merge (the original "only if email matches" rule).
+  //   2) Same case-insensitive name -> merge (catches profiles with different/missing emails
+  //      but the exact same stored name, like two "Jake Reilly" rows).
+  // When merging, keep the longest name and prefer a real email over an empty one.
   var byEmail = {};
-  var noEmailByName = {};
+  var noEmailRows = [];
   closerList.forEach(function(c) {
     if (c.email) {
       if (!byEmail[c.email]) {
         byEmail[c.email] = { name: c.name, email: c.email };
       } else if (c.name.length > byEmail[c.email].name.length) {
-        byEmail[c.email].name = c.name; // prefer the more descriptive name
+        byEmail[c.email].name = c.name;
       }
     } else {
-      var nk = c.name.toLowerCase();
-      if (!noEmailByName[nk]) noEmailByName[nk] = { name: c.name, email: '' };
-      else if (c.name.length > noEmailByName[nk].name.length) noEmailByName[nk].name = c.name;
+      noEmailRows.push(c);
     }
   });
-  var dedupedClosers = Object.values(byEmail).concat(Object.values(noEmailByName))
+
+  var byName = {};
+  Object.values(byEmail).concat(noEmailRows).forEach(function(c) {
+    var nk = c.name.toLowerCase().trim();
+    if (!byName[nk]) {
+      byName[nk] = { name: c.name, email: c.email };
+    } else {
+      if (c.name.length > byName[nk].name.length) byName[nk].name = c.name;
+      if (!byName[nk].email && c.email) byName[nk].email = c.email;
+    }
+  });
+  var dedupedClosers = Object.values(byName)
     .sort(function(a, b) { return a.name > b.name ? 1 : -1; });
 
   // Build submission map keyed by email (primary) or name (fallback)
