@@ -29,45 +29,68 @@ var store = {
 // ============================================
 
 var dbLoaded = false;
+var dbLoading = null;
 
 export async function initStore() {
   if (dbLoaded) return;
-  dbLoaded = true;
+  // Dedupe concurrent first-load attempts so we don't run N parallel DB loads.
+  if (dbLoading) return dbLoading;
 
-  try {
-    var dbReady = await initDatabase();
-    if (!dbReady) {
-      console.error('============================================================');
-      console.error('WARNING: DATABASE_URL NOT SET — RUNNING IN MEMORY-ONLY MODE');
-      console.error('ALL DATA WILL BE LOST ON RESTART/REDEPLOY!');
-      console.error('Fix: Railway Dashboard → CRM Service → Variables → Add Reference → PostgreSQL DATABASE_URL');
-      console.error('============================================================');
-      return;
-    }
-
-    var data = await loadFromDatabase();
-    if (data) {
-      store.bookedCalls = data.bookedCalls || [];
-      store.closedDeals = data.closedDeals || [];
-      store.eodReports = data.eodReports || [];
-      store.closerProfiles = data.closerProfiles || {};
-      store.commissionRates = data.commissionRates || {};
-      console.log('[Store] Loaded from DB:',
-        store.bookedCalls.length, 'booked,',
-        store.closedDeals.length, 'deals,',
-        store.eodReports.length, 'EODs,',
-        Object.keys(store.closerProfiles).length, 'closers'
-      );
-      recalcOverview();
-    }
-
+  dbLoading = (async function() {
     try {
-      var ws = await loadWorkspaces();
-      if (ws && ws.length > 0) { store.workspaces = ws; console.log('[Store] Loaded', ws.length, 'workspaces'); }
-    } catch (e) { console.error('[Store] Workspace load:', e.message); }
-  } catch (e) {
-    console.error('[Store] Init error:', e.message);
-  }
+      var dbReady = await initDatabase();
+      if (!dbReady) {
+        if (!process.env.DATABASE_URL) {
+          // No database configured at all — genuine memory-only mode. Don't retry.
+          console.error('============================================================');
+          console.error('WARNING: DATABASE_URL NOT SET — RUNNING IN MEMORY-ONLY MODE');
+          console.error('ALL DATA WILL BE LOST ON RESTART/REDEPLOY!');
+          console.error('Fix: Railway Dashboard → CRM Service → Variables → Add Reference → PostgreSQL DATABASE_URL');
+          console.error('============================================================');
+          dbLoaded = true;
+        } else {
+          // DATABASE_URL is set but the DB was not reachable (cold start / transient).
+          // Leave dbLoaded false so the NEXT request retries — never serve an empty
+          // store permanently when the data is actually in Postgres.
+          console.error('[Store] DB configured but not ready yet — will retry on next request');
+        }
+        return;
+      }
+
+      var data = await loadFromDatabase();
+      if (data) {
+        store.bookedCalls = data.bookedCalls || [];
+        store.closedDeals = data.closedDeals || [];
+        store.eodReports = data.eodReports || [];
+        store.closerProfiles = data.closerProfiles || {};
+        store.commissionRates = data.commissionRates || {};
+        console.log('[Store] Loaded from DB:',
+          store.bookedCalls.length, 'booked,',
+          store.closedDeals.length, 'deals,',
+          store.eodReports.length, 'EODs,',
+          Object.keys(store.closerProfiles).length, 'closers'
+        );
+        recalcOverview();
+        dbLoaded = true; // only mark loaded once the load actually succeeds
+      } else {
+        // loadFromDatabase returned null (query failed / connection blip).
+        // Do NOT set dbLoaded — retry on the next request.
+        console.error('[Store] DB load returned no data — will retry on next request');
+      }
+
+      try {
+        var ws = await loadWorkspaces();
+        if (ws && ws.length > 0) { store.workspaces = ws; console.log('[Store] Loaded', ws.length, 'workspaces'); }
+      } catch (e) { console.error('[Store] Workspace load:', e.message); }
+    } catch (e) {
+      console.error('[Store] Init error:', e.message);
+      // leave dbLoaded false so the next request retries
+    } finally {
+      dbLoading = null;
+    }
+  })();
+
+  return dbLoading;
 }
 
 export function getStore() {
