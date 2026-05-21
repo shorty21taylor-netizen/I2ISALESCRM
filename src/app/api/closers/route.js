@@ -59,10 +59,11 @@ export async function GET() {
       };
     });
 
-    // Deduplicate by email (safety net)
+    // Deduplicate by normalized email (lowercase + trim).
+    // Same email = same person; different/missing emails stay separate.
     var seenEmail = {};
     closers = closers.filter(function(c) {
-      var e = (c.email || '').toLowerCase();
+      var e = (c.email || '').toLowerCase().trim();
       if (!e) return true;
       if (seenEmail[e]) return false;
       seenEmail[e] = true;

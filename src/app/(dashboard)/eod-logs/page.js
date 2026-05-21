@@ -66,17 +66,30 @@ export default function EODLogsPage() {
 
   // Build closer list with emails
   var closerList = closers.map(function(c) {
-    return { name: c.name, email: (c.email || '').toLowerCase() };
-  }).filter(function(c) { return c.name; }).sort(function(a, b) { return a.name > b.name ? 1 : -1; });
+    return { name: (c.name || '').trim(), email: (c.email || '').toLowerCase().trim() };
+  }).filter(function(c) { return c.name; });
 
-  // Deduplicate by email — if two profiles have the same email, keep the first
-  var emailSeen = {};
-  var dedupedClosers = [];
+  // Combine duplicate closers — ONLY when normalized email matches.
+  // Same email -> merge into one row, keeping the longest/most descriptive name.
+  // No email + same name -> merge (both lack an email, treat as same person).
+  // Different emails (or one missing) -> keep separate (different people, by user's rule).
+  var byEmail = {};
+  var noEmailByName = {};
   closerList.forEach(function(c) {
-    if (c.email && emailSeen[c.email]) return; // skip duplicate email
-    if (c.email) emailSeen[c.email] = true;
-    dedupedClosers.push(c);
+    if (c.email) {
+      if (!byEmail[c.email]) {
+        byEmail[c.email] = { name: c.name, email: c.email };
+      } else if (c.name.length > byEmail[c.email].name.length) {
+        byEmail[c.email].name = c.name; // prefer the more descriptive name
+      }
+    } else {
+      var nk = c.name.toLowerCase();
+      if (!noEmailByName[nk]) noEmailByName[nk] = { name: c.name, email: '' };
+      else if (c.name.length > noEmailByName[nk].name.length) noEmailByName[nk].name = c.name;
+    }
   });
+  var dedupedClosers = Object.values(byEmail).concat(Object.values(noEmailByName))
+    .sort(function(a, b) { return a.name > b.name ? 1 : -1; });
 
   // Build submission map keyed by email (primary) or name (fallback)
   var submissionMap = {};
@@ -86,7 +99,7 @@ export default function EODLogsPage() {
   });
 
   eods.forEach(function(e) {
-    var email = (e.closerEmail || '').toLowerCase();
+    var email = (e.closerEmail || '').toLowerCase().trim();
     var name = e.salesRep || e.closerName || '';
     var date = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
     if (!date) return;
