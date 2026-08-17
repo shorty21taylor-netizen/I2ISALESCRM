@@ -374,6 +374,27 @@ export function loadCustomMessagesFromDB(messages) {
 export function initScheduler(baseUrl) {
   if (running) return;
   if (baseUrl) config.baseUrl = baseUrl;
+
+  // The store restores the saved WhatsApp settings from the database on boot.
+  // Adopt them here so scheduled sends work after a restart without anyone having
+  // to reopen Settings and press Save.
+  try {
+    var saved = (getStore() || {}).whatsappConfig || {};
+    if (!config.assistroApiUrl && saved.assistroApiUrl) config.assistroApiUrl = saved.assistroApiUrl;
+    if (!config.assistroApiKey && saved.assistroApiKey) config.assistroApiKey = saved.assistroApiKey;
+    if (config.eodReminder && !config.eodReminder.groupId) {
+      config.eodReminder.groupId = saved.eodReminderGroupId || saved.eodReportGroupId || saved.bookedCallGroupId || '';
+    }
+    if (config.morningDigest && !config.morningDigest.groupId) {
+      config.morningDigest.groupId = saved.morningDigestGroupId || saved.bookedCallGroupId || '';
+    }
+    if (saved.assistroApiUrl) {
+      console.log('[Scheduler] Adopted saved WhatsApp config — api set:', !!config.assistroApiUrl);
+    }
+  } catch (e) {
+    console.error('[Scheduler] Could not adopt saved WhatsApp config:', e.message);
+  }
+
   running = true;
   intervalId = setInterval(tick, 60000);
   console.log('[Scheduler] Started — checking every 60s, timezone:', config.timezone);

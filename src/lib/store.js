@@ -3,7 +3,7 @@
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
-import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers } from '@/lib/db';
+import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
 // database is present, and kept here as well so the switcher still works in
@@ -90,6 +90,15 @@ export async function initStore() {
         // Do NOT set dbLoaded — retry on the next request.
         console.error('[Store] DB load returned no data — will retry on next request');
       }
+
+      try {
+        var savedWa = await loadAppConfig('whatsapp');
+        if (savedWa) {
+          Object.keys(savedWa).forEach(function(k) { store.whatsappConfig[k] = savedWa[k]; });
+          console.log('[Store] WhatsApp config restored from DB — api:', !!savedWa.assistroApiUrl,
+            'booked:', !!savedWa.bookedCallGroupId, 'deal:', !!savedWa.closedDealGroupId, 'eod:', !!savedWa.eodReportGroupId);
+        }
+      } catch (e) { console.error('[Store] WA config load:', e.message); }
 
       try {
         var ws = await loadWorkspaces();
@@ -1067,6 +1076,9 @@ export function setWhatsappConfig(config) {
   if (config.whatsappGroupId && !wc.bookedCallGroupId) wc.bookedCallGroupId = config.whatsappGroupId;
   if (config.whatsappGroupId && !wc.closedDealGroupId) wc.closedDealGroupId = config.whatsappGroupId;
   if (config.whatsappGroupId && !wc.eodReportGroupId) wc.eodReportGroupId = config.whatsappGroupId;
+  // Persist so the settings survive a redeploy — previously this lived only in
+  // memory, so every restart silently stopped WhatsApp until it was re-entered.
+  saveAppConfig('whatsapp', wc).catch(function(e) { console.error('[DB] Save WA config error:', e.message); });
   console.log('[Store] WhatsApp config updated — apiUrl:', wc.assistroApiUrl ? 'SET' : 'empty', '| booked:', wc.bookedCallGroupId ? 'SET' : 'empty', '| deal:', wc.closedDealGroupId ? 'SET' : 'empty', '| eod:', wc.eodReportGroupId ? 'SET' : 'empty');
 }
 

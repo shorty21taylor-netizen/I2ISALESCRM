@@ -56,6 +56,11 @@ export async function initDatabase() {
     await p.query('CREATE TABLE IF NOT EXISTS custom_messages (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())');
 
     // ===== MULTI-WORKSPACE =====
+    // App-level settings (WhatsApp credentials, group IDs, scheduler toggles).
+    // Without this the config lived only in server memory and was wiped by every
+    // redeploy, which silently stopped all WhatsApp sending until it was re-entered.
+    await p.query("CREATE TABLE IF NOT EXISTS app_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
     await p.query("CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
     await p.query("CREATE TABLE IF NOT EXISTS workspace_users (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, email TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
@@ -186,4 +191,19 @@ export async function loadWorkspaceUsers(workspaceId) {
   var r = await query('SELECT data FROM workspace_users WHERE workspace_id = $1 ORDER BY created_at ASC', [workspaceId]);
   if (!r) return [];
   return r.rows.map(function(row) { return row.data; });
+}
+
+// ===== APP CONFIG (WhatsApp credentials + scheduler settings) =====
+
+export async function saveAppConfig(key, data) {
+  return query(
+    'INSERT INTO app_config (id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()',
+    [key, JSON.stringify(data)]
+  );
+}
+
+export async function loadAppConfig(key) {
+  var r = await query('SELECT data FROM app_config WHERE id = $1', [key]);
+  if (!r || r.rows.length === 0) return null;
+  return r.rows[0].data;
 }
