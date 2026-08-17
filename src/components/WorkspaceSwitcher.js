@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Building2, Check, ChevronDown, Layers } from 'lucide-react';
-import { ALL_WORKSPACES, useWorkspace, useWorkspaceList, setActiveWorkspace } from '@/lib/workspace-client';
+import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace, useAccess } from '@/lib/workspace-client';
 
 export default function WorkspaceSwitcher({ collapsed }) {
   var activeId = useWorkspace();
-  var workspaces = useWorkspaceList();
+  var access = useAccess();
+  var workspaces = (access && access.workspaces) || [];
   var s = useState(false), open = s[0], setOpen = s[1];
   var boxRef = useRef(null);
 

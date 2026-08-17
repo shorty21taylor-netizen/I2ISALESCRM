@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, X, Check, LogIn, Layers } from 'lucide-react';
+import { Plus, Building2, X, Check, LogIn, Layers, Users } from 'lucide-react';
 import { getUser } from '@/lib/auth';
-import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace } from '@/lib/workspace-client';
+import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace, useAccess, apiFetch } from '@/lib/workspace-client';
 
 export default function WorkspacesPage() {
   var router = useRouter();
   var activeWorkspaceId = useWorkspace();
+  var access = useAccess();
   var [workspaces, setWorkspaces] = useState([]);
   var [showCreate, setShowCreate] = useState(false);
   var [loading, setLoading] = useState(true);
@@ -27,6 +28,39 @@ export default function WorkspacesPage() {
   var [funnels, setFunnels] = useState([]);
   var [primaryColor, setPrimaryColor] = useState('#a3a3a3');
   var [secondaryColor, setSecondaryColor] = useState('#22c55e');
+
+  var [teamFor, setTeamFor] = useState(null);
+  var [teamList, setTeamList] = useState([]);
+  var [newMemberEmail, setNewMemberEmail] = useState('');
+  var [newMemberName, setNewMemberName] = useState('');
+  var [teamMsg, setTeamMsg] = useState(null);
+
+  function openTeam(ws) {
+    setTeamFor(ws);
+    setTeamMsg(null);
+    setNewMemberEmail(''); setNewMemberName('');
+    apiFetch('/api/workspaces/' + encodeURIComponent(ws.id) + '/users')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setTeamList((d && d.users) || []); })
+      .catch(function() { setTeamList([]); });
+  }
+
+  function addMember() {
+    if (!teamFor || !newMemberEmail.trim()) { setTeamMsg({ ok: false, text: 'Enter an email' }); return; }
+    apiFetch('/api/workspaces/' + encodeURIComponent(teamFor.id) + '/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: newMemberEmail.trim(), name: newMemberName.trim(), role: 'closer' }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.success) { setTeamMsg({ ok: false, text: d.error || 'Could not add' }); return; }
+        setTeamMsg({ ok: true, text: newMemberEmail.trim() + ' can now access ' + teamFor.name + ' only' });
+        setNewMemberEmail(''); setNewMemberName('');
+        openTeam(teamFor);
+      })
+      .catch(function(e) { setTeamMsg({ ok: false, text: e.message }); });
+  }
 
   function enterWorkspace(ws) {
     setActiveWorkspace(ws.id);
@@ -159,6 +193,16 @@ export default function WorkspacesPage() {
                       <LogIn className="w-3.5 h-3.5" /> Enter workspace
                     </span>
                   )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={function(e) { e.stopPropagation(); openTeam(ws); }}
+                    onKeyDown={function(e) { if (e.key === 'Enter') { e.stopPropagation(); openTeam(ws); } }}
+                    className="ml-auto flex items-center gap-1.5 text-xs font-mono hover:underline"
+                    style={{ color: 'var(--crm-muted)' }}
+                  >
+                    <Users className="w-3.5 h-3.5" /> Team
+                  </span>
                 </div>
               </button>
             );
@@ -172,6 +216,67 @@ export default function WorkspacesPage() {
           </div>
         )}
       </div>
+
+      {/* Team panel — who can access this workspace */}
+      {teamFor && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={function() { setTeamFor(null); }}
+        >
+          <div className="glass-card w-full max-w-lg p-5" onClick={function(e) { e.stopPropagation(); }}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{teamFor.name} — Team</h3>
+                <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>
+                  People added here can only see this workspace
+                </p>
+              </div>
+              <button onClick={function() { setTeamFor(null); }} className="btn-ghost p-2" aria-label="Close">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-4 max-h-56 overflow-y-auto">
+              {teamList.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--crm-text-muted)' }}>No one added yet.</p>
+              )}
+              {teamList.map(function(u) {
+                return (
+                  <div key={u.id || u.email} className="glass-surface p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: 'var(--crm-text-bright)' }}>{u.name || u.email}</div>
+                      <div className="text-xs font-mono truncate" style={{ color: 'var(--crm-text-muted)' }}>{u.email}</div>
+                    </div>
+                    <span className="section-tag flex-shrink-0">{u.role || 'closer'}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider mb-2" style={{ color: 'var(--crm-text-muted)' }}>Email</label>
+                <input className="input-field text-sm" value={newMemberEmail} placeholder="person@company.com"
+                  onChange={function(e) { setNewMemberEmail(e.target.value); }} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider mb-2" style={{ color: 'var(--crm-text-muted)' }}>Name</label>
+                <input className="input-field text-sm" value={newMemberName} placeholder="Optional"
+                  onChange={function(e) { setNewMemberName(e.target.value); }} />
+              </div>
+            </div>
+
+            {teamMsg && (
+              <p className={'text-xs font-mono mt-3 ' + (teamMsg.ok ? 'text-crm-positive' : 'text-crm-negative')}>{teamMsg.text}</p>
+            )}
+
+            <button onClick={addMember} className="btn-primary text-sm flex items-center gap-2 mt-4">
+              <Plus className="w-3.5 h-3.5" /> Add to workspace
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create workspace modal — 3-step onboarding */}
       {showCreate && (

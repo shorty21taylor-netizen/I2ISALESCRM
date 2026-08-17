@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, ALL_WORKSPACES } from '@/lib/store';
 import { initScheduler } from '@/lib/scheduler';
+import { effectiveReadWorkspace } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
 
@@ -14,7 +15,8 @@ export async function GET(req) {
     var start = url.searchParams.get('start');
     var end = url.searchParams.get('end');
 
-    var workspaceId = url.searchParams.get('workspace') || ALL_WORKSPACES;
+    // A member is pinned to their own workspace regardless of the query string.
+    var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
     var isAll = workspaceId === ALL_WORKSPACES;
 
     // getOverview() is the cached, unscoped today view, so a scoped request always

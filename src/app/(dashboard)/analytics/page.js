@@ -21,10 +21,10 @@ export default function AnalyticsPage() {
       start.setDate(start.getDate() - parseInt(dateRange));
 
       var [dashRes, eodsRes, dealsRes, bookedRes] = await Promise.all([
-        fetch(withWorkspace('/api/dashboard?start=' + start.toISOString().split('T')[0] + '&end=' + end.toISOString().split('T')[0], workspaceId)),
-        fetch(withWorkspace('/api/webhooks/eod-report', workspaceId)),
-        fetch(withWorkspace('/api/webhooks/close-deal', workspaceId)),
-        fetch(withWorkspace('/api/webhooks/book-call', workspaceId)),
+        apiFetch(withWorkspace('/api/dashboard?start=' + start.toISOString().split('T')[0] + '&end=' + end.toISOString().split('T')[0], workspaceId)),
+        apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId)),
+        apiFetch(withWorkspace('/api/webhooks/close-deal', workspaceId)),
+        apiFetch(withWorkspace('/api/webhooks/book-call', workspaceId)),
       ]);
 
       var dash = await dashRes.json();

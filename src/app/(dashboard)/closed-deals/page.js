@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DollarSign, Calendar, Filter, ChevronDown, Trash2 } from 'lucide-react';
-import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -26,7 +26,7 @@ export default function ClosedDealsPage() {
   async function fetchDeals() {
     setLoading(true);
     try {
-      var res = await fetch(withWorkspace('/api/webhooks/close-deal', workspaceId));
+      var res = await apiFetch(withWorkspace('/api/webhooks/close-deal', workspaceId));
       var data = await res.json();
       setDeals((data.data || []).filter(Boolean).sort(function(a, b) {
         return (b.submittedAt || '') > (a.submittedAt || '') ? 1 : -1;
@@ -36,7 +36,7 @@ export default function ClosedDealsPage() {
   }
 
   async function handleDelete(id) {
-    await fetch('/api/webhooks/close-deal/' + id, { method: 'DELETE' });
+    await apiFetch('/api/webhooks/close-deal/' + id, { method: 'DELETE' });
     setConfirmDelete(null);
     fetchDeals();
   }

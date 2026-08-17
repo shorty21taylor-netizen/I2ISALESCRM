@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
-import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -50,7 +50,7 @@ export default function DashboardPage() {
     if (!workspaceId) return; // wait for the active workspace to resolve client-side
     var params = getDateParams();
     var qs = '?start=' + params.start + '&end=' + params.end;
-    fetch(withWorkspace('/api/dashboard' + qs, workspaceId))
+    apiFetch(withWorkspace('/api/dashboard' + qs, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       })
       .catch(function(e) { console.error('Dashboard fetch error:', e); });
 
-    fetch(withWorkspace('/api/webhooks/eod-report', workspaceId))
+    apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(eodsData) {
         setAllEODs((eodsData.data || []).filter(Boolean));

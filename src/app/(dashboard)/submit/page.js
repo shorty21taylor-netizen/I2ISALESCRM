@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
-import { useWorkspace, withWorkspace, ALL_WORKSPACES } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
 
 function buildProgramString(brand, myfmDuration, subProgram, partnerName) {
   if (brand === 'MYFM') return 'MYFM - ' + (myfmDuration || '6 Month Coaching');
@@ -152,7 +152,7 @@ export default function SubmitPage() {
     }
     setEodDate(new Date().toISOString().split('T')[0]);
 
-    fetch(withWorkspace('/api/dashboard', workspaceId))
+    apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
@@ -188,7 +188,7 @@ export default function SubmitPage() {
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
       var waBC = getWhatsAppForType('book-call');
-      var res = await fetch('/api/webhooks/book-call', {
+      var res = await apiFetch('/api/webhooks/book-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +220,7 @@ export default function SubmitPage() {
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
       var waCD = getWhatsAppForType('close-deal');
-      var res = await fetch('/api/webhooks/close-deal', {
+      var res = await apiFetch('/api/webhooks/close-deal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -252,7 +252,7 @@ export default function SubmitPage() {
     setSubmitting(true); setError(''); setSuccessMsg(null);
     try {
       var waEOD = getWhatsAppForType('eod-report');
-      var res = await fetch('/api/webhooks/eod-report', {
+      var res = await apiFetch('/api/webhooks/eod-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -280,7 +280,7 @@ export default function SubmitPage() {
   }
 
   function refreshActivity() {
-    fetch(withWorkspace('/api/dashboard', workspaceId))
+    apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);

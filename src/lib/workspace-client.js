@@ -3,6 +3,7 @@
 // so every mounted page refetches against the newly selected company.
 
 import { useState, useEffect } from 'react';
+import { getUser } from '@/lib/auth';
 
 export var ALL_WORKSPACES = '__all__';
 
@@ -73,4 +74,44 @@ export function useWorkspaceList() {
   }, []);
 
   return workspaces;
+}
+
+
+// Every API call identifies the caller so the server can pin them to their own
+// workspace. Pass this to fetch() as the options object.
+export function authFetchOptions(extra) {
+  var user = null;
+  try { user = getUser(); } catch (e) { user = null; }
+  var headers = Object.assign({}, (extra && extra.headers) || {});
+  if (user && user.email) headers['x-user-email'] = user.email;
+  return Object.assign({}, extra, { headers: headers });
+}
+
+// fetch() that always carries the caller's identity.
+export function apiFetch(path, options) {
+  return fetch(path, authFetchOptions(options));
+}
+
+// The caller's access profile: which workspaces they may use, and whether they are
+// the owner. Non-owners get exactly one workspace and no combined view.
+export function useAccess() {
+  var s = useState(null), access = s[0], setAccess = s[1];
+
+  useEffect(function() {
+    var cancelled = false;
+    apiFetch('/api/auth/me')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (cancelled || !d.success) return;
+        setAccess(d);
+        // A member must not be left viewing a workspace they cannot access.
+        if (!d.canSeeAll && d.workspaceId && getActiveWorkspace() !== d.workspaceId) {
+          setActiveWorkspace(d.workspaceId);
+        }
+      })
+      .catch(function() {});
+    return function() { cancelled = true; };
+  }, []);
+
+  return access;
 }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
+import { useAccess } from '@/lib/workspace-client';
 
 var navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,7 +29,12 @@ export default function Sidebar() {
     setUser(getUser());
   }, []);
 
-  var isOwner = !!(user && user.email === OWNER_EMAIL);
+  var access = useAccess();
+  // Server is the authority on who is an owner; fall back to the known owner email
+  // until it answers so the nav does not flicker.
+  var isOwner = access ? !!access.isOwner : !!(user && user.email === OWNER_EMAIL);
+  // A member belongs to exactly one workspace, so there is nothing to switch between.
+  var canSwitch = access ? !!access.canSeeAll : false;
 
   function handleSignOut() {
     logout();
@@ -48,7 +54,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      <WorkspaceSwitcher collapsed={collapsed} />
+      {canSwitch && <WorkspaceSwitcher collapsed={collapsed} />}
 
       <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
         {navItems.filter(function(item) {

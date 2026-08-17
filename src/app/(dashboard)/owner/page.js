@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Building2, DollarSign, Wallet, Percent, Layers, RefreshCw } from 'lucide-react';
+import { apiFetch } from '@/lib/workspace-client';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
 var RANGES = [
@@ -42,7 +43,7 @@ export default function OwnerPage() {
   var load = useCallback(function() {
     var p = rangeParams(range);
     setLoading(true);
-    fetch('/api/owner-dashboard?start=' + p.start + '&end=' + p.end)
+    apiFetch('/api/owner-dashboard?start=' + p.start + '&end=' + p.end)
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.success) throw new Error(d.error || 'Failed to load');

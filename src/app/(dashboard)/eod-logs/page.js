@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, Calendar, List, Trash2, Clock, AlertTriangle, X } from 'lucide-react';
-import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -23,8 +23,8 @@ export default function EODLogsPage() {
 
   useEffect(function() {
     Promise.all([
-      fetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
-      fetch('/api/closers').then(function(r) { return r.json(); }),
+      apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
+      apiFetch('/api/closers').then(function(r) { return r.json(); }),
     ]).then(function(results) {
       setEods((results[0].data || []).filter(Boolean));
       setClosers((results[1].closers || []).filter(Boolean));
@@ -33,13 +33,13 @@ export default function EODLogsPage() {
   }, [workspaceId]);
 
   async function fetchEods() {
-    var res = await fetch(withWorkspace('/api/webhooks/eod-report', workspaceId));
+    var res = await apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId));
     var data = await res.json();
     setEods((data.data || []).filter(Boolean));
   }
 
   async function handleDelete(id) {
-    await fetch('/api/webhooks/eod-report/' + id, { method: 'DELETE' });
+    await apiFetch('/api/webhooks/eod-report/' + id, { method: 'DELETE' });
     setConfirmDelete(null);
     fetchEods();
   }

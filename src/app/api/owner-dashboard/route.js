@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { initStore, getOwnerRollup, getWorkspaces } from '@/lib/store';
+import { resolveAccess } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
 
@@ -8,6 +9,12 @@ export var dynamic = 'force-dynamic';
 export async function GET(req) {
   await initStore();
   try {
+    // The combined cross-client view belongs to the owner alone.
+    var access = await resolveAccess(req);
+    if (!access.canSeeAll) {
+      return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
+    }
+
     var url = new URL(req.url);
     var rollup = getOwnerRollup(url.searchParams.get('start'), url.searchParams.get('end'));
     return NextResponse.json({

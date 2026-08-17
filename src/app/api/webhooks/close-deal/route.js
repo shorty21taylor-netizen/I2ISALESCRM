@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { effectiveReadWorkspace, effectiveWriteWorkspace, ALL_WORKSPACES } from '@/lib/access';
 import { addClosedDeal, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
@@ -11,6 +12,9 @@ export async function POST(req) {
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });
     }
+    // The server decides the owning workspace; a member cannot write into
+    // another client's workspace by posting a different workspaceId.
+    body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);
     var entry = addClosedDeal(body);
     if (body.closerEmail || body.closer) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
@@ -73,9 +77,9 @@ export async function POST(req) {
 export async function GET(req) {
   await initStore();
   var store = getStore();
-  var workspaceId = new URL(req.url).searchParams.get('workspace');
+  var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
   var data = store.closedDeals;
-  if (workspaceId && workspaceId !== '__all__') {
+  if (workspaceId && workspaceId !== ALL_WORKSPACES) {
     data = data.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; });
   }
   return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });

@@ -24,6 +24,7 @@ var store = {
   commissionRates: {},
   closerProfiles: {},
   workspaces: [Object.assign({}, DEFAULT_WORKSPACE)],
+  workspaceUsers: [],
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -1132,25 +1133,48 @@ export async function updateWorkspace(id, updates) {
 }
 
 export async function addUserToWorkspace(workspaceId, email, name, role) {
+  var key = email.toLowerCase();
   var user = {
     id: 'wu-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
     workspaceId: workspaceId,
-    email: email.toLowerCase(),
+    email: key,
     name: name || email,
     role: role || 'closer',
     joinedAt: new Date().toISOString(),
   };
+  // One workspace per person: re-adding them moves them rather than duplicating.
+  store.workspaceUsers = (store.workspaceUsers || []).filter(function(u) { return u.email !== key; });
+  store.workspaceUsers.push(user);
   await saveWorkspaceUser(user).catch(function(e) { console.error('[DB]', e.message); });
   return user;
 }
 
 export async function getUserWorkspace(email) {
-  if (email.toLowerCase() === 'shorty21taylor@gmail.com') {
+  var key = (email || '').toLowerCase();
+  if (key === 'shorty21taylor@gmail.com') {
     return { workspaceId: 'default', role: 'super_admin' };
   }
-  return findUserWorkspace(email);
+
+  // In-memory first so membership resolves even without a database; the DB is the
+  // durable copy and backfills memory on a cold start.
+  var local = (store.workspaceUsers || []).filter(function(u) { return u.email === key; })[0];
+  if (local) return { workspaceId: local.workspaceId, role: local.role, user: local };
+
+  var fromDb = await findUserWorkspace(key);
+  if (fromDb && fromDb.workspaceId) {
+    store.workspaceUsers.push({
+      id: 'wu-cache-' + key,
+      workspaceId: fromDb.workspaceId,
+      email: key,
+      name: (fromDb.user && fromDb.user.name) || key,
+      role: (fromDb.user && fromDb.user.role) || 'closer',
+    });
+  }
+  return fromDb;
 }
 
 export async function getWorkspaceUserList(workspaceId) {
-  return loadWorkspaceUsers(workspaceId);
+  var fromDb = await loadWorkspaceUsers(workspaceId).catch(function() { return null; });
+  if (fromDb && fromDb.length) return fromDb;
+  return (store.workspaceUsers || []).filter(function(u) { return u.workspaceId === workspaceId; });
 }

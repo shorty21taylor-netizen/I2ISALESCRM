@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { effectiveReadWorkspace } from '@/lib/access';
 import { getCommissionsForCloser, getAllCommissions, getAllCommissionRates, initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export async function GET(req) {
     var url = new URL(req.url);
     var closerName = url.searchParams.get('closer');
     var view = url.searchParams.get('view');
-    var workspaceId = url.searchParams.get('workspace') || undefined;
+    var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
 
     if (view === 'all') {
       var all = getAllCommissions(workspaceId);

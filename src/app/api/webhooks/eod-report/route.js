@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { effectiveReadWorkspace, effectiveWriteWorkspace, ALL_WORKSPACES } from '@/lib/access';
 import { addEODReport, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 export async function POST(req) {
@@ -8,6 +9,9 @@ export async function POST(req) {
     if (!body.salesRep) {
       return NextResponse.json({ error: 'salesRep required' }, { status: 400 });
     }
+    // The server decides the owning workspace; a member cannot write into
+    // another client's workspace by posting a different workspaceId.
+    body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);
     var entry = addEODReport(body);
     if (body.closerEmail || body.salesRep) {
       registerCloser(body.closerEmail || '', body.salesRep || body.closerName || '');
@@ -85,9 +89,9 @@ export async function POST(req) {
 export async function GET(req) {
   await initStore();
   var store = getStore();
-  var workspaceId = new URL(req.url).searchParams.get('workspace');
+  var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
   var data = store.eodReports;
-  if (workspaceId && workspaceId !== '__all__') {
+  if (workspaceId && workspaceId !== ALL_WORKSPACES) {
     data = data.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; });
   }
   return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });

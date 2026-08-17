@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'lucide-react';
-import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
@@ -32,7 +32,7 @@ export default function CommissionsPage() {
     setUser(u);
     if (!u) { setLoading(false); return; }
 
-    fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(u.name), workspaceId))
+    apiFetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(u.name), workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setCommData(data);
@@ -40,7 +40,7 @@ export default function CommissionsPage() {
       })
       .catch(function() { setLoading(false); });
 
-    fetch(withWorkspace('/api/commissions?view=all', workspaceId))
+    apiFetch(withWorkspace('/api/commissions?view=all', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setAllData(data);
@@ -49,7 +49,7 @@ export default function CommissionsPage() {
   }, [workspaceId]);
 
   function handleStatusUpdate(dealId, newStatus) {
-    fetch('/api/commissions/status', {
+    apiFetch('/api/commissions/status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dealId: dealId, status: newStatus }),
@@ -58,11 +58,11 @@ export default function CommissionsPage() {
       .then(function() {
         // Refresh both views
         if (user) {
-          fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
+          apiFetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
             .then(function(r) { return r.json(); })
             .then(function(data) { if (data.success) setCommData(data); });
         }
-        fetch(withWorkspace('/api/commissions?view=all', workspaceId))
+        apiFetch(withWorkspace('/api/commissions?view=all', workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setAllData(data); });
       });
@@ -75,7 +75,7 @@ export default function CommissionsPage() {
       c.data.deals.forEach(function(deal) {
         if (deal.status === fromStatus) {
           promises.push(
-            fetch('/api/commissions/status', {
+            apiFetch('/api/commissions/status', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ dealId: deal.id, status: toStatus }),
@@ -87,11 +87,11 @@ export default function CommissionsPage() {
     Promise.all(promises).then(function() {
       // Refresh
       if (user) {
-        fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
+        apiFetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setCommData(data); });
       }
-      fetch(withWorkspace('/api/commissions?view=all', workspaceId))
+      apiFetch(withWorkspace('/api/commissions?view=all', workspaceId))
         .then(function(r) { return r.json(); })
         .then(function(data) { if (data.success) setAllData(data); });
     });
