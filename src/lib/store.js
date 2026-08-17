@@ -1073,10 +1073,20 @@ export function setWhatsappConfig(config) {
 // MULTI-WORKSPACE
 // ============================================
 
-export function getWorkspaces() { return store.workspaces; }
+export function getWorkspaces() { return (store.workspaces || []).map(normalizeBranding); }
 
 export function getWorkspace(id) {
   return store.workspaces.find(function(w) { return w.id === id; }) || null;
+}
+
+// Older workspaces were stored with coloured branding (red, purple). The UI is
+// monochrome now, so normalize any stored brand colour to a neutral on read.
+var NEUTRAL_BRAND = { primaryColor: '#a3a3a3', secondaryColor: '#525252' };
+
+function normalizeBranding(ws) {
+  if (!ws) return ws;
+  ws.branding = Object.assign({}, ws.branding, NEUTRAL_BRAND);
+  return ws;
 }
 
 export async function createWorkspace(data) {

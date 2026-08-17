@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, X, Check } from 'lucide-react';
+import { Plus, Building2, X, Check, LogIn, Layers } from 'lucide-react';
 import { getUser } from '@/lib/auth';
+import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace } from '@/lib/workspace-client';
 
 export default function WorkspacesPage() {
   var router = useRouter();
+  var activeWorkspaceId = useWorkspace();
   var [workspaces, setWorkspaces] = useState([]);
   var [showCreate, setShowCreate] = useState(false);
   var [loading, setLoading] = useState(true);
@@ -25,6 +27,11 @@ export default function WorkspacesPage() {
   var [funnels, setFunnels] = useState([]);
   var [primaryColor, setPrimaryColor] = useState('#a3a3a3');
   var [secondaryColor, setSecondaryColor] = useState('#22c55e');
+
+  function enterWorkspace(ws) {
+    setActiveWorkspace(ws.id);
+    router.push('/');
+  }
 
   useEffect(function() {
     var user = getUser();
@@ -79,7 +86,7 @@ export default function WorkspacesPage() {
             <h1 className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>Workspaces</h1>
             <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>Manage teams and organizations</p>
           </div>
-          <button onClick={function() { setShowCreate(true); setStep(1); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-display font-bold text-white" style={{ background: 'var(--crm-accent)' }}>
+          <button onClick={function() { setShowCreate(true); setStep(1); }} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> New Workspace
           </button>
         </div>
@@ -89,15 +96,52 @@ export default function WorkspacesPage() {
 
         {/* Workspace cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={function() { setActiveWorkspace(ALL_WORKSPACES); router.push('/'); }}
+            className="glass-card p-5 text-left w-full transition-all hover:-translate-y-0.5"
+            style={{ borderLeft: '4px solid ' + ((!activeWorkspaceId || activeWorkspaceId === ALL_WORKSPACES) ? 'var(--crm-text-bright)' : 'var(--crm-border-hover)') }}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>All Workspaces</h3>
+                <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>Combined view</p>
+              </div>
+              <Layers className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--crm-muted)' }} />
+            </div>
+            <div className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>
+              Every client rolled into one set of numbers
+            </div>
+            <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: '0.5px solid var(--glass-surface-border)' }}>
+              {(!activeWorkspaceId || activeWorkspaceId === ALL_WORKSPACES) ? (
+                <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--crm-text-bright)' }}>
+                  <Check className="w-3.5 h-3.5" /> Current view
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--crm-muted)' }}>
+                  <LogIn className="w-3.5 h-3.5" /> View combined
+                </span>
+              )}
+            </div>
+          </button>
+
           {workspaces.map(function(ws) {
+            var isCurrent = ws.id === activeWorkspaceId;
             return (
-              <div key={ws.id} className="glass-card p-5 cursor-pointer hover:ring-1 transition-all" style={{ borderLeft: '4px solid ' + (ws.branding ? ws.branding.primaryColor : '#a3a3a3') }}>
+              <button
+                key={ws.id}
+                type="button"
+                onClick={function() { enterWorkspace(ws); }}
+                aria-current={isCurrent ? 'true' : undefined}
+                className="glass-card p-5 text-left w-full transition-all hover:-translate-y-0.5"
+                style={{ borderLeft: '4px solid ' + (isCurrent ? 'var(--crm-text-bright)' : 'var(--crm-border-hover)') }}
+              >
                 <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{ws.name}</h3>
-                    <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>{ws.ownerEmail}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{ws.name}</h3>
+                    <p className="text-xs font-mono truncate" style={{ color: 'var(--crm-text-muted)' }}>{ws.ownerEmail}</p>
                   </div>
-                  <span className={'text-[10px] font-mono px-2 py-0.5 rounded-full ' + (ws.active !== false ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10')}>
+                  <span className={'text-[10px] font-mono px-2 py-0.5 rounded-full flex-shrink-0 ' + (ws.active !== false ? 'text-crm-positive bg-crm-positive/10' : 'text-crm-muted bg-white/5')}>
                     {ws.active !== false ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -105,11 +149,18 @@ export default function WorkspacesPage() {
                   {ws.onboarding && ws.onboarding.industry && <span>{ws.onboarding.industry}</span>}
                   {ws.onboarding && ws.onboarding.teamSize && <span>{ws.onboarding.teamSize} reps</span>}
                 </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="w-4 h-4 rounded-full" style={{ background: ws.branding ? ws.branding.primaryColor : '#a3a3a3' }} />
-                  <div className="w-4 h-4 rounded-full" style={{ background: ws.branding ? ws.branding.secondaryColor : '#22c55e' }} />
+                <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: '0.5px solid var(--glass-surface-border)' }}>
+                  {isCurrent ? (
+                    <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--crm-text-bright)' }}>
+                      <Check className="w-3.5 h-3.5" /> Current workspace
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--crm-muted)' }}>
+                      <LogIn className="w-3.5 h-3.5" /> Enter workspace
+                    </span>
+                  )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
