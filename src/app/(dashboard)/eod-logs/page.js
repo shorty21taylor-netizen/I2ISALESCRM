@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Filter, FileText, Trash2 } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
 import { getUser } from '@/lib/auth';
 import EmptyState from '@/components/EmptyState';
@@ -18,15 +19,17 @@ export default function EODLogsPage() {
   var s4 = useState([]), closerNames = s4[0], setCloserNames = s4[1];
   var s5 = useState(null), confirmDelete = s5[0], setConfirmDelete = s5[1];
 
+  var workspaceId = useWorkspace();
+
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
   useEffect(function() {
-    fetchEODs();
-  }, []);
+    if (workspaceId) fetchEODs();
+  }, [workspaceId]);
 
   function fetchEODs() {
-    fetch('/api/webhooks/eod-report')
+    fetch(withWorkspace('/api/webhooks/eod-report', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.data) {

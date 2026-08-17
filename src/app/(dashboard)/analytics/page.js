@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import ClientOnly from '@/components/ClientOnly';
 import { TrendingUp, Target, Activity, GitBranch, Filter } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 
@@ -27,11 +28,14 @@ export default function AnalyticsPage() {
   var s1 = useState(null), data = s1[0], setData = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
 
+  var workspaceId = useWorkspace();
+
   useEffect(function() {
+    if (!workspaceId) return;
     fetchAll();
     var interval = setInterval(fetchAll, 60000);
     return function() { clearInterval(interval); };
-  }, []);
+  }, [workspaceId]);
 
   function fetchAll() {
     var today = new Date();
@@ -41,9 +45,9 @@ export default function AnalyticsPage() {
     var end = today.toISOString().split('T')[0];
 
     Promise.all([
-      fetch('/api/dashboard?start=' + start + '&end=' + end).then(function(r) { return r.json(); }),
-      fetch('/api/webhooks/eod-report').then(function(r) { return r.json(); }),
-      fetch('/api/webhooks/close-deal').then(function(r) { return r.json(); }),
+      fetch(withWorkspace('/api/dashboard?start=' + start + '&end=' + end, workspaceId)).then(function(r) { return r.json(); }),
+      fetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
+      fetch(withWorkspace('/api/webhooks/close-deal', workspaceId)).then(function(r) { return r.json(); }),
     ]).then(function(results) {
       var dash = results[0];
       var eods = results[1];
@@ -122,7 +126,7 @@ export default function AnalyticsPage() {
     { stage: 'Closed', value: totalCloses },
   ];
 
-  var COLORS = ['#22c55e', '#dc2626'];
+  var COLORS = ['#22c55e', '#8a8a8a'];
   var hasRevenue = revenueTrend.some(function(r) { return r.revenue > 0; });
   var hasFunnel = totalDials > 0;
 
@@ -173,7 +177,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="name" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} unit="%" />
                     <Tooltip content={ChartTooltip} />
-                    <Bar dataKey="closeRate" fill="#dc2626" radius={[4, 4, 0, 0]} name="Close Rate" />
+                    <Bar dataKey="closeRate" fill="#a3a3a3" radius={[4, 4, 0, 0]} name="Close Rate" />
                   </BarChart>
                 </ResponsiveContainer>
               </ClientOnly>
@@ -200,7 +204,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="dials" name="Dials" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <YAxis dataKey="revenue" name="Revenue" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <Tooltip content={ChartTooltip} cursor={{ strokeDasharray: '3 3' }} />
-                    <Scatter data={dialsVsRevenue} fill="#dc2626" name="Closer" />
+                    <Scatter data={dialsVsRevenue} fill="#a3a3a3" name="Closer" />
                   </ScatterChart>
                 </ResponsiveContainer>
               </ClientOnly>
@@ -250,7 +254,7 @@ export default function AnalyticsPage() {
                   <XAxis type="number" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                   <YAxis dataKey="stage" type="category" stroke="#6b6b6b" tick={{ fontSize: 11 }} width={70} />
                   <Tooltip content={ChartTooltip} />
-                  <Bar dataKey="value" fill="#dc2626" radius={[0, 4, 4, 0]} name="Count" />
+                  <Bar dataKey="value" fill="#a3a3a3" radius={[0, 4, 4, 0]} name="Count" />
                 </BarChart>
               </ResponsiveContainer>
             </ClientOnly>

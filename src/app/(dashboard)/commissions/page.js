@@ -5,6 +5,7 @@ import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 
 var statusBadge = {
   pending: 'bg-crm-warning/10 text-crm-warning border border-crm-warning/20',
@@ -26,21 +27,23 @@ export default function CommissionsPage() {
   var s4 = useState('personal'), view = s4[0], setView = s4[1];
   var s5 = useState(null), user = s5[0], setUser = s5[1];
   var s6 = useState(null), confirmDelete = s6[0], setConfirmDelete = s6[1];
+  var workspaceId = useWorkspace();
 
   var isAdmin = false;
 
   useEffect(function() {
+    if (!workspaceId) return;
     var u = getUser();
     setUser(u);
     if (!u) { setLoading(false); return; }
 
     fetchCommissions(u);
-  }, []);
+  }, [workspaceId]);
 
   function fetchCommissions(u) {
     var who = u || user;
     if (!who) return;
-    fetch('/api/commissions?closer=' + encodeURIComponent(who.name))
+    fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(who.name), workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setCommData(data);
@@ -48,7 +51,7 @@ export default function CommissionsPage() {
       })
       .catch(function() { setLoading(false); });
 
-    fetch('/api/commissions?view=all')
+    fetch(withWorkspace('/api/commissions?view=all', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setAllData(data);
@@ -74,11 +77,11 @@ export default function CommissionsPage() {
       .then(function() {
         // Refresh both views
         if (user) {
-          fetch('/api/commissions?closer=' + encodeURIComponent(user.name))
+          fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
             .then(function(r) { return r.json(); })
             .then(function(data) { if (data.success) setCommData(data); });
         }
-        fetch('/api/commissions?view=all')
+        fetch(withWorkspace('/api/commissions?view=all', workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setAllData(data); });
       });
@@ -103,11 +106,11 @@ export default function CommissionsPage() {
     Promise.all(promises).then(function() {
       // Refresh
       if (user) {
-        fetch('/api/commissions?closer=' + encodeURIComponent(user.name))
+        fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setCommData(data); });
       }
-      fetch('/api/commissions?view=all')
+      fetch(withWorkspace('/api/commissions?view=all', workspaceId))
         .then(function(r) { return r.json(); })
         .then(function(data) { if (data.success) setAllData(data); });
     });

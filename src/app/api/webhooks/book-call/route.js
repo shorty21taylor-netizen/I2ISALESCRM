@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { addBookedCall, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
+import { addBookedCall, getStore, registerCloser, initStore, getWhatsappConfig, getWorkspaces } from '@/lib/store';
+import { ALL_WORKSPACES, recordInWorkspace } from '@/lib/workspaces';
 import { sendWhatsApp } from '@/lib/whatsapp';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
@@ -74,8 +75,14 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   await initStore();
   var store = getStore();
-  return NextResponse.json({ success: true, data: store.bookedCalls });
+  var workspaceId = new URL(req.url).searchParams.get('workspace');
+  var data = store.bookedCalls;
+  if (workspaceId && workspaceId !== ALL_WORKSPACES) {
+    var workspaces = getWorkspaces();
+    data = data.filter(function(r) { return recordInWorkspace(r, workspaceId, workspaces); });
+  }
+  return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });
 }

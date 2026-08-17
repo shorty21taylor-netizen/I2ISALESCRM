@@ -75,7 +75,7 @@ export default function MobileMoreSheet(props) {
                   className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl active:bg-white/5 active:scale-[0.98] transition-all"
                   style={{ minHeight: 'auto' }}
                 >
-                  <div className="p-2 rounded-lg" style={{ background: 'rgba(220,38,38,0.1)' }}>
+                  <div className="p-2 rounded-lg" style={{ background: 'var(--glass-surface-hover)' }}>
                     <Icon className="w-4 h-4" style={{ color: 'var(--crm-accent)' }} />
                   </div>
                   <span className="text-sm font-display font-medium flex-1 text-left" style={{ color: 'var(--crm-text-bright)' }}>{item.label}</span>
@@ -99,7 +99,7 @@ export default function MobileMoreSheet(props) {
                       className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl active:bg-white/5 active:scale-[0.98] transition-all"
                       style={{ minHeight: 'auto' }}
                     >
-                      <div className="p-2 rounded-lg" style={{ background: 'rgba(220,38,38,0.1)' }}>
+                      <div className="p-2 rounded-lg" style={{ background: 'var(--glass-surface-hover)' }}>
                         <Icon className="w-4 h-4" style={{ color: 'var(--crm-accent)' }} />
                       </div>
                       <span className="text-sm font-display font-medium flex-1 text-left" style={{ color: 'var(--crm-text-bright)' }}>{item.label}</span>

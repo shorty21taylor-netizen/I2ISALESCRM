@@ -10,15 +10,16 @@ export async function GET(req) {
     var url = new URL(req.url);
     var closerName = url.searchParams.get('closer');
     var view = url.searchParams.get('view');
+    var workspaceId = url.searchParams.get('workspace') || undefined;
 
     if (view === 'all') {
-      var all = getAllCommissions();
+      var all = getAllCommissions(workspaceId);
       var rates = getAllCommissionRates();
-      return NextResponse.json({ success: true, closers: all, rates: rates });
+      return NextResponse.json({ success: true, closers: all, rates: rates, workspaceId: workspaceId || null });
     }
 
     if (closerName) {
-      var data = getCommissionsForCloser(closerName);
+      var data = getCommissionsForCloser(closerName, workspaceId);
       return NextResponse.json({ success: true, closerName: closerName, deals: data.deals, summary: data.summary, monthlyBreakdown: data.monthlyBreakdown });
     }
 

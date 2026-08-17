@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig } from '@/lib/form-config';
+import { useWorkspace, withWorkspace, useWorkspaceList } from '@/lib/workspace-client';
+import { ALL_WORKSPACES } from '@/lib/workspaces';
 
 var PROGRAMS = [
   { value: 'DFY Funding', label: 'DFY Funding' },
@@ -86,6 +88,17 @@ export default function SubmitPage() {
   var s4 = useState(null), successMsg = s4[0], setSuccessMsg = s4[1];
   var s5 = useState(''), error = s5[0], setError = s5[1];
   var s6 = useState(null), user = s6[0], setUser = s6[1];
+  var workspaceId = useWorkspace();
+  // "All Workspaces" is a viewing mode, not a destination — let the server infer
+  // the owning workspace from the program instead of stamping a bogus id.
+  var submitWorkspaceId = (!workspaceId || workspaceId === ALL_WORKSPACES) ? undefined : workspaceId;
+  var allWorkspaces = useWorkspaceList();
+  var activeWorkspace = null;
+  for (var wi = 0; wi < allWorkspaces.length; wi++) {
+    if (allWorkspaces[wi].id === submitWorkspaceId) activeWorkspace = allWorkspaces[wi];
+  }
+  // Legacy companies report cash in two brand columns; anything else gets one field.
+  var usesBrandCashFields = !activeWorkspace || !!activeWorkspace.eodCashField;
   var s7 = useState([]), reps = s7[0], setReps = s7[1];
 
   // Book a Call form
@@ -126,6 +139,7 @@ export default function SubmitPage() {
   var e11 = useState(''), eodDials = e11[0], setEodDials = e11[1];
   var e12 = useState(''), eodCashMYFM = e12[0], setEodCashMYFM = e12[1];
   var e13 = useState(''), eodCashI2I = e13[0], setEodCashI2I = e13[1];
+  var e13b = useState(''), eodCashGeneric = e13b[0], setEodCashGeneric = e13b[1];
   var e14 = useState(''), eodRevenue = e14[0], setEodRevenue = e14[1];
   var e15 = useState(''), eodPlan = e15[0], setEodPlan = e15[1];
 
@@ -139,7 +153,7 @@ export default function SubmitPage() {
     }
     setEodDate(new Date().toISOString().split('T')[0]);
 
-    fetch('/api/dashboard')
+    fetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
@@ -167,7 +181,8 @@ export default function SubmitPage() {
   function clearEOD() {
     setEodNetNew(''); setEodOnCalendar(''); setEodTaken(''); setEodNoShowed('');
     setEodCanceled(''); setEodRescheduled(''); setEodTakenPitched(''); setEodCloses('');
-    setEodDials(''); setEodCashMYFM(''); setEodCashI2I(''); setEodRevenue(''); setEodPlan('');
+    setEodDials(''); setEodCashMYFM(''); setEodCashI2I(''); setEodCashGeneric('');
+    setEodRevenue(''); setEodPlan('');
     setEodSalesRep(user ? user.name : '');
     setEodDate(new Date().toISOString().split('T')[0]);
   }
@@ -186,6 +201,7 @@ export default function SubmitPage() {
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
           notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
           closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waBC,
         }),
       });
@@ -213,6 +229,7 @@ export default function SubmitPage() {
           program: cdProgram, paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
           setter: cdSetter, closer: cdCloser, closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waCD,
         }),
       });
@@ -242,9 +259,11 @@ export default function SubmitPage() {
           callsCanceled: eodCanceled, callsRescheduled: eodRescheduled,
           callsTakenAndPitched: eodTakenPitched, closes: eodCloses,
           outboundDials: eodDials, cashCollectedMYFM: eodCashMYFM,
-          cashCollectedI2I: eodCashI2I, revenueOnDay: eodRevenue,
+          cashCollectedI2I: eodCashI2I, cashCollected: eodCashGeneric,
+          revenueOnDay: eodRevenue,
           improvementPlan: eodPlan,
           closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waEOD,
         }),
       });
@@ -259,7 +278,7 @@ export default function SubmitPage() {
   }
 
   function refreshActivity() {
-    fetch('/api/dashboard')
+    fetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
@@ -564,14 +583,23 @@ export default function SubmitPage() {
 
               <div className="form-section-title">Revenue</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="form-label">Cash Collected (MYFM)</label>
-                  <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label className="form-label">Cash Collected (I2I)</label>
-                  <input type="number" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
+                {usesBrandCashFields ? (
+                  <>
+                    <div>
+                      <label className="form-label">Cash Collected (MYFM)</label>
+                      <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="form-label">Cash Collected (I2I)</label>
+                      <input type="number" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="form-label">Cash Collected{activeWorkspace ? ' (' + (activeWorkspace.shortName || activeWorkspace.name) + ')' : ''}</label>
+                    <input type="number" value={eodCashGeneric} onChange={function(e) { setEodCashGeneric(e.target.value); }} className="input-field" placeholder="0" />
+                  </div>
+                )}
                 <div>
                   <label className="form-label">Revenue on Day</label>
                   <input type="number" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />

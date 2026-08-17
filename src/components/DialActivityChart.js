@@ -5,12 +5,13 @@ import EmptyState from '@/components/EmptyState';
 
 var closerNames = ['Marcus', 'Aisha', 'Jordan', 'Derek', 'Tanya'];
 
+// Greyscale ramp — series stay separable by value without brand color.
 var closerColors = {
-  Marcus: '#dc2626',
-  Aisha: '#f97316',
-  Jordan: '#3b82f6',
-  Derek: '#8b5cf6',
-  Tanya: '#ec4899',
+  Marcus: '#fafafa',
+  Aisha: '#d4d4d4',
+  Jordan: '#a3a3a3',
+  Derek: '#787878',
+  Tanya: '#525252',
 };
 
 function DialTooltip({ active, payload, label }) {

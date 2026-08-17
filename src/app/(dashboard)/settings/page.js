@@ -4,6 +4,7 @@ import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCirc
 import { getInitials } from '@/lib/utils';
 import { getFormConfig, saveFormConfig } from '@/lib/form-config';
 import { getTheme, setTheme } from '@/lib/theme';
+import WorkspaceManager from '@/components/WorkspaceManager';
 
 export default function SettingsPage() {
   var s1 = useState(null), copiedText = s1[0], setCopiedText = s1[1];
@@ -305,6 +306,9 @@ export default function SettingsPage() {
       <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright mb-4 md:mb-6">Settings</h1>
 
       <div className="space-y-6">
+
+        {/* ===== WORKSPACES ===== */}
+        <WorkspaceManager />
 
         {/* ===== THEME TOGGLE ===== */}
         <div className="glass-card overflow-hidden stagger-1">

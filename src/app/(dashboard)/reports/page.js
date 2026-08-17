@@ -61,7 +61,7 @@ export default function ReportsPage() {
           <div className="glass-card p-5 stagger-5">
             <div className="section-header -mx-5 -mt-5 mb-4">
               <h3>Team Diagnostic</h3>
-              <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+              <span className="section-tag" style={{ color: 'var(--crm-text-bright)', background: 'var(--section-tag-bg)', borderColor: 'var(--section-tag-border)' }}>AI</span>
             </div>
             {closerPerformances.length === 0 ? (
               <EmptyState icon={Brain} title="No team diagnostic yet" subtitle="AI diagnostics will generate once closers have performance data" />

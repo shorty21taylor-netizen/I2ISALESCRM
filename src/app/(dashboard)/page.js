@@ -11,6 +11,7 @@ import PipelineSplit from '@/components/PipelineSplit';
 import AIInsights from '@/components/AIInsights';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { teamOverview, closerPerformances, recentEODs, recentCalls, revenueByDay, dialsByCloser } from '@/lib/mock-data';
 
 export default function DashboardPage() {
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
   var s5 = useState(''), customEnd = s5[0], setCustomEnd = s5[1];
   var s6 = useState(''), lastFetch = s6[0], setLastFetch = s6[1];
+  var workspaceId = useWorkspace();
 
   function getDateParams() {
     var today = new Date();
@@ -55,9 +57,10 @@ export default function DashboardPage() {
   }
 
   var fetchDashboard = useCallback(function() {
+    if (!workspaceId) return; // wait for the active workspace to resolve client-side
     var params = getDateParams();
     var qs = '?start=' + params.start + '&end=' + params.end;
-    fetch('/api/dashboard' + qs)
+    fetch(withWorkspace('/api/dashboard' + qs, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
@@ -66,7 +69,7 @@ export default function DashboardPage() {
         }
       })
       .catch(function(e) { console.error('Dashboard fetch error:', e); });
-  }, [dateRange, customStart, customEnd]);
+  }, [dateRange, customStart, customEnd, workspaceId]);
 
   useEffect(function() {
     fetchDashboard();
@@ -209,12 +212,12 @@ export default function DashboardPage() {
       <div key={metricPage} className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
         {metricPage === 'performance' ? (
           <>
-            <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} trendLabel="vs prev 30d" icon={DollarSign} accentColor="red" delay={0} />
+            <MetricCard label="Total Revenue" value={formatCurrency(t.totalRevenue)} trend={t.revenueTrend} trendLabel="vs prev 30d" icon={DollarSign} accentColor="accent" delay={0} />
             <MetricCard label="Total Closes" value={formatNumber(t.totalCloses)} trend={t.closesTrend} trendLabel="vs prev 30d" icon={Target} accentColor="green" delay={50} />
             <MetricCard label="Close Rate" value={t.teamCloseRate + '%'} trend={t.closeRateTrend} icon={Percent} delay={100} />
             <MetricCard label="Total Dials" value={formatNumber(t.totalDials)} trend={t.dialsTrend} icon={Phone} delay={150} />
             <MetricCard label="Avg Deal Value" value={formatCurrency(t.avgDealValue)} trend={t.dealValueTrend} icon={TrendingUp} delay={200} />
-            <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="red" delay={250} />
+            <MetricCard label="Cash / Call Taken" value={formatCurrency(t.cashPerCallTaken)} trend={t.cashPerCallTrend} icon={Zap} accentColor="accent" delay={250} />
             <MetricCard label="Dial → Book" value={t.dialToBookRate + '%'} icon={Phone} accentColor="green" delay={300} />
             <MetricCard label="Offer Rate" value={t.offerRate + '%'} trend={t.offerRateTrend} icon={Target} delay={350} />
           </>
@@ -251,7 +254,7 @@ export default function DashboardPage() {
                     <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{b.label}</p>
                     <p className="text-[10px] font-mono uppercase truncate" style={{ color: 'var(--crm-text-muted)' }}>{b.subtitle}</p>
                   </div>
-                  <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: b.color, boxShadow: '0 0 8px ' + b.color }} />
+                  <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: b.color, boxShadow: '0 0 8px rgba(var(--accent-rgb),0.5)' }} />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="text-center">

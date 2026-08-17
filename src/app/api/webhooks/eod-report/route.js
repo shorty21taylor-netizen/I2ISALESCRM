@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { addEODReport, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
+import { addEODReport, getStore, registerCloser, initStore, getWhatsappConfig, getWorkspaces } from '@/lib/store';
+import { ALL_WORKSPACES, recordInWorkspace } from '@/lib/workspaces';
 import { sendWhatsApp } from '@/lib/whatsapp';
 
 export async function POST(req) {
@@ -88,8 +89,14 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   await initStore();
   var store = getStore();
-  return NextResponse.json({ success: true, data: store.eodReports });
+  var workspaceId = new URL(req.url).searchParams.get('workspace');
+  var data = store.eodReports;
+  if (workspaceId && workspaceId !== ALL_WORKSPACES) {
+    var workspaces = getWorkspaces();
+    data = data.filter(function(r) { return recordInWorkspace(r, workspaceId, workspaces); });
+  }
+  return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });
 }
