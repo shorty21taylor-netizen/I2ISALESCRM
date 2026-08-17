@@ -804,7 +804,7 @@ function getEmptyCommissionSummary() {
 }
 
 // ============================================
-// OWNER ROLLUP — every offer across every workspace
+// OPERATOR ROLLUP — every offer across every workspace
 // ============================================
 //
 // Revenue and commission come from closed deals, which carry the program and so
@@ -814,7 +814,7 @@ function getEmptyCommissionSummary() {
 // apportioned (cash reported with no deals in range) is surfaced as
 // unattributedCash rather than dropped or misassigned.
 
-export function getOwnerRollup(startDate, endDate) {
+export function getOperatorRollup(startDate, endDate) {
   var today = new Date().toISOString().split('T')[0];
   var start = startDate || today;
   var end = endDate || today;

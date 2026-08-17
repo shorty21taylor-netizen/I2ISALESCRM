@@ -15,10 +15,10 @@ var navItems = [
   { href: '/commissions', label: 'Commissions', icon: CreditCard },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/owner', label: 'Owner View', icon: Building2, ownerOnly: true },
+  { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
 ];
 
-var OWNER_EMAIL = 'shorty21taylor@gmail.com';
+var OPERATOR_EMAIL = 'shorty21taylor@gmail.com';
 
 export default function Sidebar() {
   var pathname = usePathname();
@@ -32,7 +32,12 @@ export default function Sidebar() {
   var access = useAccess();
   // Server is the authority on who is an owner; fall back to the known owner email
   // until it answers so the nav does not flicker.
-  var isOwner = access ? !!access.isOwner : !!(user && user.email === OWNER_EMAIL);
+  // Show the operator surfaces if EITHER the server confirms it or the signed-in
+  // email is the operator's. Trusting the server alone meant one failed /auth/me
+  // call — or an identity header that didn't arrive — silently hid the nav.
+  // Visibility is permissive on purpose; the APIs still enforce access with a 403.
+  var localOperator = !!(user && (user.email || '').toLowerCase() === OPERATOR_EMAIL);
+  var isOwner = (access && access.isOwner) || localOperator;
   // A member belongs to exactly one workspace, so there is nothing to switch between.
   var canSwitch = access ? !!access.canSeeAll : false;
 
@@ -58,7 +63,7 @@ export default function Sidebar() {
 
       <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
         {navItems.filter(function(item) {
-          return !item.ownerOnly || isOwner;
+          return !item.operatorOnly || isOwner;
         }).map(function(item) {
           var isActive = pathname === item.href;
           return (

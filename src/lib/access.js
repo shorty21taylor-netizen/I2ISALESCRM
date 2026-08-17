@@ -14,7 +14,7 @@ import { getUserWorkspace, getWorkspace } from '@/lib/store';
 
 export var ALL_WORKSPACES = '__all__';
 
-// The account that owns every workspace and sees the combined Owner View.
+// The account that owns every workspace and sees the combined Operator View.
 export var OWNER_EMAIL = 'shorty21taylor@gmail.com';
 
 export function callerEmail(req) {

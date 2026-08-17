@@ -5,7 +5,7 @@ import { resolveAccess } from '@/lib/access';
 export var dynamic = 'force-dynamic';
 
 // Who is this caller, and which workspaces may they use? The client uses this to
-// decide whether to show the workspace switcher and the Owner View.
+// decide whether to show the workspace switcher and the Operator View.
 export async function GET(req) {
   await initStore();
   try {

@@ -32,7 +32,7 @@ function rangeParams(key) {
   return { start: daysAgo(29), end: todayStr };
 }
 
-export default function OwnerPage() {
+export default function OperatorPage() {
   var s1 = useState(null), data = s1[0], setData = s1[1];
   var s2 = useState('30d'), range = s2[0], setRange = s2[1];
   // null until the first payload arrives, then a map of offerKey -> included.
@@ -43,7 +43,7 @@ export default function OwnerPage() {
   var load = useCallback(function() {
     var p = rangeParams(range);
     setLoading(true);
-    apiFetch('/api/owner-dashboard?start=' + p.start + '&end=' + p.end)
+    apiFetch('/api/operator-dashboard?start=' + p.start + '&end=' + p.end)
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.success) throw new Error(d.error || 'Failed to load');
@@ -118,7 +118,7 @@ export default function OwnerPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-crm-accent" /> Owner View
+            <Building2 className="w-5 h-5 text-crm-accent" /> Operator View
           </h1>
           <p className="text-xs md:text-sm text-crm-muted mt-1">Every offer you manage, across every workspace</p>
         </div>
@@ -144,7 +144,7 @@ export default function OwnerPage() {
         </div>
       </div>
 
-      {error && <div className="glass-card p-4 text-sm text-crm-negative">Could not load owner data: {error}</div>}
+      {error && <div className="glass-card p-4 text-sm text-crm-negative">Could not load operator data: {error}</div>}
 
       {/* Combined totals across selected offers */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
