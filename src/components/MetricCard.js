@@ -9,13 +9,13 @@ export default function MetricCard({ label, value, trend, trendLabel, icon: Icon
   var isNegative = trend < 0;
 
   var iconBoxMap = {
-    red: 'icon-box-red',
+    accent: 'icon-box-accent',
     green: 'icon-box-green',
     default: 'icon-box-default',
   };
 
-  var valueClass = accentColor === 'red' ? 'metric-value-red' : accentColor === 'green' ? 'metric-value-green' : 'metric-value';
-  var cardClass = accentColor === 'red' ? 'glass-card-accent shimmer' : 'glass-card shimmer';
+  var valueClass = accentColor === 'accent' ? 'metric-value-accent' : accentColor === 'green' ? 'metric-value-green' : 'metric-value';
+  var cardClass = accentColor === 'accent' ? 'glass-card-accent shimmer' : 'glass-card shimmer';
 
   var staggerClass = staggerMap[delay] || 'stagger-1';
 

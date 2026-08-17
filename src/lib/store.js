@@ -5,13 +5,25 @@
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers } from '@/lib/db';
 
+// The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
+// database is present, and kept here as well so the switcher still works in
+// memory-only mode (no DATABASE_URL) instead of showing an empty list.
+var DEFAULT_WORKSPACE = {
+  id: 'default',
+  name: 'Influence2Impact',
+  slug: 'i2i',
+  ownerEmail: 'shorty21taylor@gmail.com',
+  branding: { primaryColor: '#a3a3a3', secondaryColor: '#22c55e', companyName: 'Influence2Impact' },
+  active: true,
+};
+
 var store = {
   bookedCalls: [],
   closedDeals: [],
   eodReports: [],
   commissionRates: {},
   closerProfiles: {},
-  workspaces: [],
+  workspaces: [Object.assign({}, DEFAULT_WORKSPACE)],
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -80,7 +92,11 @@ export async function initStore() {
 
       try {
         var ws = await loadWorkspaces();
-        if (ws && ws.length > 0) { store.workspaces = ws; console.log('[Store] Loaded', ws.length, 'workspaces'); }
+        if (ws && ws.length > 0) {
+          var hasDefault = ws.some(function(w) { return w.id === 'default'; });
+          store.workspaces = hasDefault ? ws : [Object.assign({}, DEFAULT_WORKSPACE)].concat(ws);
+          console.log('[Store] Loaded', store.workspaces.length, 'workspaces');
+        }
       } catch (e) { console.error('[Store] Workspace load:', e.message); }
     } catch (e) {
       console.error('[Store] Init error:', e.message);
@@ -95,6 +111,31 @@ export async function initStore() {
 
 export function getStore() {
   return store;
+}
+
+// ============================================
+// WORKSPACE SCOPING
+// ============================================
+
+export var ALL_WORKSPACES = '__all__';
+
+// Records written before a workspace was ever selected carry no stamp; they belong
+// to the original 'default' workspace.
+function recordWorkspace(r) {
+  return (r && r.workspaceId) || 'default';
+}
+
+// Narrow any record list to one workspace. Falsy id or ALL_WORKSPACES = everything.
+function scoped(list, workspaceId) {
+  if (!workspaceId || workspaceId === ALL_WORKSPACES) return list;
+  return list.filter(function(r) { return recordWorkspace(r) === workspaceId; });
+}
+
+// The workspace a new record should be stamped with. "All workspaces" is a viewing
+// mode, not a destination, so writes made from it fall back to 'default'.
+export function resolveWriteWorkspace(id) {
+  if (!id || id === ALL_WORKSPACES) return 'default';
+  return id;
 }
 
 // ============================================
@@ -114,13 +155,13 @@ export function addBookedCall(data) {
     setter: data.setter || '',
     closer: data.closer || '',
     outboundInbound: data.outboundInbound || 'inbound',
+    workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
   store.bookedCalls.unshift(entry);
   if (store.bookedCalls.length > 500) store.bookedCalls = store.bookedCalls.slice(0, 500);
   saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   recalcOverview();
-  saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
   return entry;
 }
 
@@ -143,13 +184,13 @@ export function addClosedDeal(data) {
     closer: data.closer || '',
     closerEmail: data.closerEmail || '',
     commissionStatus: 'pending',
+    workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
   store.closedDeals.unshift(entry);
   if (store.closedDeals.length > 500) store.closedDeals = store.closedDeals.slice(0, 500);
   saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save closed deal error:', e.message); });
   recalcOverview();
-  saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save deal error:', e.message); });
   return entry;
 }
 
@@ -175,6 +216,7 @@ export function addEODReport(data) {
     cashCollectedI2I: parseFloat(data.cashCollectedI2I) || 0,
     revenueOnDay: parseFloat(data.revenueOnDay) || 0,
     improvementPlan: data.improvementPlan || '',
+    workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
     status: 'submitted',
   };
@@ -182,8 +224,51 @@ export function addEODReport(data) {
   if (store.eodReports.length > 500) store.eodReports = store.eodReports.slice(0, 500);
   saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   recalcOverview();
-  saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
   return entry;
+}
+
+// ============================================
+// OFFER CLASSIFICATION (shared by dashboard + owner rollup)
+// ============================================
+
+var OFFER_META = {
+  'myfm':             { label: 'MYFM',            subtitle: 'Coaching', color: '#fafafa' },
+  'i2i-skool':        { label: 'Skool Sales',     subtitle: 'I2I',      color: '#d4d4d4' },
+  'i2i-funding':      { label: 'Funding Program', subtitle: 'I2I',      color: '#a3a3a3' },
+  'i2i-digital':      { label: 'Digital Program', subtitle: 'I2I',      color: '#8a8a8a' },
+  'i2i-inner-circle': { label: 'Inner Circle',    subtitle: 'I2I',      color: '#6b6b6b' },
+  'partner':          { label: 'Partner',         subtitle: 'External', color: '#525252' },
+  'other':            { label: 'Other',           subtitle: '',         color: '#fafafa' },
+};
+
+export function classifyOffer(program) {
+  var p = (program || '').toLowerCase().trim();
+
+  // New program names
+  if (p.startsWith('myfm')) return 'myfm';
+  if (p.startsWith('i2i - skool')) return 'i2i-skool';
+  if (p.startsWith('i2i - funding')) return 'i2i-funding';
+  if (p.startsWith('i2i - digital')) return 'i2i-digital';
+  if (p.startsWith('i2i - inner')) return 'i2i-inner-circle';
+  if (p.startsWith('i2i')) return 'i2i-digital'; // catch-all I2I
+  if (p.startsWith('partner')) return 'partner';
+
+  // Legacy names
+  if (p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'myfm';
+  if (p === 'coaching digital offer' || p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'i2i-digital';
+  if (p === 'coaching funding offer') return 'i2i-funding';
+  if (p === 'dfy funding' || p === 'dfy-funding' || p === 'funding') return 'i2i-funding';
+  if (p === 'inner circle' || p === 'inner circle mentorship' || p === 'dfy funding (inner circle)') return 'i2i-inner-circle';
+  return 'other';
+}
+
+// Partner deals name the partner in the program string; keep them separable.
+export function offerDisplayName(key, program) {
+  if (key === 'partner') {
+    var m = (program || '').split(' - ');
+    if (m.length > 1 && m[1].trim()) return 'Partner — ' + m[1].trim();
+  }
+  return OFFER_META[key] ? OFFER_META[key].label : key;
 }
 
 // ============================================
@@ -197,22 +282,22 @@ function recalcOverview() {
   overview = computeOverviewForRange(today, today);
 }
 
-function computeOverviewForRange(startDate, endDate) {
+function computeOverviewForRange(startDate, endDate, workspaceId) {
   var today = new Date().toISOString().split('T')[0];
   var start = startDate || today;
   var end = endDate || today;
 
-  var rangeEODs = store.eodReports.filter(function(e) {
+  var rangeEODs = scoped(store.eodReports, workspaceId).filter(function(e) {
     var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
     return d >= start && d <= end;
   });
 
-  var rangeDeals = store.closedDeals.filter(function(d) {
+  var rangeDeals = scoped(store.closedDeals, workspaceId).filter(function(d) {
     var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
     return dt >= start && dt <= end;
   });
 
-  var rangeBooked = store.bookedCalls.filter(function(b) {
+  var rangeBooked = scoped(store.bookedCalls, workspaceId).filter(function(b) {
     var dt = b.submittedAt ? b.submittedAt.split('T')[0] : '';
     return dt >= start && dt <= end;
   });
@@ -336,35 +421,14 @@ function computeOverviewForRange(startDate, endDate) {
 
   // PER-OFFER BREAKDOWN
   var offerBreakdown = {
-    'myfm':             { key: 'myfm',             label: 'MYFM',            subtitle: 'Coaching', booked: 0, closes: 0, revenue: 0, color: '#3b82f6' },
-    'i2i-skool':        { key: 'i2i-skool',        label: 'Skool Sales',     subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#8b5cf6' },
-    'i2i-funding':      { key: 'i2i-funding',      label: 'Funding Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#f59e0b' },
-    'i2i-digital':      { key: 'i2i-digital',      label: 'Digital Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#06b6d4' },
-    'i2i-inner-circle': { key: 'i2i-inner-circle', label: 'Inner Circle',    subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#dc2626' },
-    'partner':          { key: 'partner',          label: 'Partner',         subtitle: 'External', booked: 0, closes: 0, revenue: 0, color: '#22c55e' },
-    'other':            { key: 'other',            label: 'Other',           subtitle: '',         booked: 0, closes: 0, revenue: 0, color: '#6b6b6b' },
+    'myfm':             { key: 'myfm',             label: 'MYFM',            subtitle: 'Coaching', booked: 0, closes: 0, revenue: 0, color: '#fafafa' },
+    'i2i-skool':        { key: 'i2i-skool',        label: 'Skool Sales',     subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#d4d4d4' },
+    'i2i-funding':      { key: 'i2i-funding',      label: 'Funding Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#a3a3a3' },
+    'i2i-digital':      { key: 'i2i-digital',      label: 'Digital Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#8a8a8a' },
+    'i2i-inner-circle': { key: 'i2i-inner-circle', label: 'Inner Circle',    subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#6b6b6b' },
+    'partner':          { key: 'partner',          label: 'Partner',         subtitle: 'External', booked: 0, closes: 0, revenue: 0, color: '#525252' },
+    'other':            { key: 'other',            label: 'Other',           subtitle: '',         booked: 0, closes: 0, revenue: 0, color: '#fafafa' },
   };
-
-  function classifyOffer(program) {
-    var p = (program || '').toLowerCase().trim();
-
-    // New program names
-    if (p.startsWith('myfm')) return 'myfm';
-    if (p.startsWith('i2i - skool')) return 'i2i-skool';
-    if (p.startsWith('i2i - funding')) return 'i2i-funding';
-    if (p.startsWith('i2i - digital')) return 'i2i-digital';
-    if (p.startsWith('i2i - inner')) return 'i2i-inner-circle';
-    if (p.startsWith('i2i')) return 'i2i-digital'; // catch-all I2I
-    if (p.startsWith('partner')) return 'partner';
-
-    // Legacy names
-    if (p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'myfm';
-    if (p === 'coaching digital offer' || p === 'coaching' || p === 'coaching (digital programs)' || p === 'digital programs') return 'i2i-digital';
-    if (p === 'coaching funding offer') return 'i2i-funding';
-    if (p === 'dfy funding' || p === 'dfy-funding' || p === 'funding') return 'i2i-funding';
-    if (p === 'inner circle' || p === 'inner circle mentorship' || p === 'dfy funding (inner circle)') return 'i2i-inner-circle';
-    return 'other';
-  }
 
   rangeBooked.forEach(function(b) {
     offerBreakdown[classifyOffer(b.program)].booked++;
@@ -431,17 +495,17 @@ export function getOverview() {
   return overview;
 }
 
-export function getFilteredOverview(startDate, endDate) {
-  return computeOverviewForRange(startDate, endDate);
+export function getFilteredOverview(startDate, endDate, workspaceId) {
+  return computeOverviewForRange(startDate, endDate, workspaceId);
 }
 
-export function getCloserBreakdown(startDate, endDate) {
+export function getCloserBreakdown(startDate, endDate, workspaceId) {
   var today = new Date().toISOString().split('T')[0];
   var start = startDate || today;
   var end = endDate || today;
   var closerMap = {};
 
-  store.eodReports.filter(function(e) {
+  scoped(store.eodReports, workspaceId).filter(function(e) {
     var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
     return d >= start && d <= end;
   }).forEach(function(eod) {
@@ -465,7 +529,7 @@ export function getCloserBreakdown(startDate, endDate) {
     if (eod.confidenceScore) c.confidence = parseInt(eod.confidenceScore) || 0;
   });
 
-  store.closedDeals.filter(function(d) {
+  scoped(store.closedDeals, workspaceId).filter(function(d) {
     var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
     return dt >= start && dt <= end;
   }).forEach(function(deal) {
@@ -480,10 +544,10 @@ export function getCloserBreakdown(startDate, endDate) {
   return Object.values(closerMap).sort(function(a, b) { return b.cash - a.cash; });
 }
 
-export function getRecentActivity(limit) {
+export function getRecentActivity(limit, workspaceId) {
   var all = [];
 
-  store.bookedCalls.forEach(function(b) {
+  scoped(store.bookedCalls, workspaceId).forEach(function(b) {
     all.push({
       id: b.id,
       type: 'book-call',
@@ -493,7 +557,7 @@ export function getRecentActivity(limit) {
     });
   });
 
-  store.closedDeals.forEach(function(d) {
+  scoped(store.closedDeals, workspaceId).forEach(function(d) {
     all.push({
       id: d.id,
       type: 'close-deal',
@@ -503,7 +567,7 @@ export function getRecentActivity(limit) {
     });
   });
 
-  store.eodReports.forEach(function(e) {
+  scoped(store.eodReports, workspaceId).forEach(function(e) {
     var dials = e.outboundDials || e.totalDials || 0;
     var closes = e.closes || 0;
     var cash = (parseFloat(e.cashCollectedMYFM) || 0) + (parseFloat(e.cashCollectedI2I) || 0) || (parseFloat(e.cashCollected) || 0);
@@ -646,21 +710,26 @@ export function getAllCommissionRates() {
   return store.commissionRates;
 }
 
-export function getCommissionsForCloser(closerName) {
+// Commission rates are stored per closer email, but deals reference the closer by
+// name. Resolve by the stored display name, defaulting to 10%.
+export function getCloserCommissionRate(closerName) {
+  if (!closerName) return 0.10;
+  var keys = Object.keys(store.commissionRates);
+  for (var i = 0; i < keys.length; i++) {
+    var entry = store.commissionRates[keys[i]];
+    if (entry.name && entry.name.toLowerCase() === closerName.toLowerCase()) return entry.rate;
+  }
+  return 0.10;
+}
+
+export function getCommissionsForCloser(closerName, workspaceId) {
   if (!closerName) return { deals: [], summary: getEmptyCommissionSummary() };
 
-  var closerDeals = store.closedDeals.filter(function(d) {
+  var closerDeals = scoped(store.closedDeals, workspaceId).filter(function(d) {
     return d.closer && d.closer.toLowerCase() === closerName.toLowerCase();
   });
 
-  var rate = 0.10;
-  var keys = Object.keys(store.commissionRates);
-  for (var i = 0; i < keys.length; i++) {
-    if (store.commissionRates[keys[i]].name && store.commissionRates[keys[i]].name.toLowerCase() === closerName.toLowerCase()) {
-      rate = store.commissionRates[keys[i]].rate;
-      break;
-    }
-  }
+  var rate = getCloserCommissionRate(closerName);
 
   var deals = closerDeals.map(function(deal) {
     var commission = deal.cashCollected * rate;
@@ -724,16 +793,167 @@ function getEmptyCommissionSummary() {
   };
 }
 
-export function getAllCommissions() {
+// ============================================
+// OWNER ROLLUP — every offer across every workspace
+// ============================================
+//
+// Revenue and commission come from closed deals, which carry the program and so
+// are the only per-offer source. Cash collected is reported per company on EOD
+// reports with no offer breakdown, so a workspace's EOD cash is apportioned across
+// its offers by each offer's share of deal revenue. Cash that cannot be
+// apportioned (cash reported with no deals in range) is surfaced as
+// unattributedCash rather than dropped or misassigned.
+
+export function getOwnerRollup(startDate, endDate) {
+  var today = new Date().toISOString().split('T')[0];
+  var start = startDate || today;
+  var end = endDate || today;
+
+  function inRange(dt) { return dt >= start && dt <= end; }
+
+  var rangeDeals = store.closedDeals.filter(function(d) {
+    return inRange(d.submittedAt ? d.submittedAt.split('T')[0] : '');
+  });
+  var rangeBooked = store.bookedCalls.filter(function(b) {
+    return inRange(b.submittedAt ? b.submittedAt.split('T')[0] : '');
+  });
+  var rangeEODs = store.eodReports.filter(function(e) {
+    return inRange(e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : ''));
+  });
+
+  // Every known workspace, plus 'default' so pre-workspace data always has a home.
+  var wsList = (store.workspaces || []).slice();
+  if (!wsList.some(function(w) { return w.id === 'default'; })) {
+    wsList.unshift({ id: 'default', name: 'Influence2Impact' });
+  }
+
+  var companies = {};
+  wsList.forEach(function(w) {
+    companies[w.id] = {
+      workspaceId: w.id,
+      name: w.name || w.id,
+      revenue: 0, cashCollected: 0, unattributedCash: 0,
+      commission: 0, deals: 0, booked: 0,
+    };
+  });
+
+  function companyFor(id) {
+    if (!companies[id]) {
+      companies[id] = {
+        workspaceId: id, name: id,
+        revenue: 0, cashCollected: 0, unattributedCash: 0,
+        commission: 0, deals: 0, booked: 0,
+      };
+    }
+    return companies[id];
+  }
+
+  var offers = {};
+  function offerFor(record) {
+    var wsId = recordWorkspace(record);
+    var key = classifyOffer(record.program);
+    var name = offerDisplayName(key, record.program);
+    var id = wsId + '::' + key + '::' + name;
+    if (!offers[id]) {
+      var co = companyFor(wsId);
+      offers[id] = {
+        key: id,
+        offer: name,
+        offerKey: key,
+        color: (OFFER_META[key] || {}).color || '#a3a3a3',
+        workspaceId: wsId,
+        workspaceName: co.name,
+        revenue: 0, cashCollected: 0, commission: 0, deals: 0, booked: 0,
+      };
+    }
+    return offers[id];
+  }
+
+  rangeDeals.forEach(function(deal) {
+    var value = parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0;
+    var rate = getCloserCommissionRate(deal.closer || deal.closerName || '');
+    var o = offerFor(deal);
+    o.revenue += value;
+    o.commission += value * rate;
+    o.deals++;
+    var co = companyFor(o.workspaceId);
+    co.revenue += value;
+    co.commission += value * rate;
+    co.deals++;
+  });
+
+  rangeBooked.forEach(function(b) {
+    var o = offerFor(b);
+    o.booked++;
+    companyFor(o.workspaceId).booked++;
+  });
+
+  // EOD cash lands on the company, then spreads across its offers by revenue share.
+  rangeEODs.forEach(function(e) {
+    var cash = (parseFloat(e.cashCollectedMYFM) || 0) + (parseFloat(e.cashCollectedI2I) || 0);
+    if (!cash) cash = parseFloat(e.cashCollected) || 0;
+    companyFor(recordWorkspace(e)).cashCollected += cash;
+  });
+
+  Object.keys(companies).forEach(function(wsId) {
+    var co = companies[wsId];
+    var own = Object.keys(offers).map(function(k) { return offers[k]; })
+      .filter(function(o) { return o.workspaceId === wsId; });
+    var totalRev = own.reduce(function(sum, o) { return sum + o.revenue; }, 0);
+    if (totalRev > 0) {
+      own.forEach(function(o) { o.cashCollected = co.cashCollected * (o.revenue / totalRev); });
+    } else {
+      co.unattributedCash = co.cashCollected;
+    }
+  });
+
+  function round(n) { return Math.round(n * 100) / 100; }
+
+  var offerList = Object.keys(offers).map(function(k) {
+    var o = offers[k];
+    o.revenue = round(o.revenue);
+    o.cashCollected = round(o.cashCollected);
+    o.commission = round(o.commission);
+    return o;
+  }).sort(function(a, b) { return b.revenue - a.revenue; });
+
+  var companyList = Object.keys(companies).map(function(k) {
+    var c = companies[k];
+    return {
+      workspaceId: c.workspaceId,
+      name: c.name,
+      revenue: round(c.revenue),
+      cashCollected: round(c.cashCollected),
+      unattributedCash: round(c.unattributedCash),
+      commission: round(c.commission),
+      deals: c.deals,
+      booked: c.booked,
+    };
+  }).sort(function(a, b) { return b.revenue - a.revenue; });
+
+  return {
+    dateRange: { start: start, end: end },
+    offers: offerList,
+    companies: companyList,
+    totals: {
+      revenue: round(companyList.reduce(function(s, c) { return s + c.revenue; }, 0)),
+      cashCollected: round(companyList.reduce(function(s, c) { return s + c.cashCollected; }, 0)),
+      commission: round(companyList.reduce(function(s, c) { return s + c.commission; }, 0)),
+      deals: companyList.reduce(function(s, c) { return s + c.deals; }, 0),
+    },
+  };
+}
+
+export function getAllCommissions(workspaceId) {
   var closerNames = {};
-  store.closedDeals.forEach(function(d) {
+  scoped(store.closedDeals, workspaceId).forEach(function(d) {
     if (d.closer) closerNames[d.closer] = true;
   });
 
   return Object.keys(closerNames).map(function(name) {
     return {
       closerName: name,
-      data: getCommissionsForCloser(name),
+      data: getCommissionsForCloser(name, workspaceId),
     };
   }).sort(function(a, b) {
     return b.data.summary.totalCommission - a.data.summary.totalCommission;
@@ -868,7 +1088,7 @@ export async function createWorkspace(data) {
     ownerEmail: (data.ownerEmail || '').toLowerCase(),
     teamPassword: data.teamPassword || '',
     branding: {
-      primaryColor: data.primaryColor || '#dc2626',
+      primaryColor: data.primaryColor || '#a3a3a3',
       secondaryColor: data.secondaryColor || '#22c55e',
       companyName: data.companyName || '',
     },

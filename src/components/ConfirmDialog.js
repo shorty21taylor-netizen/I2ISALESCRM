@@ -8,7 +8,7 @@ export default function ConfirmDialog(props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)' }}>
       <div className="glass-card w-full max-w-sm p-5">
         <div className="flex items-start gap-3 mb-4">
-          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(220,38,38,0.1)' }}>
+          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(var(--accent-rgb),0.1)' }}>
             <AlertTriangle className="w-5 h-5" style={{ color: 'var(--crm-accent)' }} />
           </div>
           <div className="min-w-0">

@@ -3,7 +3,7 @@
 // All times are timezone-aware, skips weekends
 
 import { getBookedCallsForDate, getStore } from '@/lib/store';
-import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageFromDB } from '@/lib/db';
+import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageDB } from '@/lib/db';
 
 var schedule = {
   eodReminder: { hour: 20, minute: 0, enabled: true, lastRun: null },
@@ -258,7 +258,7 @@ export function addCustomMessage(msg) {
 
 export function removeCustomMessage(id) {
   config.customMessages = config.customMessages.filter(function(m) { return m.id !== id; });
-  deleteCustomMessageFromDB(id).catch(function(e) { console.error('[DB] Delete message error:', e.message); });
+  deleteCustomMessageDB(id).catch(function(e) { console.error('[DB] Delete message error:', e.message); });
 }
 
 export function updateCustomMessage(id, updates) {

@@ -63,6 +63,8 @@ export async function initDatabase() {
     var migrateTables = ['booked_calls', 'closed_deals', 'eod_reports', 'closer_profiles', 'commission_rates', 'custom_messages'];
     for (var i = 0; i < migrateTables.length; i++) {
       await p.query("ALTER TABLE " + migrateTables[i] + " ADD COLUMN IF NOT EXISTS workspace_id TEXT DEFAULT 'default'").catch(function() {});
+      await p.query("UPDATE " + migrateTables[i] + " SET workspace_id = 'default' WHERE workspace_id IS NULL").catch(function() {});
+      await p.query("CREATE INDEX IF NOT EXISTS idx_" + migrateTables[i] + "_ws ON " + migrateTables[i] + " (workspace_id)").catch(function() {});
     }
 
     await p.query(
@@ -72,7 +74,7 @@ export async function initDatabase() {
         slug: 'i2i',
         ownerEmail: 'shorty21taylor@gmail.com',
         teamPassword: 'I2I2026!',
-        branding: { primaryColor: '#dc2626', secondaryColor: '#22c55e', companyName: 'Influence2Impact' },
+        branding: { primaryColor: '#a3a3a3', secondaryColor: '#22c55e', companyName: 'Influence2Impact' },
         onboarding: { companyName: 'Influence2Impact', industry: 'Sales Coaching', teamSize: '5-10' },
         active: true,
         createdAt: new Date().toISOString(),
@@ -91,19 +93,28 @@ export async function loadFromDatabase() {
   var p = getPool();
   if (!p) return null;
   try {
-    var bc = await p.query('SELECT data FROM booked_calls ORDER BY created_at DESC LIMIT 500');
-    var cd = await p.query('SELECT data FROM closed_deals ORDER BY created_at DESC LIMIT 500');
-    var eod = await p.query('SELECT data FROM eod_reports ORDER BY created_at DESC LIMIT 500');
-    var cp = await p.query('SELECT email, data FROM closer_profiles');
-    var cr = await p.query('SELECT email, data FROM commission_rates');
-    var cm = await p.query('SELECT data FROM custom_messages ORDER BY created_at DESC LIMIT 100');
+    var bc = await p.query('SELECT data, workspace_id FROM booked_calls ORDER BY created_at DESC LIMIT 500');
+    var cd = await p.query('SELECT data, workspace_id FROM closed_deals ORDER BY created_at DESC LIMIT 500');
+    var eod = await p.query('SELECT data, workspace_id FROM eod_reports ORDER BY created_at DESC LIMIT 500');
+    var cp = await p.query('SELECT email, data, workspace_id FROM closer_profiles');
+    var cr = await p.query('SELECT email, data, workspace_id FROM commission_rates');
+    var cm = await p.query('SELECT data, workspace_id FROM custom_messages ORDER BY created_at DESC LIMIT 100');
+
+    // workspace_id is the authoritative column; mirror it onto the in-memory record
+    // so every consumer can read record.workspaceId without another query.
+    function withWs(r) {
+      var d = r.data || {};
+      d.workspaceId = r.workspace_id || 'default';
+      return d;
+    }
+
     return {
-      bookedCalls: bc.rows.map(function(r) { return r.data; }),
-      closedDeals: cd.rows.map(function(r) { return r.data; }),
-      eodReports: eod.rows.map(function(r) { return r.data; }),
-      closerProfiles: cp.rows.reduce(function(a, r) { a[r.email] = r.data; return a; }, {}),
-      commissionRates: cr.rows.reduce(function(a, r) { a[r.email] = r.data; return a; }, {}),
-      customMessages: cm.rows.map(function(r) { return r.data; }),
+      bookedCalls: bc.rows.map(withWs),
+      closedDeals: cd.rows.map(withWs),
+      eodReports: eod.rows.map(withWs),
+      closerProfiles: cp.rows.reduce(function(a, r) { a[r.email] = withWs(r); return a; }, {}),
+      commissionRates: cr.rows.reduce(function(a, r) { a[r.email] = withWs(r); return a; }, {}),
+      customMessages: cm.rows.map(withWs),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -112,15 +123,15 @@ export async function loadFromDatabase() {
 }
 
 export async function saveBookedCall(entry) {
-  return query('INSERT INTO booked_calls (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+  return query('INSERT INTO booked_calls (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3', [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']);
 }
 
 export async function saveClosedDeal(entry) {
-  return query('INSERT INTO closed_deals (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+  return query('INSERT INTO closed_deals (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3', [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']);
 }
 
 export async function saveEODReport(entry) {
-  return query('INSERT INTO eod_reports (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+  return query('INSERT INTO eod_reports (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3', [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']);
 }
 
 export async function saveCloserProfile(email, data) {
@@ -132,7 +143,7 @@ export async function saveCommissionRate(email, data) {
 }
 
 export async function updateDealInDB(entry) {
-  return query('UPDATE closed_deals SET data = $1 WHERE id = $2', [JSON.stringify(entry), entry.id]);
+  return query('UPDATE closed_deals SET data = $1, workspace_id = $2 WHERE id = $3', [JSON.stringify(entry), entry.workspaceId || 'default', entry.id]);
 }
 
 export async function saveCustomMessage(entry) {

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
@@ -19,6 +20,7 @@ function formatMonth(key) {
 }
 
 export default function CommissionsPage() {
+  var workspaceId = useWorkspace();
   var s1 = useState(null), commData = s1[0], setCommData = s1[1];
   var s2 = useState(null), allData = s2[0], setAllData = s2[1];
   var s3 = useState(true), loading = s3[0], setLoading = s3[1];
@@ -30,7 +32,7 @@ export default function CommissionsPage() {
     setUser(u);
     if (!u) { setLoading(false); return; }
 
-    fetch('/api/commissions?closer=' + encodeURIComponent(u.name))
+    fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(u.name), workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setCommData(data);
@@ -38,13 +40,13 @@ export default function CommissionsPage() {
       })
       .catch(function() { setLoading(false); });
 
-    fetch('/api/commissions?view=all')
+    fetch(withWorkspace('/api/commissions?view=all', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setAllData(data);
       })
       .catch(function() {});
-  }, []);
+  }, [workspaceId]);
 
   function handleStatusUpdate(dealId, newStatus) {
     fetch('/api/commissions/status', {
@@ -56,11 +58,11 @@ export default function CommissionsPage() {
       .then(function() {
         // Refresh both views
         if (user) {
-          fetch('/api/commissions?closer=' + encodeURIComponent(user.name))
+          fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
             .then(function(r) { return r.json(); })
             .then(function(data) { if (data.success) setCommData(data); });
         }
-        fetch('/api/commissions?view=all')
+        fetch(withWorkspace('/api/commissions?view=all', workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setAllData(data); });
       });
@@ -85,11 +87,11 @@ export default function CommissionsPage() {
     Promise.all(promises).then(function() {
       // Refresh
       if (user) {
-        fetch('/api/commissions?closer=' + encodeURIComponent(user.name))
+        fetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
           .then(function(r) { return r.json(); })
           .then(function(data) { if (data.success) setCommData(data); });
       }
-      fetch('/api/commissions?view=all')
+      fetch(withWorkspace('/api/commissions?view=all', workspaceId))
         .then(function(r) { return r.json(); })
         .then(function(data) { if (data.success) setAllData(data); });
     });
@@ -169,9 +171,9 @@ function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate
         </div>
         <div className="glass-card p-5 stagger-4">
           <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-red"><Percent className="w-5 h-5" /></div>
+            <div className="icon-box-accent"><Percent className="w-5 h-5" /></div>
           </div>
-          <div className="metric-value-red text-2xl mb-1">{(summary.commissionRate * 100).toFixed(0) + '%'}</div>
+          <div className="metric-value-accent text-2xl mb-1">{(summary.commissionRate * 100).toFixed(0) + '%'}</div>
           <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Commission Rate</div>
         </div>
       </div>

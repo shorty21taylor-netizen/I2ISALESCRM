@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, Calendar, List, Trash2, Clock, AlertTriangle, X } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function EODLogsPage() {
+  var workspaceId = useWorkspace();
   var [eods, setEods] = useState([]);
   var [closers, setClosers] = useState([]);
   var [loading, setLoading] = useState(true);
@@ -21,17 +23,17 @@ export default function EODLogsPage() {
 
   useEffect(function() {
     Promise.all([
-      fetch('/api/webhooks/eod-report').then(function(r) { return r.json(); }),
+      fetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
       fetch('/api/closers').then(function(r) { return r.json(); }),
     ]).then(function(results) {
       setEods((results[0].data || []).filter(Boolean));
       setClosers((results[1].closers || []).filter(Boolean));
       setLoading(false);
     }).catch(function() { setLoading(false); });
-  }, []);
+  }, [workspaceId]);
 
   async function fetchEods() {
-    var res = await fetch('/api/webhooks/eod-report');
+    var res = await fetch(withWorkspace('/api/webhooks/eod-report', workspaceId));
     var data = await res.json();
     setEods((data.data || []).filter(Boolean));
   }
@@ -217,7 +219,7 @@ export default function EODLogsPage() {
       <div key={eod.id} className="glass-card p-4 md:p-5">
         {showName && (
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(220,38,38,0.15)', color: 'var(--crm-accent)' }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
@@ -356,7 +358,7 @@ export default function EODLogsPage() {
                           <th key={day.date}
                             onClick={function() { setSelectedDay(isSelected ? null : day.date); }}
                             className="text-center px-0.5 py-2 cursor-pointer transition-all hover:bg-white/5"
-                            style={isSelected ? { background: 'rgba(220,38,38,0.15)', borderRadius: '4px' } : {}}
+                            style={isSelected ? { background: 'rgba(var(--accent-rgb),0.15)', borderRadius: '4px' } : {}}
                           >
                             <div className="text-[9px] font-mono" style={{ color: day.isToday ? 'var(--crm-accent)' : isSelected ? 'var(--crm-accent)' : 'var(--crm-text-muted)' }}>{day.label}</div>
                             <div className={'text-xs font-mono font-bold'} style={{ color: isSelected ? 'var(--crm-accent)' : day.isToday ? 'var(--crm-accent)' : 'var(--crm-text-bright)' }}>{day.day}</div>
@@ -391,7 +393,7 @@ export default function EODLogsPage() {
                             if ((day.isPast || day.isToday) && !isOrphan) expected++;
                             if (didSubmit) submitted++;
 
-                            var bg = isSelected ? 'rgba(220,38,38,0.08)' : 'transparent';
+                            var bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'transparent';
                             var icon = null;
 
                             if (didSubmit) {

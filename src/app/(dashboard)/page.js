@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
-import { teamOverview } from '@/lib/mock-data';
 
 export default function DashboardPage() {
+  var workspaceId = useWorkspace();
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
   var s3 = useState('today'), dateRange = s3[0], setDateRange = s3[1];
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
@@ -46,9 +47,10 @@ export default function DashboardPage() {
   }
 
   var fetchDashboard = useCallback(function() {
+    if (!workspaceId) return; // wait for the active workspace to resolve client-side
     var params = getDateParams();
     var qs = '?start=' + params.start + '&end=' + params.end;
-    fetch('/api/dashboard' + qs)
+    fetch(withWorkspace('/api/dashboard' + qs, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
@@ -58,13 +60,13 @@ export default function DashboardPage() {
       })
       .catch(function(e) { console.error('Dashboard fetch error:', e); });
 
-    fetch('/api/webhooks/eod-report')
+    fetch(withWorkspace('/api/webhooks/eod-report', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(eodsData) {
         setAllEODs((eodsData.data || []).filter(Boolean));
       })
       .catch(function(e) { console.error('EOD fetch error:', e); });
-  }, [dateRange, customStart, customEnd]);
+  }, [dateRange, customStart, customEnd, workspaceId]);
 
   useEffect(function() {
     fetchDashboard();
@@ -72,7 +74,9 @@ export default function DashboardPage() {
     return function() { clearInterval(interval); };
   }, [fetchDashboard]);
 
-  var displayOverview = liveData && liveData.overview ? liveData.overview : teamOverview;
+  // No mock fallback — before live data arrives the dashboard shows real zeros
+  // rather than invented numbers.
+  var displayOverview = (liveData && liveData.overview) ? liveData.overview : {};
   var t = displayOverview;
   var todayCash = t.todayCash || t.totalCash || 0;
   var todayCloses = t.todayCloses || t.totalCloses || 0;
@@ -226,8 +230,8 @@ export default function DashboardPage() {
         {/* Outbound Dials */}
         <div className="glass-card p-6 md:p-8">
           <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(220,38,38,0.1)' }}>
-              <Phone className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#dc2626' }} />
+            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(var(--accent-rgb),0.1)' }}>
+              <Phone className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#a3a3a3' }} />
             </div>
           </div>
           <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
@@ -242,7 +246,7 @@ export default function DashboardPage() {
         <div className="glass-card p-6 md:p-8">
           <div className="flex items-start justify-between mb-3 md:mb-4">
             <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.1)' }}>
-              <PhoneIncoming className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#3b82f6' }} />
+              <PhoneIncoming className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#fafafa' }} />
             </div>
           </div>
           <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
@@ -257,10 +261,10 @@ export default function DashboardPage() {
         <div className="glass-card p-6 md:p-8 col-span-2 md:col-span-1">
           <div className="flex items-start justify-between mb-3 md:mb-4">
             <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)' }}>
-              <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#f59e0b' }} />
+              <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--crm-text-bright)' }} />
             </div>
           </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#f59e0b' }}>
+          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
             {displayOverview.totalCloses || 0}
           </p>
           <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
@@ -274,11 +278,11 @@ export default function DashboardPage() {
       {t.offerBreakdown && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-2">
           {[
-            { key: 'myfm', label: 'MYFM', subtitle: 'Coaching', color: '#3b82f6', emoji: '🚀' },
-            { key: 'i2i-skool', label: 'Skool Sales', subtitle: 'I2I', color: '#8b5cf6', emoji: '🎓' },
-            { key: 'i2i-funding', label: 'Funding Program', subtitle: 'I2I', color: '#f59e0b', emoji: '💰' },
-            { key: 'i2i-digital', label: 'Digital Program', subtitle: 'I2I', color: '#06b6d4', emoji: '💻' },
-            { key: 'i2i-inner-circle', label: 'Inner Circle', subtitle: 'I2I', color: '#dc2626', emoji: '⭐' },
+            { key: 'myfm', label: 'MYFM', subtitle: 'Coaching', color: '#fafafa', emoji: '🚀' },
+            { key: 'i2i-skool', label: 'Skool Sales', subtitle: 'I2I', color: '#d4d4d4', emoji: '🎓' },
+            { key: 'i2i-funding', label: 'Funding Program', subtitle: 'I2I', color: '#a3a3a3', emoji: '💰' },
+            { key: 'i2i-digital', label: 'Digital Program', subtitle: 'I2I', color: '#a3a3a3', emoji: '💻' },
+            { key: 'i2i-inner-circle', label: 'Inner Circle', subtitle: 'I2I', color: '#a3a3a3', emoji: '⭐' },
             { key: 'partner', label: 'Partner', subtitle: 'External', color: '#22c55e', emoji: '🤝' },
           ].map(function(offer) {
             var data = t.offerBreakdown[offer.key] || { booked: 0, closes: 0, revenue: 0 };
@@ -304,7 +308,7 @@ export default function DashboardPage() {
                     <p className="text-[10px] font-mono text-crm-muted">CLOSES</p>
                   </div>
                   <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold" style={{ color: offer.color }}>{formatCurrency(data.revenue)}</p>
+                    <p className="text-lg font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{formatCurrency(data.revenue)}</p>
                     <p className="text-[10px] font-mono text-crm-muted">REVENUE</p>
                   </div>
                 </div>
@@ -358,7 +362,7 @@ export default function DashboardPage() {
               return (
                 <div key={eod.id} className="p-4 md:p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(220,38,38,0.15)', color: 'var(--crm-accent)' }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">

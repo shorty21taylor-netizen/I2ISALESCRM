@@ -6,11 +6,12 @@ import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
 
 export default function AnalyticsPage() {
+  var workspaceId = useWorkspace();
   var [data, setData] = useState(null);
   var [loading, setLoading] = useState(true);
   var [dateRange, setDateRange] = useState('30');
 
-  useEffect(function() { fetchData(); }, [dateRange]);
+  useEffect(function() { if (workspaceId) fetchData(); }, [dateRange, workspaceId]);
 
   async function fetchData() {
     setLoading(true);
@@ -20,10 +21,10 @@ export default function AnalyticsPage() {
       start.setDate(start.getDate() - parseInt(dateRange));
 
       var [dashRes, eodsRes, dealsRes, bookedRes] = await Promise.all([
-        fetch('/api/dashboard?start=' + start.toISOString().split('T')[0] + '&end=' + end.toISOString().split('T')[0]),
-        fetch('/api/webhooks/eod-report'),
-        fetch('/api/webhooks/close-deal'),
-        fetch('/api/webhooks/book-call'),
+        fetch(withWorkspace('/api/dashboard?start=' + start.toISOString().split('T')[0] + '&end=' + end.toISOString().split('T')[0], workspaceId)),
+        fetch(withWorkspace('/api/webhooks/eod-report', workspaceId)),
+        fetch(withWorkspace('/api/webhooks/close-deal', workspaceId)),
+        fetch(withWorkspace('/api/webhooks/book-call', workspaceId)),
       ]);
 
       var dash = await dashRes.json();
@@ -162,7 +163,7 @@ export default function AnalyticsPage() {
     { stage: 'Closed', value: totalCloses },
   ];
 
-  var COLORS = ['#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b', '#dc2626', '#06b6d4'];
+  var COLORS = ['#22c55e', '#fafafa', '#d4d4d4', '#a3a3a3', '#787878', '#525252'];
   var tooltipStyle = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fafafa', fontSize: '12px' };
 
   function MetricTile({ label, value, sub, color }) {
@@ -188,7 +189,7 @@ export default function AnalyticsPage() {
               return (
                 <button key={d} onClick={function() { setDateRange(d); }}
                   className={'px-3 py-1.5 rounded-lg text-xs font-mono ' + (dateRange === d ? 'text-crm-accent font-bold' : 'text-crm-muted')}
-                  style={dateRange === d ? { background: 'rgba(220,38,38,0.1)' } : {}}
+                  style={dateRange === d ? { background: 'rgba(var(--accent-rgb),0.1)' } : {}}
                 >{d}d</button>
               );
             })}
@@ -231,14 +232,14 @@ export default function AnalyticsPage() {
         <h2 className="text-sm font-display font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--crm-accent)' }}>Revenue</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
           <MetricTile label="Total Revenue" value={formatCurrency(Math.max(totalRevenue, dealCash))} color="#22c55e" />
-          <MetricTile label="Cash MYFM" value={formatCurrency(totalCashMYFM)} color="#3b82f6" />
-          <MetricTile label="Cash I2I" value={formatCurrency(totalCashI2I)} color="#8b5cf6" />
+          <MetricTile label="Cash MYFM" value={formatCurrency(totalCashMYFM)} color="#fafafa" />
+          <MetricTile label="Cash I2I" value={formatCurrency(totalCashI2I)} color="#d4d4d4" />
           <MetricTile label="Deal Cash" value={formatCurrency(dealCash)} sub={data.deals.length + ' deals'} />
           <MetricTile label="Avg Deal Size" value={formatCurrency(avgDealSize)} />
           <MetricTile label="Cash / Call" value={formatCurrency(cashPerCall)} sub="per call taken" />
           <MetricTile label="Cash / Dial" value={'$' + cashPerDial.toFixed(2)} sub="per outbound dial" />
           <MetricTile label="Inbound Rev" value={formatCurrency(inboundRev)} color="#22c55e" />
-          <MetricTile label="Outbound Rev" value={formatCurrency(outboundRev)} color="#dc2626" />
+          <MetricTile label="Outbound Rev" value={formatCurrency(outboundRev)} color="#a3a3a3" />
         </div>
 
         {/* CONVERSION FUNNEL CHART */}
@@ -253,7 +254,7 @@ export default function AnalyticsPage() {
                     <XAxis type="number" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <YAxis dataKey="stage" type="category" stroke="#6b6b6b" tick={{ fontSize: 11 }} width={90} />
                     <Tooltip contentStyle={tooltipStyle} formatter={function(v) { return [v.toLocaleString(), 'Count']; }} />
-                    <Bar dataKey="value" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="value" fill="#a3a3a3" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ClientOnly>
@@ -292,8 +293,8 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="label" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
                     <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="dials" stroke="#dc2626" fill="rgba(220,38,38,0.1)" name="Dials" />
-                    <Area type="monotone" dataKey="taken" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Taken" />
+                    <Area type="monotone" dataKey="dials" stroke="#a3a3a3" fill="rgba(var(--accent-rgb),0.1)" name="Dials" />
+                    <Area type="monotone" dataKey="taken" stroke="#fafafa" fill="rgba(59,130,246,0.1)" name="Taken" />
                     <Area type="monotone" dataKey="closes" stroke="#22c55e" fill="rgba(34,197,94,0.1)" name="Closes" />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
                   </AreaChart>
@@ -336,7 +337,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="name" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
                     <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} unit="%" />
                     <Tooltip contentStyle={tooltipStyle} formatter={function(v) { return [v + '%', 'Close Rate']; }} />
-                    <Bar dataKey="closeRate" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="closeRate" fill="#a3a3a3" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ClientOnly>
@@ -354,7 +355,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="dials" name="Dials" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <YAxis dataKey="revenue" name="Revenue" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
                     <Tooltip contentStyle={tooltipStyle} formatter={function(v, name) { return [name === 'Revenue' ? '$' + v.toLocaleString() : v.toLocaleString(), name]; }} />
-                    <Scatter data={closerData} fill="#dc2626" />
+                    <Scatter data={closerData} fill="#a3a3a3" />
                   </ScatterChart>
                 </ResponsiveContainer>
               </ClientOnly>

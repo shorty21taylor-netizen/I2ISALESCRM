@@ -23,7 +23,7 @@ export default function WorkspacesPage() {
   var [avgDealSize, setAvgDealSize] = useState('');
   var [monthlyAdSpend, setMonthlyAdSpend] = useState('');
   var [funnels, setFunnels] = useState([]);
-  var [primaryColor, setPrimaryColor] = useState('#dc2626');
+  var [primaryColor, setPrimaryColor] = useState('#a3a3a3');
   var [secondaryColor, setSecondaryColor] = useState('#22c55e');
 
   useEffect(function() {
@@ -42,7 +42,7 @@ export default function WorkspacesPage() {
   function resetForm() {
     setCompanyName(''); setOwnerName(''); setOwnerEmail(''); setTeamPassword('');
     setIndustry(''); setTeamSize(''); setAvgDealSize(''); setMonthlyAdSpend('');
-    setFunnels([]); setPrimaryColor('#dc2626'); setSecondaryColor('#22c55e');
+    setFunnels([]); setPrimaryColor('#a3a3a3'); setSecondaryColor('#22c55e');
     setStep(1); setShowCreate(false);
   }
 
@@ -91,7 +91,7 @@ export default function WorkspacesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {workspaces.map(function(ws) {
             return (
-              <div key={ws.id} className="glass-card p-5 cursor-pointer hover:ring-1 transition-all" style={{ borderLeft: '4px solid ' + (ws.branding ? ws.branding.primaryColor : '#dc2626') }}>
+              <div key={ws.id} className="glass-card p-5 cursor-pointer hover:ring-1 transition-all" style={{ borderLeft: '4px solid ' + (ws.branding ? ws.branding.primaryColor : '#a3a3a3') }}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{ws.name}</h3>
@@ -106,7 +106,7 @@ export default function WorkspacesPage() {
                   {ws.onboarding && ws.onboarding.teamSize && <span>{ws.onboarding.teamSize} reps</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-3">
-                  <div className="w-4 h-4 rounded-full" style={{ background: ws.branding ? ws.branding.primaryColor : '#dc2626' }} />
+                  <div className="w-4 h-4 rounded-full" style={{ background: ws.branding ? ws.branding.primaryColor : '#a3a3a3' }} />
                   <div className="w-4 h-4 rounded-full" style={{ background: ws.branding ? ws.branding.secondaryColor : '#22c55e' }} />
                 </div>
               </div>

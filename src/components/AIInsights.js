@@ -10,8 +10,8 @@ export default function AIInsights({ performances }) {
         <div className="section-header">
           <h3>AI Insights</h3>
           <div className="flex items-center gap-2">
-            <div className="glow-dot-red" />
-            <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+            <div className="glow-dot-accent" />
+            <span className="section-tag" style={{ color: 'var(--crm-text-bright)', background: 'var(--section-tag-bg)', borderColor: 'var(--section-tag-border)' }}>AI</span>
           </div>
         </div>
         <EmptyState icon={Brain} title="No AI insights yet" subtitle="Diagnostics generate after closers have enough call and performance data" />
@@ -24,8 +24,8 @@ export default function AIInsights({ performances }) {
       <div className="section-header">
         <h3>AI Insights</h3>
         <div className="flex items-center gap-2">
-          <div className="glow-dot-red" />
-          <span className="section-tag" style={{ color: '#dc2626', background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.15)' }}>AI</span>
+          <div className="glow-dot-accent" />
+          <span className="section-tag" style={{ color: 'var(--crm-text-bright)', background: 'var(--section-tag-bg)', borderColor: 'var(--section-tag-border)' }}>AI</span>
         </div>
       </div>
       <div className="p-4 space-y-3">

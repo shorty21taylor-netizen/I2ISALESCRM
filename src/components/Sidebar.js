@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 
 var navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,7 +14,10 @@ var navItems = [
   { href: '/commissions', label: 'Commissions', icon: CreditCard },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/owner', label: 'Owner View', icon: Building2, ownerOnly: true },
 ];
+
+var OWNER_EMAIL = 'shorty21taylor@gmail.com';
 
 export default function Sidebar() {
   var pathname = usePathname();
@@ -24,6 +28,8 @@ export default function Sidebar() {
     setUser(getUser());
   }, []);
 
+  var isOwner = !!(user && user.email === OWNER_EMAIL);
+
   function handleSignOut() {
     logout();
     window.location.href = '/login';
@@ -32,7 +38,7 @@ export default function Sidebar() {
   return (
     <aside className={'sidebar ' + (collapsed ? 'w-[64px]' : 'w-[240px]')}>
       <div className="flex items-center gap-2 px-4 h-16 border-b border-crm-border/50">
-        <div className="glow-red rounded-lg">
+        <div className="glow-accent rounded-lg">
           <Activity className="w-6 h-6 text-crm-accent flex-shrink-0" />
         </div>
         {!collapsed && (
@@ -42,8 +48,12 @@ export default function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-        {navItems.map(function(item) {
+      <WorkspaceSwitcher collapsed={collapsed} />
+
+      <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
+        {navItems.filter(function(item) {
+          return !item.ownerOnly || isOwner;
+        }).map(function(item) {
           var isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={'nav-link ' + (isActive ? 'active' : '')}>
@@ -57,7 +67,7 @@ export default function Sidebar() {
       <hr className="divider mx-2" />
 
       <div className="px-2 py-2 space-y-1">
-        {user && user.email === 'shorty21taylor@gmail.com' && (
+        {isOwner && (
           <>
             <Link href="/admin/workspaces" className={'nav-link ' + (pathname === '/admin/workspaces' ? 'active' : '')}>
               <Building2 className="w-5 h-5 flex-shrink-0" />

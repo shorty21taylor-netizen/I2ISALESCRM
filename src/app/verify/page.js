@@ -59,7 +59,7 @@ export default function VerifyPage() {
     <div className="min-h-screen bg-crm-bg flex items-center justify-center p-4 bg-orbs relative">
       <div className="w-full max-w-md stagger-1">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="glow-red rounded-lg p-1">
+          <div className="glow-accent rounded-lg p-1">
             <Activity className="w-8 h-8 text-crm-accent" />
           </div>
           <span className="font-display font-bold text-2xl text-crm-text-bright">

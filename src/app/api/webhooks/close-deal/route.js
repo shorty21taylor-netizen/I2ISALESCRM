@@ -70,8 +70,13 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   await initStore();
   var store = getStore();
-  return NextResponse.json({ success: true, data: store.closedDeals });
+  var workspaceId = new URL(req.url).searchParams.get('workspace');
+  var data = store.closedDeals;
+  if (workspaceId && workspaceId !== '__all__') {
+    data = data.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; });
+  }
+  return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });
 }

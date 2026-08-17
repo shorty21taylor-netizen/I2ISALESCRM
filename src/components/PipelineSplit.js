@@ -35,12 +35,12 @@ export default function PipelineSplit({ inboundRevenue, outboundRevenue }) {
           </div>
           <div className="flex justify-between text-sm mb-2">
             <span className="text-crm-text">Outbound</span>
-            <span className="font-mono text-crm-accent" style={{ textShadow: '0 0 12px rgba(220,38,38,0.3)' }}>{formatCurrency(outboundRevenue)} ({outPct}%)</span>
+            <span className="font-mono text-crm-accent" style={{ textShadow: '0 0 12px rgba(var(--accent-rgb),0.3)' }}>{formatCurrency(outboundRevenue)} ({outPct}%)</span>
           </div>
         </div>
         <div className="split-bar">
           <div className="h-full" style={{ width: inPct + '%', background: 'linear-gradient(90deg, #22c55e, #4ade80)', boxShadow: '0 0 16px rgba(34,197,94,0.3)', borderRadius: '12px 0 0 12px' }} />
-          <div className="split-fill-red" style={{ width: outPct + '%', borderRadius: '0 12px 12px 0' }} />
+          <div className="split-fill-accent" style={{ width: outPct + '%', borderRadius: '0 12px 12px 0' }} />
         </div>
         <div className="flex justify-between text-xs font-mono text-crm-muted">
           <span>Inbound {inPct}%</span>

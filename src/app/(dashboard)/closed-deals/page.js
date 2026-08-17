@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { DollarSign, Calendar, Filter, ChevronDown, Trash2 } from 'lucide-react';
+import { useWorkspace, withWorkspace } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function ClosedDealsPage() {
+  var workspaceId = useWorkspace();
   var [deals, setDeals] = useState([]);
   var [loading, setLoading] = useState(true);
   var [range, setRange] = useState('30');
@@ -19,12 +21,12 @@ export default function ClosedDealsPage() {
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
-  useEffect(function() { fetchDeals(); }, []);
+  useEffect(function() { if (workspaceId) fetchDeals(); }, [workspaceId]);
 
   async function fetchDeals() {
     setLoading(true);
     try {
-      var res = await fetch('/api/webhooks/close-deal');
+      var res = await fetch(withWorkspace('/api/webhooks/close-deal', workspaceId));
       var data = await res.json();
       setDeals((data.data || []).filter(Boolean).sort(function(a, b) {
         return (b.submittedAt || '') > (a.submittedAt || '') ? 1 : -1;
@@ -126,7 +128,7 @@ export default function ClosedDealsPage() {
                 key={opt.value}
                 onClick={function() { setRange(opt.value); }}
                 className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (range === opt.value ? 'text-crm-accent font-bold' : 'text-crm-muted')}
-                style={range === opt.value ? { background: 'rgba(220,38,38,0.1)' } : {}}
+                style={range === opt.value ? { background: 'rgba(var(--accent-rgb),0.1)' } : {}}
               >
                 {opt.label}
               </button>
@@ -171,7 +173,7 @@ export default function ClosedDealsPage() {
               var dateStr = dt ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
               var timeStr = dt ? dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
               var brand = (deal.program || '').toLowerCase();
-              var brandColor = brand.startsWith('myfm') ? '#3b82f6' : brand.startsWith('partner') ? '#f59e0b' : '#8b5cf6';
+              var brandColor = brand.startsWith('myfm') ? '#fafafa' : brand.startsWith('partner') ? '#a3a3a3' : '#d4d4d4';
 
               return (
                 <div key={deal.id} className="glass-card p-4 md:p-5">

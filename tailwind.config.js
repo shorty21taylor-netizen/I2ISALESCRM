@@ -30,7 +30,7 @@ module.exports = {
         mono: ['"JetBrains Mono"', 'monospace'],
       },
       boxShadow: {
-        'glow-red': '0 0 20px rgba(220, 38, 38, 0.15)',
+        'glow-accent': '0 0 20px rgba(163, 163, 163, 0.12)',
         'glow-green': '0 0 20px rgba(34, 197, 94, 0.15)',
       },
       animation: {
@@ -41,7 +41,7 @@ module.exports = {
       keyframes: {
         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
         slideUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-        glow: { '0%': { boxShadow: '0 0 5px rgba(220, 38, 38, 0.1)' }, '100%': { boxShadow: '0 0 20px rgba(220, 38, 38, 0.2)' } },
+        glow: { '0%': { boxShadow: '0 0 5px rgba(163, 163, 163, 0.1)' }, '100%': { boxShadow: '0 0 20px rgba(163, 163, 163, 0.2)' } },
       },
     },
   },

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
+import { useWorkspace, withWorkspace, ALL_WORKSPACES } from '@/lib/workspace-client';
 
 function buildProgramString(brand, myfmDuration, subProgram, partnerName) {
   if (brand === 'MYFM') return 'MYFM - ' + (myfmDuration || '6 Month Coaching');
@@ -79,6 +80,10 @@ var typeBadge = {
 };
 
 export default function SubmitPage() {
+  var workspaceId = useWorkspace();
+  // "All workspaces" is a viewing mode, not a destination — let the server default
+  // to the primary workspace rather than stamping a placeholder id.
+  var submitWorkspaceId = (!workspaceId || workspaceId === ALL_WORKSPACES) ? undefined : workspaceId;
   var s1 = useState('book-call'), activeTab = s1[0], setActiveTab = s1[1];
   var s2 = useState([]), submissions = s2[0], setSubmissions = s2[1];
   var s3 = useState(false), submitting = s3[0], setSubmitting = s3[1];
@@ -147,7 +152,7 @@ export default function SubmitPage() {
     }
     setEodDate(new Date().toISOString().split('T')[0]);
 
-    fetch('/api/dashboard')
+    fetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
@@ -195,6 +200,7 @@ export default function SubmitPage() {
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
           notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
           closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waBC,
         }),
       });
@@ -226,6 +232,7 @@ export default function SubmitPage() {
           paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
           setter: cdSetter, closer: cdCloser, closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waCD,
         }),
       });
@@ -258,6 +265,7 @@ export default function SubmitPage() {
           cashCollectedI2I: eodCashI2I, revenueOnDay: eodRevenue,
           improvementPlan: eodPlan,
           closerEmail: user ? user.email : '',
+          workspaceId: submitWorkspaceId,
           _whatsapp: waEOD,
         }),
       });
@@ -272,7 +280,7 @@ export default function SubmitPage() {
   }
 
   function refreshActivity() {
-    fetch('/api/dashboard')
+    fetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success && data.activity) setSubmissions(data.activity);
@@ -373,7 +381,7 @@ export default function SubmitPage() {
                         className={'flex-1 px-4 py-3 rounded-xl text-sm font-display font-bold transition-all ' +
                           (bcBrand === bnd ? 'text-white' : 'text-crm-muted')}
                         style={bcBrand === bnd ? {
-                          background: bnd === 'MYFM' ? '#3b82f6' : bnd === 'I2I' ? '#8b5cf6' : '#f59e0b',
+                          background: bnd === 'MYFM' ? '#fafafa' : bnd === 'I2I' ? '#d4d4d4' : '#f59e0b',
                           boxShadow: '0 0 20px ' + (bnd === 'MYFM' ? 'rgba(59,130,246,0.3)' : bnd === 'I2I' ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.3)')
                         } : { background: 'var(--crm-surface-bg)', border: '1px solid var(--crm-border)' }}
                       >
@@ -526,7 +534,7 @@ export default function SubmitPage() {
                         className={'flex-1 px-4 py-3 rounded-xl text-sm font-display font-bold transition-all ' +
                           (cdBrand === bnd ? 'text-white' : 'text-crm-muted')}
                         style={cdBrand === bnd ? {
-                          background: bnd === 'MYFM' ? '#3b82f6' : bnd === 'I2I' ? '#8b5cf6' : '#f59e0b',
+                          background: bnd === 'MYFM' ? '#fafafa' : bnd === 'I2I' ? '#d4d4d4' : '#f59e0b',
                           boxShadow: '0 0 20px ' + (bnd === 'MYFM' ? 'rgba(59,130,246,0.3)' : bnd === 'I2I' ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.3)')
                         } : { background: 'var(--crm-surface-bg)', border: '1px solid var(--crm-border)' }}
                       >

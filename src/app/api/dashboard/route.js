@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore } from '@/lib/store';
+import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, ALL_WORKSPACES } from '@/lib/store';
 import { initScheduler } from '@/lib/scheduler';
 
 export var dynamic = 'force-dynamic';
@@ -14,20 +14,34 @@ export async function GET(req) {
     var start = url.searchParams.get('start');
     var end = url.searchParams.get('end');
 
-    var overview = (start && end) ? getFilteredOverview(start, end) : getOverview();
-    var closers = getCloserBreakdown(start || undefined, end || undefined);
-    var activity = getRecentActivity(20);
+    var workspaceId = url.searchParams.get('workspace') || ALL_WORKSPACES;
+    var isAll = workspaceId === ALL_WORKSPACES;
+
+    // getOverview() is the cached, unscoped today view, so a scoped request always
+    // goes through the filtered path.
+    var overview = (start && end)
+      ? getFilteredOverview(start, end, workspaceId)
+      : (isAll ? getOverview() : getFilteredOverview(null, null, workspaceId));
+    var closers = getCloserBreakdown(start || undefined, end || undefined, workspaceId);
+    var activity = getRecentActivity(20, workspaceId);
     var store = getStore();
+
+    function countIn(list) {
+      if (isAll) return list.length;
+      return list.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; }).length;
+    }
 
     return NextResponse.json({
       success: true,
       overview: overview,
       closers: closers,
       activity: activity,
+      workspaceId: workspaceId,
+      workspaces: getWorkspaces(),
       counts: {
-        bookedCalls: store.bookedCalls.length,
-        closedDeals: store.closedDeals.length,
-        eodReports: store.eodReports.length,
+        bookedCalls: countIn(store.bookedCalls),
+        closedDeals: countIn(store.closedDeals),
+        eodReports: countIn(store.eodReports),
       },
       dateRange: { start: start, end: end },
       lastUpdated: new Date().toISOString(),
