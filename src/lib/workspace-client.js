@@ -104,9 +104,14 @@ export function useAccess() {
       .then(function(d) {
         if (cancelled || !d.success) return;
         setAccess(d);
-        // A member must not be left viewing a workspace they cannot access.
-        if (!d.canSeeAll && d.workspaceId && getActiveWorkspace() !== d.workspaceId) {
-          setActiveWorkspace(d.workspaceId);
+        // Never leave someone viewing a workspace they cannot access. Someone in
+        // several keeps their choice as long as it is one of theirs.
+        if (!d.canSeeAll) {
+          var allowed = d.workspaceIds || [];
+          var current = getActiveWorkspace();
+          if (allowed.indexOf(current) === -1) {
+            setActiveWorkspace(allowed[0] || 'default');
+          }
         }
       })
       .catch(function() {});

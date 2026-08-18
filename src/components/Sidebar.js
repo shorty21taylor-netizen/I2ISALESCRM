@@ -39,7 +39,7 @@ export default function Sidebar() {
   var localOperator = !!(user && (user.email || '').toLowerCase() === OPERATOR_EMAIL);
   var isOwner = (access && access.isOwner) || localOperator;
   // A member belongs to exactly one workspace, so there is nothing to switch between.
-  var canSwitch = access ? !!access.canSeeAll : false;
+  var canSwitch = access ? !!access.canSwitch : false;
 
   function handleSignOut() {
     logout();

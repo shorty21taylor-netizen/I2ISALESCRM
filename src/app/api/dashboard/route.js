@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, ALL_WORKSPACES } from '@/lib/store';
 import { initScheduler } from '@/lib/scheduler';
-import { effectiveReadWorkspace } from '@/lib/access';
+import { effectiveReadWorkspace, matchesWorkspace, ALL_WORKSPACES as ACCESS_ALL } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export async function GET(req) {
 
     // A member is pinned to their own workspace regardless of the query string.
     var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
-    var isAll = workspaceId === ALL_WORKSPACES;
+    var isAll = workspaceId === ACCESS_ALL;
 
     // getOverview() is the cached, unscoped today view, so a scoped request always
     // goes through the filtered path.
@@ -30,7 +30,7 @@ export async function GET(req) {
 
     function countIn(list) {
       if (isAll) return list.length;
-      return list.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; }).length;
+      return list.filter(function(r) { return matchesWorkspace(r, workspaceId); }).length;
     }
 
     return NextResponse.json({

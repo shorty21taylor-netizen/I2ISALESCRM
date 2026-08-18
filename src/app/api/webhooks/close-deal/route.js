@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { effectiveReadWorkspace, effectiveWriteWorkspace, ALL_WORKSPACES } from '@/lib/access';
+import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addClosedDeal, getStore, registerCloser, initStore, getWhatsappConfig } from '@/lib/store';
 
 var OFFER_LABELS = { 'saas': 'SaaS (Fund2Grow)', 'coaching': 'Coaching (Digital Programs)', 'dfy-funding': 'DFY Funding (Inner Circle)' };
@@ -79,8 +79,6 @@ export async function GET(req) {
   var store = getStore();
   var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
   var data = store.closedDeals;
-  if (workspaceId && workspaceId !== ALL_WORKSPACES) {
-    data = data.filter(function(r) { return (r.workspaceId || 'default') === workspaceId; });
-  }
+  data = data.filter(function(r) { return matchesWorkspace(r, workspaceId); });
   return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });
 }

@@ -135,9 +135,14 @@ function recordWorkspace(r) {
   return (r && r.workspaceId) || 'default';
 }
 
-// Narrow any record list to one workspace. Falsy id or ALL_WORKSPACES = everything.
+// Narrow a record list to one workspace, or to a set of them (for a person who
+// belongs to several). Falsy / ALL_WORKSPACES means no filtering.
 function scoped(list, workspaceId) {
   if (!workspaceId || workspaceId === ALL_WORKSPACES) return list;
+  if (Array.isArray(workspaceId)) {
+    if (workspaceId.length === 0) return [];
+    return list.filter(function(r) { return workspaceId.indexOf(recordWorkspace(r)) !== -1; });
+  }
   return list.filter(function(r) { return recordWorkspace(r) === workspaceId; });
 }
 

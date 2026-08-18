@@ -7,6 +7,7 @@ export default function WorkspaceSwitcher({ collapsed }) {
   var activeId = useWorkspace();
   var access = useAccess();
   var workspaces = (access && access.workspaces) || [];
+  var canSeeAll = !!(access && access.canSeeAll);
   var s = useState(false), open = s[0], setOpen = s[1];
   var boxRef = useRef(null);
 
@@ -78,6 +79,7 @@ export default function WorkspaceSwitcher({ collapsed }) {
           className="absolute left-2 right-2 mt-1 z-[70] rounded-xl overflow-hidden glass-card"
           style={{ maxHeight: '320px', overflowY: 'auto' }}
         >
+          {canSeeAll && (
           <button
             role="option"
             aria-selected={isAll}
@@ -91,8 +93,9 @@ export default function WorkspaceSwitcher({ collapsed }) {
             </span>
             {isAll && <Check className="w-3.5 h-3.5 text-crm-text-bright flex-shrink-0" />}
           </button>
+          )}
 
-          <hr className="divider" />
+          {canSeeAll && <hr className="divider" />}
 
           {workspaces.map(function(ws) {
             var selected = ws.id === activeId;

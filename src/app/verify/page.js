@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowLeft, Lock, CheckCircle } from 'lucide-react';
-import { getUser, setVerified, isLoggedIn, logout } from '@/lib/auth';
+import { getUser, saveUser, setVerified, isLoggedIn, logout } from '@/lib/auth';
 
 export default function VerifyPage() {
   var router = useRouter();
@@ -29,14 +29,25 @@ export default function VerifyPage() {
     setLoading(true);
     setError('');
     try {
-      var res = await fetch('/api/auth/verify-team', {
+      // Checks the person's own password first, falling back to the shared team
+      // password for anyone who does not have an account yet.
+      var res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: password }),
+        body: JSON.stringify({ email: user.email, name: user.name, password: password }),
       });
       var data = await res.json();
       if (data.verified) {
         setVerified(true);
+        // Adopt the name and role the account carries, so the stored user matches
+        // what the operator set rather than whatever was typed on the way in.
+        if (data.user) {
+          saveUser(Object.assign({}, user, {
+            name: data.user.name || user.name,
+            email: data.user.email || user.email,
+            role: data.user.role || user.role,
+          }));
+        }
         // Register the closer in the CRM store
         fetch('/api/auth/register', {
           method: 'POST',

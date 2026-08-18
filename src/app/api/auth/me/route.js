@@ -13,15 +13,19 @@ export async function GET(req) {
     var all = getWorkspaces();
     var visible = access.canSeeAll
       ? all
-      : all.filter(function(w) { return w.id === access.workspaceId; });
+      : all.filter(function(w) { return access.workspaceIds.indexOf(w.id) !== -1; });
 
     return NextResponse.json({
       success: true,
       email: access.email,
       role: access.role,
-      isOwner: access.isOwner,
+      isOwner: access.isOperator,
+      isOperator: access.isOperator,
       canSeeAll: access.canSeeAll,
-      workspaceId: access.workspaceId,
+      // Someone in more than one workspace can still switch between their own.
+      canSwitch: access.canSeeAll || visible.length > 1,
+      workspaceIds: access.workspaceIds,
+      workspaceId: access.canSeeAll ? null : access.workspaceIds[0],
       workspaces: visible,
     });
   } catch (e) {

@@ -61,6 +61,9 @@ export async function initDatabase() {
     // redeploy, which silently stopped all WhatsApp sending until it was re-entered.
     await p.query("CREATE TABLE IF NOT EXISTS app_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
+    // Per-user accounts: credentials (scrypt hash + salt) and workspace membership.
+    await p.query("CREATE TABLE IF NOT EXISTS app_users (email TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
     await p.query("CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
     await p.query("CREATE TABLE IF NOT EXISTS workspace_users (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, email TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
@@ -206,4 +209,23 @@ export async function loadAppConfig(key) {
   var r = await query('SELECT data FROM app_config WHERE id = $1', [key]);
   if (!r || r.rows.length === 0) return null;
   return r.rows[0].data;
+}
+
+// ===== APP USERS =====
+
+export async function saveAppUser(user) {
+  return query(
+    'INSERT INTO app_users (email, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (email) DO UPDATE SET data = $2, updated_at = NOW()',
+    [user.email.toLowerCase(), JSON.stringify(user)]
+  );
+}
+
+export async function loadAppUsers() {
+  var r = await query('SELECT data FROM app_users ORDER BY created_at ASC');
+  if (!r) return [];
+  return r.rows.map(function(row) { return row.data; });
+}
+
+export async function deleteAppUserDB(email) {
+  return query('DELETE FROM app_users WHERE email = $1', [email.toLowerCase()]);
 }

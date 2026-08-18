@@ -1,16 +1,15 @@
 // Server-side workspace access control.
 //
 // Identity arrives as the x-user-email header, set by the client from the signed-in
-// user. That is only as trustworthy as the client — see the caveat below — but it
-// gives every API one place to decide which workspace a caller may read and write.
+// user. Every API asks this module which workspaces that caller may read and write.
 //
-// CAVEAT: this app authenticates with a shared team password and keeps the user in
-// localStorage; there is no server-side session or token. A determined user could
-// therefore send someone else's email in the header. This module enforces the
-// product rule (a member sees only their workspace) and is the right seam to bolt
-// real sessions onto, but it is not a defence against a malicious insider.
+// CAVEAT: the header is supplied by the client. Accounts now have real per-user
+// passwords (see lib/users.js), but there is still no signed session token, so a
+// technical user could send another person's email. This module is the single seam
+// where a real session check should go.
 
-import { getUserWorkspace, getWorkspace } from '@/lib/store';
+import { getWorkspace } from '@/lib/store';
+import { getUser } from '@/lib/users';
 
 export var ALL_WORKSPACES = '__all__';
 
@@ -25,48 +24,54 @@ export function callerEmail(req) {
   }
 }
 
-// Which workspace is this caller allowed to act in?
-//   owner   -> any workspace, plus the combined view
-//   member  -> exactly the workspace they were added to
-//   unknown -> 'default', so the pre-existing team keeps working unchanged
+// Which workspaces may this caller act in?
+//   operator -> every workspace, plus the combined view
+//   member   -> the workspaces assigned to their account (one or many)
+//   unknown  -> 'default', so the pre-existing team keeps working unchanged
 export async function resolveAccess(req) {
   var email = callerEmail(req);
-  var isOwner = !!email && email === OWNER_EMAIL;
+  var isOperator = !!email && email === OWNER_EMAIL;
 
-  if (isOwner) {
-    return { email: email, isOwner: true, role: 'owner', workspaceId: null, canSeeAll: true };
+  if (isOperator) {
+    return { email: email, isOperator: true, isOwner: true, role: 'operator', workspaceIds: [], canSeeAll: true };
   }
 
-  var membership = null;
+  var account = null;
   if (email) {
     try {
-      membership = await getUserWorkspace(email);
+      account = await getUser(email);
     } catch (e) {
-      console.error('[Access] membership lookup failed:', e.message);
+      console.error('[Access] user lookup failed:', e.message);
     }
   }
 
-  var wsId = (membership && membership.workspaceId) || 'default';
-  // A member pinned to a workspace that no longer exists falls back to 'default'
-  // rather than being locked out of the app entirely.
-  if (wsId !== 'default' && !getWorkspace(wsId)) wsId = 'default';
+  var ids = (account && Array.isArray(account.workspaceIds)) ? account.workspaceIds.slice() : [];
+  // Drop assignments to workspaces that have since been deleted.
+  ids = ids.filter(function(id) { return id === 'default' || !!getWorkspace(id); });
+  if (ids.length === 0) ids = ['default'];
 
   return {
     email: email,
+    isOperator: false,
     isOwner: false,
-    role: (membership && membership.role) || 'closer',
-    workspaceId: wsId,
+    role: (account && account.role) || 'closer',
+    workspaceIds: ids,
     canSeeAll: false,
   };
 }
 
-// The workspace a request should actually read from.
-// Owners get what they asked for (defaulting to the combined view); everyone else
-// is pinned to their own workspace no matter what the query string says.
+// What a request should actually read.
+// Operators get what they asked for. A member gets the requested workspace only if
+// it is one of theirs; otherwise they get their own set — which for someone in
+// several workspaces is a combined view across just those.
 export async function effectiveReadWorkspace(req, requested) {
   var access = await resolveAccess(req);
   if (access.canSeeAll) return requested || ALL_WORKSPACES;
-  return access.workspaceId;
+
+  if (requested && requested !== ALL_WORKSPACES && access.workspaceIds.indexOf(requested) !== -1) {
+    return requested;
+  }
+  return access.workspaceIds.length === 1 ? access.workspaceIds[0] : access.workspaceIds;
 }
 
 // The workspace a new record must be written into. Never the combined view.
@@ -76,5 +81,15 @@ export async function effectiveWriteWorkspace(req, requested) {
     if (!requested || requested === ALL_WORKSPACES) return 'default';
     return requested;
   }
-  return access.workspaceId;
+  if (requested && access.workspaceIds.indexOf(requested) !== -1) return requested;
+  return access.workspaceIds[0];
+}
+
+// Does a record fall inside the resolved filter? The filter is a single workspace
+// id, or a list of them for someone who belongs to several.
+export function matchesWorkspace(record, filter) {
+  if (!filter || filter === ALL_WORKSPACES) return true;
+  var id = (record && record.workspaceId) || 'default';
+  if (Array.isArray(filter)) return filter.indexOf(id) !== -1;
+  return id === filter;
 }
