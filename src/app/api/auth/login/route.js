@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { initStore, getWorkspaces } from '@/lib/store';
 import { authenticate, hasAnyUsers } from '@/lib/users';
 import { OWNER_EMAIL } from '@/lib/access';
+import { verifyTeamPassword } from '@/lib/team-password';
 
 export var dynamic = 'force-dynamic';
 
@@ -33,11 +34,10 @@ export async function POST(req) {
     // No personal account matched. Fall back to the shared team password, but only
     // for people who don't have an account yet — otherwise a member could bypass
     // their own credentials (and their workspace limits) with the shared one.
-    var teamPassword = process.env.TEAM_PASSWORD || 'I2I2026!';
     var isOperator = email === OWNER_EMAIL;
     var accountsExist = await hasAnyUsers();
 
-    if (password === teamPassword) {
+    if (await verifyTeamPassword(password)) {
       var { getUser } = await import('@/lib/users');
       var existing = await getUser(email);
       if (existing && !isOperator) {

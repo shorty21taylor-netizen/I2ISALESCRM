@@ -4,6 +4,7 @@ import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCirc
 import { getInitials } from '@/lib/utils';
 import { getFormConfig, saveFormConfig, getPartners, addPartner, removePartner } from '@/lib/form-config';
 import { getTheme, setTheme } from '@/lib/theme';
+import TeamPasswordCard from '@/components/TeamPasswordCard';
 
 export default function SettingsPage() {
   var s1 = useState(null), copiedText = s1[0], setCopiedText = s1[1];
@@ -241,6 +242,9 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
 
+
+        {/* ===== TEAM PASSWORD ===== */}
+        <TeamPasswordCard />
         {/* ===== THEME TOGGLE ===== */}
         <div className="glass-card overflow-hidden stagger-1">
           <div className="section-header">
