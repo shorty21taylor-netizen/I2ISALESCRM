@@ -559,6 +559,196 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   return Object.values(closerMap).sort(function(a, b) { return b.cash - a.cash; });
 }
 
+// ============================================
+// LEADERBOARD — per-rep cash collected + revenue
+// ============================================
+//
+// Reps report the same money twice: once per deal on the Close a Deal form
+// (cashCollected) and once in the daily EOD (cashCollectedMYFM + cashCollectedI2I).
+// Summing both would double-count, so cash is settled DAY BY DAY, taking the
+// larger of the two sources for each rep-day. That keeps a day where someone
+// logged deals but skipped their EOD (and vice versa) fully counted, while a day
+// reported through both channels is only counted once — the same
+// highest-source-wins rule computeOverviewForRange() uses for the team totals.
+//
+// Revenue is the EOD "Revenue on Day" field. When a rep leaves it blank it falls
+// back to that day's cash, so revenue is never reported below cash collected.
+//
+// start/end are inclusive 'YYYY-MM-DD' strings; pass null for all time.
+
+function repKey(name) {
+  return (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function emptyRep(name) {
+  return {
+    name: name,
+    email: '',
+    cash: 0,
+    revenue: 0,
+    dealCash: 0,
+    eodCash: 0,
+    cashMYFM: 0,
+    cashI2I: 0,
+    reportedRevenue: 0,
+    closes: 0,
+    deals: 0,
+    dials: 0,
+    callsBooked: 0,
+    callsTaken: 0,
+    pitched: 0,
+    noShows: 0,
+    eodCount: 0,
+    daysActive: 0,
+    closeRate: 0,
+    cashPerDial: 0,
+    avgDealSize: 0,
+    lastActivity: null,
+    days: {},
+  };
+}
+
+function repDay(rep, date) {
+  if (!rep.days[date]) rep.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0 };
+  return rep.days[date];
+}
+
+function inRange(date, start, end) {
+  if (!date) return false;
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
+function touchActivity(rep, iso) {
+  if (!iso) return;
+  if (!rep.lastActivity || iso > rep.lastActivity) rep.lastActivity = iso;
+}
+
+export function getLeaderboard(startDate, endDate, workspaceId) {
+  var start = startDate || null;
+  var end = endDate || null;
+  var reps = {};
+
+  function repFor(name) {
+    var key = repKey(name);
+    if (!key) return null;
+    if (!reps[key]) reps[key] = emptyRep((name || '').trim());
+    // Keep the most complete spelling we have seen for the display name.
+    var seen = (name || '').trim();
+    if (seen.length > reps[key].name.length) reps[key].name = seen;
+    return reps[key];
+  }
+
+  scoped(store.eodReports, workspaceId).forEach(function(eod) {
+    var date = eod.date || (eod.submittedAt ? eod.submittedAt.split('T')[0] : '');
+    if (!inRange(date, start, end)) return;
+    var rep = repFor(eod.salesRep || eod.closerName);
+    if (!rep) return;
+
+    var myfm = parseFloat(eod.cashCollectedMYFM) || 0;
+    var i2i = parseFloat(eod.cashCollectedI2I) || 0;
+    var dayCash = myfm + i2i;
+    var dayRevenue = parseFloat(eod.revenueOnDay) || 0;
+
+    var day = repDay(rep, date);
+    day.eodCash += dayCash;
+    day.eodRevenue += dayRevenue;
+
+    rep.cashMYFM += myfm;
+    rep.cashI2I += i2i;
+    rep.eodCash += dayCash;
+    rep.reportedRevenue += dayRevenue;
+    rep.closes += parseInt(eod.closes) || 0;
+    rep.dials += parseInt(eod.outboundDials) || parseInt(eod.totalDials) || 0;
+    rep.callsBooked += parseInt(eod.netNewCallsBooked) || parseInt(eod.callsBooked) || 0;
+    rep.callsTaken += parseInt(eod.callsTaken) || parseInt(eod.connects) || 0;
+    rep.pitched += parseInt(eod.callsTakenAndPitched) || 0;
+    rep.noShows += parseInt(eod.callsNoShowed) || 0;
+    rep.eodCount++;
+    if (!rep.email && eod.closerEmail) rep.email = String(eod.closerEmail).toLowerCase().trim();
+    touchActivity(rep, eod.submittedAt);
+  });
+
+  scoped(store.closedDeals, workspaceId).forEach(function(deal) {
+    var date = deal.submittedAt ? deal.submittedAt.split('T')[0] : '';
+    if (!inRange(date, start, end)) return;
+    var rep = repFor(deal.closer || deal.closerName);
+    if (!rep) return;
+
+    var cash = parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0;
+    repDay(rep, date).dealCash += cash;
+    rep.dealCash += cash;
+    rep.deals++;
+    if (!rep.email && deal.closerEmail) rep.email = String(deal.closerEmail).toLowerCase().trim();
+    touchActivity(rep, deal.submittedAt);
+  });
+
+  var profiles = store.closerProfiles || {};
+  var profileByName = {};
+  Object.keys(profiles).forEach(function(k) {
+    var p = profiles[k];
+    if (p && p.name) profileByName[repKey(p.name)] = p;
+  });
+
+  var rows = Object.keys(reps).map(function(key) {
+    var rep = reps[key];
+
+    Object.keys(rep.days).forEach(function(date) {
+      var day = rep.days[date];
+      var dayCash = Math.max(day.dealCash, day.eodCash);
+      rep.cash += dayCash;
+      rep.revenue += Math.max(day.eodRevenue, dayCash);
+    });
+    rep.daysActive = Object.keys(rep.days).length;
+    delete rep.days;
+
+    // A rep who logged deals but reported no closes in an EOD still closed them.
+    rep.closes = Math.max(rep.closes, rep.deals);
+
+    if (!rep.email && profileByName[key]) rep.email = profileByName[key].email || '';
+
+    rep.cash = Math.round(rep.cash * 100) / 100;
+    rep.revenue = Math.round(rep.revenue * 100) / 100;
+    rep.dealCash = Math.round(rep.dealCash * 100) / 100;
+    rep.eodCash = Math.round(rep.eodCash * 100) / 100;
+    rep.cashMYFM = Math.round(rep.cashMYFM * 100) / 100;
+    rep.cashI2I = Math.round(rep.cashI2I * 100) / 100;
+    rep.reportedRevenue = Math.round(rep.reportedRevenue * 100) / 100;
+    rep.closeRate = rep.pitched > 0 ? Math.round((rep.closes / rep.pitched) * 1000) / 10 : 0;
+    rep.cashPerDial = rep.dials > 0 ? Math.round((rep.cash / rep.dials) * 100) / 100 : 0;
+    rep.avgDealSize = rep.closes > 0 ? Math.round(rep.cash / rep.closes) : 0;
+    return rep;
+  });
+
+  // Rank by cash collected, then revenue, then closes — a tie on money is broken
+  // by the rep who worked more deals to get there.
+  rows.sort(function(a, b) {
+    return (b.cash - a.cash) || (b.revenue - a.revenue) || (b.closes - a.closes);
+  });
+  rows.forEach(function(rep, i) { rep.rank = i + 1; });
+
+  return rows;
+}
+
+export function getLeaderboardTotals(rows) {
+  var totals = { cash: 0, revenue: 0, closes: 0, deals: 0, dials: 0, callsTaken: 0, pitched: 0, eodCount: 0, reps: rows.length };
+  rows.forEach(function(r) {
+    totals.cash += r.cash;
+    totals.revenue += r.revenue;
+    totals.closes += r.closes;
+    totals.deals += r.deals;
+    totals.dials += r.dials;
+    totals.callsTaken += r.callsTaken;
+    totals.pitched += r.pitched;
+    totals.eodCount += r.eodCount;
+  });
+  totals.cash = Math.round(totals.cash * 100) / 100;
+  totals.revenue = Math.round(totals.revenue * 100) / 100;
+  totals.closeRate = totals.pitched > 0 ? Math.round((totals.closes / totals.pitched) * 1000) / 10 : 0;
+  return totals;
+}
+
 export function getRecentActivity(limit, workspaceId) {
   var all = [];
 

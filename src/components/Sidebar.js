@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign } from 'lucide-react';
+import { Activity, LayoutDashboard, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
 
 var navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/closers', label: 'Closers', icon: Users },
   { href: '/submit', label: 'Submit', icon: ClipboardList },
   { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
