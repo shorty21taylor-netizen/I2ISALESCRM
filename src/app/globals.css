@@ -777,6 +777,88 @@
   }
 
   /* ============================================ */
+  /* LEADERBOARD — cash as the hero figure         */
+  /* ============================================ */
+  .cash-figure {
+    @apply font-display font-bold;
+    color: var(--crm-positive);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    text-shadow: 0 0 24px rgba(34,197,94,0.35), 0 0 52px rgba(34,197,94,0.12);
+  }
+  .cash-figure-hero { font-size: 46px; }
+  .cash-figure-xl   { font-size: 34px; }
+  .cash-figure-lg   { font-size: 27px; }
+  .cash-figure-md   { font-size: 20px; }
+
+  /* A dimmer sibling for revenue, so cash always wins the row. */
+  .revenue-figure {
+    @apply font-display font-semibold;
+    color: var(--crm-text-bright);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .lb-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 20px; border-radius: 16px;
+    border: 1px solid transparent;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  }
+  .lb-row:hover {
+    background: var(--glass-surface-bg);
+    border-color: var(--glass-surface-border);
+    transform: translateX(2px);
+  }
+
+  /* The leader's row earns a standing glow rather than a flat highlight. */
+  .lb-row-leader {
+    background: linear-gradient(90deg, rgba(34,197,94,0.09), rgba(34,197,94,0.02) 55%, transparent);
+    border-color: rgba(34,197,94,0.18);
+    box-shadow: inset 0 0 50px rgba(34,197,94,0.05);
+  }
+  .lb-row-leader:hover { border-color: rgba(34,197,94,0.3); }
+
+  .lb-bar {
+    height: 5px; border-radius: 999px; overflow: hidden;
+    background: var(--glass-surface-border);
+  }
+  .lb-bar-fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, #16a34a, #22c55e 60%, #4ade80);
+    box-shadow: 0 0 12px rgba(34,197,94,0.45);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .lb-bar-fill-partner {
+    background: linear-gradient(90deg, #7c5cff, #a78bfa 60%, #c4b5fd);
+    box-shadow: 0 0 12px rgba(167,139,250,0.45);
+  }
+
+  /* Partner sales get their own accent so the two boards never read as one. */
+  .partner-figure {
+    @apply font-display font-bold;
+    color: #a78bfa;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    text-shadow: 0 0 24px rgba(167,139,250,0.35), 0 0 52px rgba(167,139,250,0.12);
+  }
+  .partner-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 14px;
+    background: rgba(167,139,250,0.08);
+    border: 1px solid rgba(167,139,250,0.18);
+  }
+
+  html.light .cash-figure,
+  html.light .partner-figure { text-shadow: none; }
+  html.light .partner-figure { color: #7c3aed; }
+  html.light .partner-chip { background: rgba(124,58,237,0.06); border-color: rgba(124,58,237,0.18); }
+  html.light .lb-row-leader { box-shadow: none; }
+
+  /* ============================================ */
   /* LIGHT MODE OVERRIDES                         */
   /* ============================================ */
   html.light .metric-value {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getLeaderboard, getLeaderboardTotals, initStore, getWorkspaces } from '@/lib/store';
+import { getLeaderboard, getLeaderboardTotals, getPartnerLeaderboard, initStore, getWorkspaces } from '@/lib/store';
 import { effectiveReadWorkspace } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
@@ -17,11 +17,13 @@ export async function GET(req) {
     var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
 
     var reps = getLeaderboard(start, end, workspaceId);
+    var partner = getPartnerLeaderboard(start, end, workspaceId);
 
     return NextResponse.json({
       success: true,
       reps: reps,
       totals: getLeaderboardTotals(reps),
+      partner: partner,
       workspaceId: workspaceId,
       workspaces: getWorkspaces(),
       dateRange: { start: start, end: end },

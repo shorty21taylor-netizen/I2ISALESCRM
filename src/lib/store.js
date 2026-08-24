@@ -749,6 +749,98 @@ export function getLeaderboardTotals(rows) {
   return totals;
 }
 
+// ============================================
+// PARTNER SALES LEADERBOARD
+// ============================================
+//
+// Partner deals are stamped on the Close a Deal form as "Partner - <Brand>", so
+// unlike the main board this one is deal-derived only — an EOD records the day's
+// cash but never which brand it came from.
+//
+// These deals are ALSO part of the main standings, where cash is the rep's total
+// take for the day. This board is a lens on that same money, not a slice carved
+// out of it, so the two boards deliberately do not sum to a grand total.
+
+export function getPartnerLeaderboard(startDate, endDate, workspaceId) {
+  var start = startDate || null;
+  var end = endDate || null;
+  var reps = {};
+  var partners = {};
+
+  scoped(store.closedDeals, workspaceId).forEach(function(deal) {
+    if (classifyOffer(deal.program) !== 'partner') return;
+    var date = deal.submittedAt ? deal.submittedAt.split('T')[0] : '';
+    if (!inRange(date, start, end)) return;
+
+    var name = (deal.closer || deal.closerName || '').trim();
+    var key = repKey(name);
+    if (!key) return;
+
+    var cash = parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0;
+    var brand = offerDisplayName('partner', deal.program).replace(/^Partner — /, '');
+    if (brand === 'Partner') brand = 'Unspecified';
+
+    if (!reps[key]) {
+      reps[key] = { name: name, email: '', cash: 0, deals: 0, avgDealSize: 0, brands: {}, topBrand: '', lastActivity: null };
+    }
+    var rep = reps[key];
+    if (name.length > rep.name.length) rep.name = name;
+    rep.cash += cash;
+    rep.deals++;
+    rep.brands[brand] = (rep.brands[brand] || 0) + cash;
+    if (!rep.email && deal.closerEmail) rep.email = String(deal.closerEmail).toLowerCase().trim();
+    touchActivity(rep, deal.submittedAt);
+
+    if (!partners[brand]) partners[brand] = { name: brand, cash: 0, deals: 0, reps: {} };
+    partners[brand].cash += cash;
+    partners[brand].deals++;
+    partners[brand].reps[key] = true;
+  });
+
+  var rows = Object.keys(reps).map(function(key) {
+    var rep = reps[key];
+    rep.cash = Math.round(rep.cash * 100) / 100;
+    rep.avgDealSize = rep.deals > 0 ? Math.round(rep.cash / rep.deals) : 0;
+    // Which brand this rep sells most of, so the row can say more than a number.
+    var brandNames = Object.keys(rep.brands);
+    rep.topBrand = brandNames.sort(function(a, b) { return rep.brands[b] - rep.brands[a]; })[0] || '';
+    rep.brandCount = brandNames.length;
+    rep.brands = brandNames.map(function(b) {
+      return { name: b, cash: Math.round(rep.brands[b] * 100) / 100 };
+    }).sort(function(a, b) { return b.cash - a.cash; });
+    return rep;
+  });
+
+  rows.sort(function(a, b) { return (b.cash - a.cash) || (b.deals - a.deals); });
+  rows.forEach(function(rep, i) { rep.rank = i + 1; });
+
+  var brandRows = Object.keys(partners).map(function(b) {
+    var p = partners[b];
+    return {
+      name: p.name,
+      cash: Math.round(p.cash * 100) / 100,
+      deals: p.deals,
+      reps: Object.keys(p.reps).length,
+      avgDealSize: p.deals > 0 ? Math.round(p.cash / p.deals) : 0,
+    };
+  }).sort(function(a, b) { return b.cash - a.cash; });
+
+  var totalCash = rows.reduce(function(s, r) { return s + r.cash; }, 0);
+  var totalDeals = rows.reduce(function(s, r) { return s + r.deals; }, 0);
+
+  return {
+    reps: rows,
+    partners: brandRows,
+    totals: {
+      cash: Math.round(totalCash * 100) / 100,
+      deals: totalDeals,
+      reps: rows.length,
+      partners: brandRows.length,
+      avgDealSize: totalDeals > 0 ? Math.round(totalCash / totalDeals) : 0,
+    },
+  };
+}
+
 export function getRecentActivity(limit, workspaceId) {
   var all = [];
 
