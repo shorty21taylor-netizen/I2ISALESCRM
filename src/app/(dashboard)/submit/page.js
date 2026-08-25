@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -90,6 +90,22 @@ export default function SubmitPage() {
   var s4 = useState(null), successMsg = s4[0], setSuccessMsg = s4[1];
   var s5 = useState(''), error = s5[0], setError = s5[1];
   var s6 = useState(null), user = s6[0], setUser = s6[1];
+
+  // The hosted (n8n) forms are the default way to submit. The built-in forms below
+  // stay available as a fallback for anyone who is already inside the CRM.
+  var f1 = useState(null), formLinks = f1[0], setFormLinks = f1[1];
+  var f2 = useState(true), useExternal = f2[0], setUseExternal = f2[1];
+  var f3 = useState(false), showBuiltIn = f3[0], setShowBuiltIn = f3[1];
+
+  useEffect(function() {
+    fetch('/api/forms/config')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d && d.forms) setFormLinks(d.forms);
+        if (d && d.useExternalForms === false) setUseExternal(false);
+      })
+      .catch(function() { /* fall back to the built-in forms */ });
+  }, []);
 
   // Book a Call form
   var b1 = useState(''), bcLeadsName = b1[0], setBcLeadsName = b1[1];
@@ -306,6 +322,55 @@ export default function SubmitPage() {
       </header>
 
       <div className="px-8 py-8 space-y-6">
+
+        {/* ===== HOSTED FORMS (n8n) ===== */}
+        {useExternal && formLinks && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { key: 'book-call', icon: Phone, accent: 'text-crm-accent', blurb: 'Setters — log a new booked appointment' },
+                { key: 'close-deal', icon: DollarSign, accent: 'text-crm-positive', blurb: 'Closers — ring the bell on a won deal' },
+                { key: 'eod-report', icon: ClipboardCheck, accent: 'text-crm-muted', blurb: 'Everyone — end-of-day numbers' },
+              ].map(function(card) {
+                var link = formLinks[card.key];
+                if (!link || !link.url) return null;
+                var CardIcon = card.icon;
+                return (
+                  <a
+                    key={card.key}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="glass-card p-5 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform"
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardIcon className={'w-5 h-5 ' + card.accent} />
+                      <ExternalLink className="w-4 h-4 text-crm-muted" />
+                    </div>
+                    <div>
+                      <div className="font-display font-semibold text-crm-text-bright">{link.label}</div>
+                      <div className="text-xs text-crm-muted mt-1">{card.blurb}</div>
+                    </div>
+                    <div className="text-[11px] font-mono text-crm-muted mt-auto">
+                      Logs to the CRM + posts to WhatsApp
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={function() { setShowBuiltIn(!showBuiltIn); }}
+              className="flex items-center gap-2 text-xs font-mono text-crm-muted hover:text-crm-text transition-colors"
+            >
+              {showBuiltIn ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showBuiltIn ? 'Hide the in-CRM forms' : 'Or submit with the in-CRM forms'}
+            </button>
+          </div>
+        )}
+
+        {(!useExternal || !formLinks || showBuiltIn) && (
+        <div className="space-y-6">
 
         {/* Tab Toggle */}
         <div className="flex items-center justify-center">
@@ -719,6 +784,9 @@ export default function SubmitPage() {
               <WhatsAppStatus formType="eod-report" />
             </form>
           </div>
+        )}
+
+        </div>
         )}
 
         {/* Recent Submissions */}

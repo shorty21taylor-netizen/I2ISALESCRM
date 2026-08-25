@@ -16,6 +16,7 @@ var navItems = [
   { href: '/commissions', label: 'Commissions', icon: CreditCard },
   { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/message-log', label: 'Message Log', icon: MessageSquare },
   { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
 ];
 

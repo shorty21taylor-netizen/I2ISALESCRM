@@ -2,7 +2,7 @@
 // Triggers: EOD reminder (8 PM), Morning digest (6 AM), Admin morning report (6 AM)
 // All times are timezone-aware, skips weekends
 
-import { getBookedCallsForDate, getStore } from '@/lib/store';
+import { getBookedCallsForDate, getStore, addMessageLog } from '@/lib/store';
 import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageDB } from '@/lib/db';
 
 var schedule = {
@@ -97,8 +97,28 @@ function shouldRun(task, now) {
   return true;
 }
 
+// Scheduled sends are recorded in the same log as the form notifications, so the
+// Message Log answers "what went out today?" for everything, not just forms.
+function logScheduled(destination, message, status, error) {
+  try {
+    addMessageLog({
+      kind: 'scheduled',
+      destination: destination,
+      message: message,
+      status: status,
+      error: error || '',
+      source: 'scheduler',
+    });
+  } catch (e) {
+    console.error('[Scheduler] Log error:', e.message);
+  }
+}
+
 async function sendToGroup(message, groupId) {
-  if (!config.assistroApiUrl || !groupId) return;
+  if (!config.assistroApiUrl || !groupId) {
+    logScheduled(groupId || '', message, 'skipped', !groupId ? 'No group configured' : 'No Assistro API URL configured');
+    return;
+  }
   try {
     await fetch(config.assistroApiUrl, {
       method: 'POST',
@@ -109,13 +129,18 @@ async function sendToGroup(message, groupId) {
       body: JSON.stringify({ phone: groupId, body: message, type: 2 }),
     });
     console.log('[Scheduler] Group message sent to', groupId);
+    logScheduled(groupId, message, 'sent', '');
   } catch (e) {
     console.error('[Scheduler] Group send error:', e.message);
+    logScheduled(groupId, message, 'failed', e.message);
   }
 }
 
 async function sendDirect(message, phone) {
-  if (!config.assistroApiUrl || !phone) return;
+  if (!config.assistroApiUrl || !phone) {
+    logScheduled(phone || '', message, 'skipped', !phone ? 'No phone configured' : 'No Assistro API URL configured');
+    return;
+  }
   try {
     await fetch(config.assistroApiUrl, {
       method: 'POST',
@@ -126,8 +151,10 @@ async function sendDirect(message, phone) {
       body: JSON.stringify({ phone: phone, body: message, type: 1 }),
     });
     console.log('[Scheduler] Direct message sent to', phone);
+    logScheduled(phone, message, 'sent', '');
   } catch (e) {
     console.error('[Scheduler] Direct send error:', e.message);
+    logScheduled(phone, message, 'failed', e.message);
   }
 }
 
