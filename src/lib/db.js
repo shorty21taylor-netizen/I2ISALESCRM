@@ -55,6 +55,11 @@ export async function initDatabase() {
     await p.query('CREATE TABLE IF NOT EXISTS commission_rates (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())');
     await p.query('CREATE TABLE IF NOT EXISTS custom_messages (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())');
 
+    // Every outbound WhatsApp notification, whether it succeeded or not. This is the
+    // audit trail for "did the group actually get told about that deal?".
+    await p.query('CREATE TABLE IF NOT EXISTS message_log (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT \'default\', created_at TIMESTAMP DEFAULT NOW())').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_message_log_created ON message_log (created_at DESC)').catch(function() {});
+
     // ===== MULTI-WORKSPACE =====
     // App-level settings (WhatsApp credentials, group IDs, scheduler toggles).
     // Without this the config lived only in server memory and was wiped by every
@@ -107,6 +112,7 @@ export async function loadFromDatabase() {
     var cp = await p.query('SELECT email, data, workspace_id FROM closer_profiles');
     var cr = await p.query('SELECT email, data, workspace_id FROM commission_rates');
     var cm = await p.query('SELECT data, workspace_id FROM custom_messages ORDER BY created_at DESC LIMIT 100');
+    var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -123,6 +129,7 @@ export async function loadFromDatabase() {
       closerProfiles: cp.rows.reduce(function(a, r) { a[r.email] = withWs(r); return a; }, {}),
       commissionRates: cr.rows.reduce(function(a, r) { a[r.email] = withWs(r); return a; }, {}),
       customMessages: cm.rows.map(withWs),
+      messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -156,6 +163,19 @@ export async function updateDealInDB(entry) {
 
 export async function saveCustomMessage(entry) {
   return query('INSERT INTO custom_messages (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+}
+
+export async function saveMessageLogEntry(entry) {
+  return query(
+    'INSERT INTO message_log (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2',
+    [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']
+  );
+}
+
+export async function loadMessageLog(limit) {
+  var r = await query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT $1', [limit || 300]);
+  if (!r) return [];
+  return r.rows.map(function(row) { var d = row.data || {}; d.workspaceId = row.workspace_id || 'default'; return d; });
 }
 
 export async function deleteCustomMessageDB(id) {

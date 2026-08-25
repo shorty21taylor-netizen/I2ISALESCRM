@@ -5,6 +5,7 @@ import { getInitials } from '@/lib/utils';
 import { getFormConfig, saveFormConfig, getPartners, addPartner, removePartner } from '@/lib/form-config';
 import { getTheme, setTheme } from '@/lib/theme';
 import TeamPasswordCard from '@/components/TeamPasswordCard';
+import FormsIntegrationCard from '@/components/FormsIntegrationCard';
 
 export default function SettingsPage() {
   var s1 = useState(null), copiedText = s1[0], setCopiedText = s1[1];
@@ -726,6 +727,9 @@ export default function SettingsPage() {
         </div>
 
         {/* ===== WEBHOOK ENDPOINTS ===== */}
+        {/* ===== HOSTED SALES FORMS ===== */}
+        <FormsIntegrationCard />
+
         <div className="glass-card overflow-hidden stagger-4">
           <div className="section-header">
             <h3><Webhook className="w-4 h-4 text-crm-accent" /> API Endpoints</h3>
@@ -744,6 +748,8 @@ export default function SettingsPage() {
               { label: 'Scheduled Messages', path: '/api/scheduled-messages', method: 'GET/POST' },
               { label: 'Scheduler', path: '/api/scheduler', method: 'GET/POST' },
               { label: 'Health', path: '/api/health', method: 'GET' },
+              { label: 'n8n Form Ingest', path: '/api/forms/ingest?type=book-call|close-deal|eod-report', method: 'POST' },
+              { label: 'Message Log', path: '/api/message-log', method: 'GET' },
             ].map(function(ep) {
               var fullUrl = origin + ep.path;
               return (

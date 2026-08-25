@@ -2,7 +2,7 @@
 // On startup, data loads from DB. Every write saves to both memory AND DB.
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB } from '@/lib/db';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
@@ -21,6 +21,7 @@ var store = {
   bookedCalls: [],
   closedDeals: [],
   eodReports: [],
+  messageLog: [],
   commissionRates: {},
   closerProfiles: {},
   workspaces: [Object.assign({}, DEFAULT_WORKSPACE)],
@@ -75,6 +76,7 @@ export async function initStore() {
         store.bookedCalls = data.bookedCalls || [];
         store.closedDeals = data.closedDeals || [];
         store.eodReports = data.eodReports || [];
+        store.messageLog = data.messageLog || [];
         store.closerProfiles = data.closerProfiles || {};
         store.commissionRates = data.commissionRates || {};
         console.log('[Store] Loaded from DB:',
@@ -170,6 +172,16 @@ export function addBookedCall(data) {
     setter: data.setter || '',
     closer: data.closer || '',
     outboundInbound: data.outboundInbound || 'inbound',
+    leadsEmail: data.leadsEmail || '',
+    creditScore: data.creditScore || '',
+    intentScore: data.intentScore || '',
+    goal: data.goal || '',
+    pain: data.pain || '',
+    closerEmail: data.closerEmail || '',
+    // Which form produced this record: 'crm' for the in-app form, 'n8n' for the
+    // hosted forms. Lets the message log and any audit tie a row back to its origin.
+    formSource: data.formSource || 'crm',
+    extra: data.extra || {},
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
@@ -199,6 +211,10 @@ export function addClosedDeal(data) {
     closer: data.closer || '',
     closerEmail: data.closerEmail || '',
     commissionStatus: 'pending',
+    outboundInbound: data.outboundInbound || '',
+    notes: data.notes || '',
+    formSource: data.formSource || 'crm',
+    extra: data.extra || {},
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
@@ -231,6 +247,12 @@ export function addEODReport(data) {
     cashCollectedI2I: parseFloat(data.cashCollectedI2I) || 0,
     revenueOnDay: parseFloat(data.revenueOnDay) || 0,
     improvementPlan: data.improvementPlan || '',
+    leadsCalled: data.leadsCalled || '',
+    callOutcomes: data.callOutcomes || '',
+    closerName: data.closerName || '',
+    closerEmail: data.closerEmail || '',
+    formSource: data.formSource || 'crm',
+    extra: data.extra || {},
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
     status: 'submitted',
@@ -1344,6 +1366,39 @@ export function getAllCloserProfiles() {
 // ============================================
 // WHATSAPP CONFIG — server-side, read by webhooks
 // ============================================
+
+// ============================================
+// OUTBOUND MESSAGE LOG
+// ============================================
+//
+// Every WhatsApp notification the CRM attempts is recorded here — sent, failed or
+// skipped — so "the form was filled in" and "the group was actually notified" are
+// two separately verifiable facts rather than one assumption.
+
+export function addMessageLog(data) {
+  var entry = {
+    id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    kind: data.kind || 'other',            // book-call | close-deal | eod-report | scheduled | manual
+    channel: data.channel || 'whatsapp',
+    destination: data.destination || '',   // group id or phone
+    message: data.message || '',
+    status: data.status || 'unknown',      // sent | failed | skipped
+    error: data.error || '',
+    source: data.source || 'crm',          // crm | n8n | scheduler
+    recordId: data.recordId || '',
+    recordLabel: data.recordLabel || '',
+    workspaceId: resolveWriteWorkspace(data.workspaceId),
+    sentAt: new Date().toISOString(),
+  };
+  store.messageLog.unshift(entry);
+  if (store.messageLog.length > 300) store.messageLog = store.messageLog.slice(0, 300);
+  saveMessageLogEntry(entry).catch(function(e) { console.error('[DB] Save message log error:', e.message); });
+  return entry;
+}
+
+export function getMessageLog(workspaceId) {
+  return scoped(store.messageLog, workspaceId);
+}
 
 export function getWhatsappConfig() {
   return store.whatsappConfig;
