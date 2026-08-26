@@ -1412,6 +1412,41 @@ export function getAfterCallReports(workspaceId) {
 }
 
 // ============================================
+// INGEST ATTEMPTS — did n8n actually reach us?
+// ============================================
+//
+// A rejected submission (wrong key, unknown form type, missing lead name) is only
+// visible in the Railway logs, and n8n's continue-on-error hides it at the other
+// end too — so a broken HTTP Request node looks exactly like "nobody filled the
+// form in". This ring buffer makes the difference visible inside the CRM.
+//
+// In memory only, and deliberately: it is a live debugging aid, not a record. No
+// key material is ever stored — only whether one was presented.
+
+var ingestAttempts = [];
+
+export function addIngestAttempt(data) {
+  var entry = {
+    at: new Date().toISOString(),
+    type: data.type || '',
+    requestedType: data.requestedType || '',
+    status: data.status || '',          // accepted | rejected | error
+    reason: data.reason || '',
+    keyPresented: !!data.keyPresented,
+    recordId: data.recordId || '',
+    label: data.label || '',
+    ip: data.ip || '',
+  };
+  ingestAttempts.unshift(entry);
+  if (ingestAttempts.length > 50) ingestAttempts = ingestAttempts.slice(0, 50);
+  return entry;
+}
+
+export function getIngestAttempts() {
+  return ingestAttempts;
+}
+
+// ============================================
 // DELETING A RECORD
 // ============================================
 //

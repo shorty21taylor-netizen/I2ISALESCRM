@@ -4,7 +4,7 @@
 // key n8n uses to post those submissions back into the CRM.
 
 import { useState, useEffect } from 'react';
-import { ClipboardList, Copy, Check, Save, KeyRound, ExternalLink, AlertCircle } from 'lucide-react';
+import { ClipboardList, Copy, Check, Save, KeyRound, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 
@@ -24,12 +24,28 @@ export default function FormsIntegrationCard() {
   var [saved, setSaved] = useState(false);
   var [origin, setOrigin] = useState('');
   var [busy, setBusy] = useState(false);
+  var [attempts, setAttempts] = useState(null);
+  var [attemptSummary, setAttemptSummary] = useState(null);
 
   var user = typeof window !== 'undefined' ? getUser() : null;
   var isOwner = !!(user && user.email === 'shorty21taylor@gmail.com');
 
+  // "Is n8n actually calling us?" — the only question worth asking when the CRM
+  // looks empty. A rejected call is otherwise invisible: n8n swallows the error and
+  // the CRM only writes it to the Railway log.
+  function loadAttempts() {
+    apiFetch('/api/forms/ingest?type=close-deal')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        setAttempts(d.recentAttempts || []);
+        setAttemptSummary(d.attemptSummary || null);
+      })
+      .catch(function() { setAttempts([]); });
+  }
+
   useEffect(function() {
     setOrigin(window.location.origin);
+    loadAttempts();
     apiFetch('/api/forms/config')
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -151,6 +167,64 @@ export default function FormsIntegrationCard() {
             {cfg.ingestKeySource === 'env' && (
               <div className="text-[11px] text-crm-muted">
                 <code className="font-mono">FORM_INGEST_KEY</code> is set in the environment and overrides any key generated here.
+              </div>
+            )}
+          </div>
+        )}
+
+        {isOwner && attempts && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>
+                Submissions received
+              </p>
+              <button onClick={loadAttempts} className="btn-ghost p-1.5">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {attemptSummary && attemptSummary.total > 0 && (
+              <p className="text-[11px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>
+                {attemptSummary.accepted} accepted · {attemptSummary.rejected} rejected · {attemptSummary.errors} errored
+                {' — '}{attemptSummary.note}
+              </p>
+            )}
+
+            {attempts.length === 0 ? (
+              <div className="glass-surface p-3">
+                <p className="text-xs" style={{ color: 'var(--crm-text-muted)' }}>
+                  Nothing has called this endpoint since the last deploy. If reps have submitted forms
+                  since then, the n8n HTTP Request node is not reaching the CRM — check its URL.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {attempts.slice(0, 8).map(function(a, i) {
+                  var good = a.status === 'accepted';
+                  return (
+                    <div key={i} className="glass-surface p-2 flex items-start gap-2">
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={good
+                          ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
+                          : { background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                        {good ? 'OK' : a.status.toUpperCase()}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-mono truncate" style={{ color: 'var(--crm-text-bright)' }}>
+                          {(a.type || a.requestedType || 'unknown type') + (a.label ? ' — ' + a.label : '')}
+                        </p>
+                        {a.reason && (
+                          <p className="text-[11px] font-mono" style={{ color: '#ef4444' }}>
+                            {a.reason}{!a.keyPresented && a.reason.indexOf('key') !== -1 ? ' (no key header was sent)' : ''}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono flex-shrink-0" style={{ color: 'var(--crm-text-muted)' }}>
+                        {a.at ? a.at.substring(5, 16).replace('T', ' ') : ''}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
