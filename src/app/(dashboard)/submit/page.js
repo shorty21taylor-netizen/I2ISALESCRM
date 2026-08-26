@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -326,11 +326,12 @@ export default function SubmitPage() {
         {/* ===== HOSTED FORMS (n8n) ===== */}
         {useExternal && formLinks && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {[
                 { key: 'book-call', icon: Phone, accent: 'text-crm-accent', blurb: 'Setters — log a new booked appointment' },
                 { key: 'close-deal', icon: DollarSign, accent: 'text-crm-positive', blurb: 'Closers — ring the bell on a won deal' },
                 { key: 'eod-report', icon: ClipboardCheck, accent: 'text-crm-muted', blurb: 'Everyone — end-of-day numbers' },
+                { key: 'after-call', icon: FileText, accent: 'text-crm-accent', blurb: 'Closers — recap what happened on the call' },
               ].map(function(card) {
                 var link = formLinks[card.key];
                 if (!link || !link.url) return null;

@@ -70,7 +70,37 @@ export function buildClosedDealMessage(entry, timezone) {
     + '═══════════════════════';
 }
 
+// A setter's day and a closer's day are different reports behind one form. Rendering
+// a setter through the closer template posts a wall of zeros to the group.
+function buildSetterEODMessage(entry, timezone) {
+  var contactRate = entry.outboundDials > 0
+    ? Math.round((entry.conversations / entry.outboundDials) * 100) : 0;
+  return '📋 EOD REPORT — SETTER 📋\n'
+    + '═══════════════════════\n\n'
+    + '👤 Sales Rep: ' + (entry.salesRep || 'N/A') + '\n'
+    + '📅 Date: ' + (entry.date || 'Today') + '\n\n'
+    + '📊 ACTIVITY\n'
+    + '────────────────\n'
+    + '📱 Dials: ' + (entry.outboundDials || 0) + '\n'
+    + '🗣️ Conversations: ' + (entry.conversations || 0) + '\n'
+    + '☎️ Live Calls: ' + (entry.liveCalls || 0) + '\n'
+    + '⏱️ Talk Time: ' + (entry.talkTime || 'N/A') + '\n'
+    + '📈 Contact Rate: ' + contactRate + '%\n\n'
+    + '🎯 OUTPUT\n'
+    + '────────────────\n'
+    + '📅 Sets: ' + (entry.sets || 0) + '\n'
+    + '🔁 Follow-Ups Scheduled: ' + (entry.followUpsScheduled || 0) + '\n'
+    + '🏆 Deals Closed: ' + (entry.closes || 0) + '\n'
+    + '💵 Cash Collected: ' + money(entry.cashCollectedMYFM + entry.cashCollectedI2I) + '\n'
+    + line('🎯', 'Closer', entry.closerName)
+    + line('⭐', 'Self Rating', entry.selfRating ? entry.selfRating + '/10' : '')
+    + (entry.improvementPlan ? '\n🔮 NEEDS HELP WITH\n────────────────\n' + entry.improvementPlan + '\n' : '')
+    + '\n⏰ ' + stamp(timezone) + '\n'
+    + '═══════════════════════';
+}
+
 export function buildEODMessage(entry, timezone) {
+  if (entry.role === 'setter') return buildSetterEODMessage(entry, timezone);
   return '📋 EOD REPORT 📋\n'
     + '═══════════════════════\n\n'
     + '👤 Sales Rep: ' + (entry.salesRep || 'N/A') + '\n'
@@ -95,7 +125,22 @@ export function buildEODMessage(entry, timezone) {
     + '📈 Revenue: ' + money(entry.revenueOnDay) + '\n'
     + (entry.leadsCalled ? '\n📇 Leads Called\n────────────────\n' + entry.leadsCalled + '\n' : '')
     + (entry.callOutcomes ? '\n🗒️ Outcomes\n────────────────\n' + entry.callOutcomes + '\n' : '')
+    + line('⭐', 'Self Rating', entry.selfRating ? entry.selfRating + '/10' : '')
     + (entry.improvementPlan ? '\n🔮 TOMORROW\n────────────────\n' + entry.improvementPlan + '\n' : '')
+    + '\n⏰ ' + stamp(timezone) + '\n'
+    + '═══════════════════════';
+}
+
+export function buildAfterCallMessage(entry, timezone) {
+  return '📝 AFTER-CALL REPORT 📝\n'
+    + '═══════════════════════\n\n'
+    + '👤 Lead: ' + (entry.leadsName || 'N/A') + '\n'
+    + '📱 Phone: ' + (entry.leadsPhone || 'N/A') + '\n'
+    + line('📧', 'Email', entry.leadsEmail)
+    + line('🎯', 'Closer', entry.closer)
+    + line('✅', 'Outcome', entry.outcome)
+    + (entry.callNotes ? '\n🗒️ Notes\n────────────────\n' + entry.callNotes + '\n' : '')
+    + (entry.nextStep ? '\n➡️ Next Step: ' + entry.nextStep + '\n' : '')
     + '\n⏰ ' + stamp(timezone) + '\n'
     + '═══════════════════════';
 }
@@ -104,5 +149,6 @@ export function buildMessage(formType, entry, timezone) {
   if (formType === 'book-call') return buildBookedCallMessage(entry, timezone);
   if (formType === 'close-deal') return buildClosedDealMessage(entry, timezone);
   if (formType === 'eod-report') return buildEODMessage(entry, timezone);
+  if (formType === 'after-call') return buildAfterCallMessage(entry, timezone);
   return '';
 }

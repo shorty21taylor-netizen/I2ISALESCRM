@@ -55,6 +55,10 @@ export async function initDatabase() {
     await p.query('CREATE TABLE IF NOT EXISTS commission_rates (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())');
     await p.query('CREATE TABLE IF NOT EXISTS custom_messages (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())');
 
+    // After-call reports: the recap a closer files once the call is over.
+    await p.query("CREATE TABLE IF NOT EXISTS after_call_reports (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_after_call_created ON after_call_reports (created_at DESC)').catch(function() {});
+
     // Every outbound WhatsApp notification, whether it succeeded or not. This is the
     // audit trail for "did the group actually get told about that deal?".
     await p.query('CREATE TABLE IF NOT EXISTS message_log (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT \'default\', created_at TIMESTAMP DEFAULT NOW())').catch(function() {});
@@ -113,6 +117,7 @@ export async function loadFromDatabase() {
     var cr = await p.query('SELECT email, data, workspace_id FROM commission_rates');
     var cm = await p.query('SELECT data, workspace_id FROM custom_messages ORDER BY created_at DESC LIMIT 100');
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
+    var ac = await p.query('SELECT data, workspace_id FROM after_call_reports ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -130,6 +135,7 @@ export async function loadFromDatabase() {
       commissionRates: cr.rows.reduce(function(a, r) { a[r.email] = withWs(r); return a; }, {}),
       customMessages: cm.rows.map(withWs),
       messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
+      afterCallReports: (ac && ac.rows ? ac.rows : []).map(withWs),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -163,6 +169,13 @@ export async function updateDealInDB(entry) {
 
 export async function saveCustomMessage(entry) {
   return query('INSERT INTO custom_messages (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+}
+
+export async function saveAfterCallReport(entry) {
+  return query(
+    'INSERT INTO after_call_reports (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3',
+    [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']
+  );
 }
 
 export async function saveMessageLogEntry(entry) {

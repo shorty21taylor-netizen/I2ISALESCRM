@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { initStore, addBookedCall, addClosedDeal, addEODReport, registerCloser } from '@/lib/store';
+import { initStore, addBookedCall, addClosedDeal, addEODReport, addAfterCallReport, registerCloser } from '@/lib/store';
 import { normalizeSubmission, resolveFormType } from '@/lib/form-ingest';
 import { sendFormNotification } from '@/lib/notify-server';
 import { getIngestKey, ingestKeyMatches } from '@/lib/ingest-auth';
 
 // Public ingest endpoint for the hosted n8n forms.
 //
-//   POST /api/forms/ingest?type=close-deal
+//   POST /api/forms/ingest?type=close-deal          (also: book-call, eod-report, after-call)
 //   x-api-key: <FORM_INGEST_KEY>
 //   { "Client Name": "...", "Deal Value": "5000", ... }
 //
@@ -86,6 +86,7 @@ export async function POST(req) {
     var entry;
     if (type === 'book-call') entry = addBookedCall(record);
     else if (type === 'close-deal') entry = addClosedDeal(record);
+    else if (type === 'after-call') entry = addAfterCallReport(record);
     else entry = addEODReport(record);
 
     var closerName = record.closer || record.closerName || record.salesRep || '';
@@ -124,7 +125,7 @@ export async function GET(req) {
   var expected = await getIngestKey();
   return NextResponse.json({
     ok: true,
-    endpoint: '/api/forms/ingest?type=book-call|close-deal|eod-report',
+    endpoint: '/api/forms/ingest?type=book-call|close-deal|eod-report|after-call',
     typeResolved: type || null,
     ingestKeyConfigured: !!expected,
     howToAuth: 'Send header  x-api-key: <FORM_INGEST_KEY>',

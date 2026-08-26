@@ -9,6 +9,7 @@ var DEFAULT_FORMS = {
   'book-call': { label: 'Booked Appointment', url: 'https://summitsales.app.n8n.cloud/form/lead-booking' },
   'close-deal': { label: 'Closed Deal (Gong Channel)', url: 'https://summitsales.app.n8n.cloud/form/deal-won' },
   'eod-report': { label: 'EOD Report', url: 'https://summitsales.app.n8n.cloud/form/eod-report' },
+  'after-call': { label: 'After-Call Report', url: 'https://summitsales.app.n8n.cloud/form/after-call-report' },
 };
 
 function isOwner(req) {

@@ -6,6 +6,7 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ExtraFields from '@/components/ExtraFields';
 
 export default function EODLogsPage() {
   var workspaceId = useWorkspace();
@@ -198,22 +199,57 @@ export default function EODLogsPage() {
     return true;
   }).sort(function(a, b) { return (b.date || '') > (a.date || '') ? 1 : -1; });
 
+  function metricTiles(items) {
+    return items.map(function(m) {
+      return (
+        <div key={m.label} className="glass-surface rounded-lg p-2 text-center">
+          <p className="text-sm font-display font-bold" style={{ color: m.color || 'var(--crm-text-bright)' }}>{m.value}</p>
+          <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>{m.label}</p>
+        </div>
+      );
+    });
+  }
+
+  function longField(label, value) {
+    if (!value) return null;
+    return (
+      <div className="mt-2">
+        <p className="text-[9px] font-mono uppercase mb-0.5" style={{ color: 'var(--crm-text-muted)' }}>{label}</p>
+        <p className="text-xs font-mono whitespace-pre-wrap" style={{ color: 'var(--crm-text-bright)' }}>{value}</p>
+      </div>
+    );
+  }
+
+  // The EOD form branches on Position, so the card has to as well. A setter rendered
+  // through the closer tiles is six zeros and none of the work they actually did.
   function renderEODCard(eod, showName) {
     var rep = eod.salesRep || eod.closerName || 'Unknown';
     var initials = rep.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+    var closes = parseInt(eod.closes) || 0;
+    var cashM = parseFloat(eod.cashCollectedMYFM) || 0;
+    var cashI = parseFloat(eod.cashCollectedI2I) || 0;
+    var totalC = cashM + cashI;
+    var role = eod.role || '';
+    var isSetter = role === 'setter';
+
+    // Closer metrics
     var dials = parseInt(eod.outboundDials) || 0;
     var taken = parseInt(eod.callsTaken) || 0;
     var pitched = parseInt(eod.callsTakenAndPitched) || 0;
-    var closes = parseInt(eod.closes) || 0;
     var booked = parseInt(eod.netNewCallsBooked) || 0;
     var noShows = parseInt(eod.callsNoShowed) || 0;
     var canceled = parseInt(eod.callsCanceled) || 0;
     var rescheduled = parseInt(eod.callsRescheduled) || 0;
     var calendar = parseInt(eod.callsOnCalendar) || 0;
-    var cashM = parseFloat(eod.cashCollectedMYFM) || 0;
-    var cashI = parseFloat(eod.cashCollectedI2I) || 0;
-    var totalC = cashM + cashI;
     var closeRate = pitched > 0 ? Math.min(Math.round((closes / pitched) * 100), 100) : 0;
+
+    // Setter metrics
+    var conversations = parseInt(eod.conversations) || 0;
+    var liveCalls = parseInt(eod.liveCalls) || 0;
+    var sets = parseInt(eod.sets) || 0;
+    var followUps = parseInt(eod.followUpsScheduled) || 0;
+    var contactRate = dials > 0 ? Math.min(Math.round((conversations / dials) * 100), 100) : 0;
+    var setRate = conversations > 0 ? Math.min(Math.round((sets / conversations) * 100), 100) : 0;
 
     return (
       <div key={eod.id} className="glass-card p-4 md:p-5">
@@ -223,61 +259,81 @@ export default function EODLogsPage() {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
+                {(eod.position || role) && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex-shrink-0"
+                    style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
+                    {eod.position || role}
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>{eod.date}</p>
             </div>
             {totalC > 0 && <span className="text-sm font-display font-bold" style={{ color: '#22c55e' }}>{formatCurrency(totalC)}</span>}
           </div>
         )}
 
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
-          {[
-            { label: 'Dials', value: dials },
-            { label: 'Booked', value: booked },
-            { label: 'Calendar', value: calendar },
-            { label: 'Taken', value: taken },
-            { label: 'Pitched', value: pitched },
-            { label: 'Closes', value: closes, color: closes > 0 ? '#22c55e' : null },
-          ].map(function(m) {
-            return (
-              <div key={m.label} className="glass-surface rounded-lg p-2 text-center">
-                <p className="text-sm font-display font-bold" style={{ color: m.color || 'var(--crm-text-bright)' }}>{m.value}</p>
-                <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>{m.label}</p>
-              </div>
-            );
-          })}
-        </div>
+        {isSetter ? (
+          <>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
+              {metricTiles([
+                { label: 'Dials', value: dials },
+                { label: 'Convos', value: conversations },
+                { label: 'Live Calls', value: liveCalls },
+                { label: 'Sets', value: sets, color: sets > 0 ? '#22c55e' : null },
+                { label: 'Follow-Ups', value: followUps },
+                { label: 'Closes', value: closes, color: closes > 0 ? '#22c55e' : null },
+              ])}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {metricTiles([
+                { label: 'Talk Time', value: eod.talkTime || '—' },
+                { label: 'Contact Rate', value: contactRate + '%', color: contactRate >= 30 ? '#22c55e' : contactRate > 0 ? '#f59e0b' : null },
+                { label: 'Set Rate', value: setRate + '%', color: setRate >= 20 ? '#22c55e' : setRate > 0 ? '#f59e0b' : null },
+                { label: 'Self Rating', value: eod.selfRating ? eod.selfRating + '/10' : '—' },
+              ])}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
+              {metricTiles([
+                { label: 'Dials', value: dials },
+                { label: 'Booked', value: booked },
+                { label: 'Calendar', value: calendar },
+                { label: 'Taken', value: taken },
+                { label: 'Pitched', value: pitched },
+                { label: 'Closes', value: closes, color: closes > 0 ? '#22c55e' : null },
+              ])}
+            </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <div className="glass-surface rounded-lg p-2 text-center">
-            <p className="text-sm font-display font-bold" style={{ color: noShows > 0 ? '#ef4444' : 'var(--crm-text-bright)' }}>{noShows}</p>
-            <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>No Shows</p>
-          </div>
-          <div className="glass-surface rounded-lg p-2 text-center">
-            <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{canceled}</p>
-            <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Canceled</p>
-          </div>
-          <div className="glass-surface rounded-lg p-2 text-center">
-            <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{rescheduled}</p>
-            <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Rescheduled</p>
-          </div>
-          <div className="glass-surface rounded-lg p-2 text-center">
-            <p className="text-sm font-display font-bold" style={{ color: closeRate >= 30 ? '#22c55e' : closeRate > 0 ? '#f59e0b' : 'var(--crm-text-bright)' }}>{closeRate}%</p>
-            <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Close Rate</p>
-          </div>
-          <div className="glass-surface rounded-lg p-2 text-center">
-            <p className="text-sm font-display font-bold" style={{ color: '#22c55e' }}>{formatCurrency(totalC)}</p>
-            <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Revenue</p>
-          </div>
-        </div>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              {metricTiles([
+                { label: 'No Shows', value: noShows, color: noShows > 0 ? '#ef4444' : null },
+                { label: 'Canceled', value: canceled },
+                { label: 'Rescheduled', value: rescheduled },
+                { label: 'Close Rate', value: closeRate + '%', color: closeRate >= 30 ? '#22c55e' : closeRate > 0 ? '#f59e0b' : null },
+                { label: 'Self Rating', value: eod.selfRating ? eod.selfRating + '/10' : '—' },
+                { label: 'Revenue', value: formatCurrency(totalC), color: '#22c55e' },
+              ])}
+            </div>
+          </>
+        )}
 
         {(cashM > 0 || cashI > 0) && (
           <p className="text-xs font-mono mt-2" style={{ color: 'var(--crm-text-muted)' }}>MYFM: {formatCurrency(cashM)} · I2I: {formatCurrency(cashI)}</p>
         )}
 
-        {eod.improvementPlan && (
-          <p className="text-xs font-mono mt-2" style={{ color: 'var(--crm-text-muted)' }}>Tomorrow: {eod.improvementPlan}</p>
+        {isSetter && eod.closerName && (
+          <p className="text-xs font-mono mt-2" style={{ color: 'var(--crm-text-muted)' }}>Closer: <span style={{ color: 'var(--crm-text-bright)' }}>{eod.closerName}</span></p>
         )}
+
+        {longField('Leads Called', eod.leadsCalled)}
+        {longField('Call Outcomes', eod.callOutcomes)}
+        {longField(isSetter ? 'Needs Help With' : 'Tomorrow', eod.improvementPlan)}
+
+        <ExtraFields extra={eod.extra} />
 
         {isAdmin && (
           <div className="flex justify-end mt-3 pt-2" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>

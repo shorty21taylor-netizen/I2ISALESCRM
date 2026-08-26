@@ -12,6 +12,7 @@ var FORM_ROWS = [
   { key: 'book-call', name: 'Booked Appointment', ingest: '/api/forms/ingest?type=book-call' },
   { key: 'close-deal', name: 'Closed Deal (Gong)', ingest: '/api/forms/ingest?type=close-deal' },
   { key: 'eod-report', name: 'EOD Report', ingest: '/api/forms/ingest?type=eod-report' },
+  { key: 'after-call', name: 'After-Call Report', ingest: '/api/forms/ingest?type=after-call' },
 ];
 
 export default function FormsIntegrationCard() {

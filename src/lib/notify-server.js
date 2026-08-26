@@ -11,12 +11,14 @@ var GROUP_FIELD = {
   'book-call': 'bookedCallGroupId',
   'close-deal': 'closedDealGroupId',
   'eod-report': 'eodReportGroupId',
+  'after-call': 'afterCallGroupId',
 };
 
 var ENABLED_FIELD = {
   'book-call': 'bookedCallEnabled',
   'close-deal': 'closedDealEnabled',
   'eod-report': 'eodReportEnabled',
+  'after-call': 'afterCallEnabled',
 };
 
 function labelFor(formType, entry) {

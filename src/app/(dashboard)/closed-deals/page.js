@@ -6,6 +6,7 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ExtraFields from '@/components/ExtraFields';
 
 export default function ClosedDealsPage() {
   var workspaceId = useWorkspace();
@@ -229,6 +230,15 @@ export default function ClosedDealsPage() {
                       )}
                     </div>
                   )}
+
+                  {deal.notes && (
+                    <div className="mt-2">
+                      <p className="text-[9px] font-mono uppercase mb-0.5" style={{ color: 'var(--crm-text-muted)' }}>Notes</p>
+                      <p className="text-xs font-mono whitespace-pre-wrap" style={{ color: 'var(--crm-text-bright)' }}>{deal.notes}</p>
+                    </div>
+                  )}
+
+                  <ExtraFields extra={deal.extra} />
 
                   {/* Admin delete */}
                   {isAdmin && (

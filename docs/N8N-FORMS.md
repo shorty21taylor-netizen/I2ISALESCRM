@@ -8,6 +8,7 @@ the CRM, the CRM writes the record, sends the WhatsApp message, and logs the sen
 | Booked Appointment | https://summitsales.app.n8n.cloud/form/lead-booking | `book-call` |
 | Closed Deal (Gong channel) | https://summitsales.app.n8n.cloud/form/deal-won | `close-deal` |
 | EOD Report | https://summitsales.app.n8n.cloud/form/eod-report | `eod-report` |
+| After-Call Report | https://summitsales.app.n8n.cloud/form/after-call-report | `after-call` |
 
 ---
 
@@ -34,7 +35,8 @@ In each of the three workflows, add an **HTTP Request** node immediately after t
 
 - **Method:** `POST`
 - **URL:** `https://<your-crm-domain>/api/forms/ingest?type=close-deal`
-  (use `book-call` for lead-booking, `eod-report` for the EOD form)
+  (`book-call` for lead-booking, `eod-report` for the EOD form, `after-call` for the
+  after-call report)
 - **Authentication:** none — use a header instead
 - **Headers:** `x-api-key: <FORM_INGEST_KEY>`
 - **Body Content Type:** JSON
@@ -112,23 +114,56 @@ under `extra` rather than dropped.
 | Source | outboundInbound |
 | Notes | notes |
 
-**EOD Report (`eod-report`)**
+**EOD Report (`eod-report`)** — one form, two branches. `Position` sets `role`, and
+the EOD Logs card renders setter tiles or closer tiles accordingly.
+
+| Form label | CRM field | Branch |
+|---|---|---|
+| Your Name | salesRep | both |
+| Position | position + role | both |
+| Cash Collected Today ($) | cashCollectedI2I + revenueOnDay | both |
+| Areas You Need Help In | improvementPlan | both |
+| Self Rating (1-10) | selfRating | both |
+| Deals Closed | closes | setter |
+| Dials | outboundDials | setter |
+| Conversations / Pickups | conversations | setter |
+| Live Calls | liveCalls | setter |
+| Total Talk Time | talkTime | setter |
+| Sets | sets, and netNewCallsBooked when the closer field is absent | setter |
+| Follow-Ups Scheduled | followUpsScheduled | setter |
+| Closer Name | closerName | setter |
+| Total Calls Today | callsTaken | closer |
+| Calls Offered | callsTakenAndPitched | closer |
+| No Shows | callsNoShowed | closer |
+| Leads Called (names) | leadsCalled | closer |
+| Call Outcomes | callOutcomes | closer |
+
+The report's date comes from the team's timezone (`REPORT_TIMEZONE`, default
+`America/Los_Angeles`), not the server's. An 8pm PT submission belongs to that day,
+not to tomorrow in UTC.
+
+**After-Call Report (`after-call`)**
 
 | Form label | CRM field |
 |---|---|
-| Your Name | salesRep |
-| Closer Name | closerName |
-| Total Calls Today | callsTaken |
-| Leads Called (names) | leadsCalled |
-| Call Outcomes | callOutcomes |
-| No Shows | callsNoShowed |
-| Calls Offered | callsTakenAndPitched |
-| Cash Collected Today ($) | cashCollectedI2I + revenueOnDay |
-| Areas You Need Help In | improvementPlan |
+| Lead Name | leadsName |
+| Lead Phone Number | leadsPhone |
+| Call Notes | callNotes |
 
-Adding a field to a form is safe: it is stored under `extra` immediately, and it can
-be promoted to a first-class column later by adding its label to
+Adding a field to a form is safe: it is stored under `extra` keyed by the question
+as the rep saw it, and **every page that shows a record also renders `extra`** — so a
+new question appears in the CRM immediately, looking out of place, instead of
+vanishing into JSONB. Promote it to a first-class column by adding its label to
 `src/lib/form-ingest.js`.
+
+## Where each form is read
+
+| Form | Page |
+|---|---|
+| Lead Booking | Booked Calls |
+| Deal Won | Closed Deals |
+| EOD Report | EOD Logs → Details |
+| After-Call Report | After-Call |
 
 ## Multi-workspace
 

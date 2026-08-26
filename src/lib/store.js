@@ -2,7 +2,7 @@
 // On startup, data loads from DB. Every write saves to both memory AND DB.
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry } from '@/lib/db';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
@@ -21,6 +21,7 @@ var store = {
   bookedCalls: [],
   closedDeals: [],
   eodReports: [],
+  afterCallReports: [],
   messageLog: [],
   commissionRates: {},
   closerProfiles: {},
@@ -35,6 +36,8 @@ var store = {
     closedDealEnabled: true,
     eodReportGroupId: '',
     eodReportEnabled: true,
+    afterCallGroupId: '',
+    afterCallEnabled: true,
   },
 };
 
@@ -76,6 +79,7 @@ export async function initStore() {
         store.bookedCalls = data.bookedCalls || [];
         store.closedDeals = data.closedDeals || [];
         store.eodReports = data.eodReports || [];
+        store.afterCallReports = data.afterCallReports || [];
         store.messageLog = data.messageLog || [];
         store.closerProfiles = data.closerProfiles || {};
         store.commissionRates = data.commissionRates || {};
@@ -243,6 +247,16 @@ export function addEODReport(data) {
     callsTakenAndPitched: parseInt(data.callsTakenAndPitched) || 0,
     closes: parseInt(data.closes) || 0,
     outboundDials: parseInt(data.outboundDials) || 0,
+    // Setter branch of the EOD form. A closer's report leaves these at zero, and
+    // `role` decides which set of tiles the EOD Logs page renders.
+    position: data.position || '',
+    role: data.role || '',
+    conversations: parseInt(data.conversations) || 0,
+    liveCalls: parseInt(data.liveCalls) || 0,
+    talkTime: data.talkTime || '',
+    sets: parseInt(data.sets) || 0,
+    followUpsScheduled: parseInt(data.followUpsScheduled) || 0,
+    selfRating: data.selfRating || '',
     cashCollectedMYFM: parseFloat(data.cashCollectedMYFM) || 0,
     cashCollectedI2I: parseFloat(data.cashCollectedI2I) || 0,
     revenueOnDay: parseFloat(data.revenueOnDay) || 0,
@@ -1368,6 +1382,36 @@ export function getAllCloserProfiles() {
 // ============================================
 
 // ============================================
+// AFTER-CALL REPORT — what happened on the call
+// ============================================
+
+export function addAfterCallReport(data) {
+  var entry = {
+    id: 'call-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    leadsName: data.leadsName || '',
+    leadsPhone: data.leadsPhone || '',
+    leadsEmail: data.leadsEmail || '',
+    callNotes: data.callNotes || '',
+    outcome: data.outcome || '',
+    nextStep: data.nextStep || '',
+    closer: data.closer || '',
+    closerEmail: data.closerEmail || '',
+    formSource: data.formSource || 'n8n',
+    extra: data.extra || {},
+    workspaceId: resolveWriteWorkspace(data.workspaceId),
+    submittedAt: new Date().toISOString(),
+  };
+  store.afterCallReports.unshift(entry);
+  if (store.afterCallReports.length > 500) store.afterCallReports = store.afterCallReports.slice(0, 500);
+  saveAfterCallReport(entry).catch(function(e) { console.error('[DB] Save after-call error:', e.message); });
+  return entry;
+}
+
+export function getAfterCallReports(workspaceId) {
+  return scoped(store.afterCallReports, workspaceId);
+}
+
+// ============================================
 // OUTBOUND MESSAGE LOG
 // ============================================
 //
@@ -1414,6 +1458,8 @@ export function setWhatsappConfig(config) {
   if (config.closedDealEnabled !== undefined) wc.closedDealEnabled = config.closedDealEnabled;
   if (config.eodReportGroupId !== undefined) wc.eodReportGroupId = config.eodReportGroupId;
   if (config.eodReportEnabled !== undefined) wc.eodReportEnabled = config.eodReportEnabled;
+  if (config.afterCallGroupId !== undefined) wc.afterCallGroupId = config.afterCallGroupId;
+  if (config.afterCallEnabled !== undefined) wc.afterCallEnabled = config.afterCallEnabled;
   // Also accept legacy whatsappGroupId — set all 3 groups if per-form ones are empty
   if (config.whatsappGroupId && !wc.bookedCallGroupId) wc.bookedCallGroupId = config.whatsappGroupId;
   if (config.whatsappGroupId && !wc.closedDealGroupId) wc.closedDealGroupId = config.whatsappGroupId;
