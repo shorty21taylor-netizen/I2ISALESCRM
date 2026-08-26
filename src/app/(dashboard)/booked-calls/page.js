@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone } from 'lucide-react';
+import { Phone, Trash2 } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ExtraFields from '@/components/ExtraFields';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { getUser } from '@/lib/auth';
 
 // Every answer the Lead Booking form collects, on one page. Before this the whole
 // form existed only as a number on the dashboard — the credit score, intent score,
@@ -13,13 +15,31 @@ export default function BookedCallsPage() {
   var workspaceId = useWorkspace();
   var [calls, setCalls] = useState([]);
   var [loading, setLoading] = useState(true);
+  var [confirmDelete, setConfirmDelete] = useState(null);
+  var [deleteError, setDeleteError] = useState('');
   var [range, setRange] = useState('30');
   var [customStart, setCustomStart] = useState('');
   var [customEnd, setCustomEnd] = useState('');
   var [filterCloser, setFilterCloser] = useState('');
   var [filterSource, setFilterSource] = useState('');
 
+  var user = getUser();
+  var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
+
   useEffect(function() { if (workspaceId) fetchCalls(); }, [workspaceId]);
+
+  async function handleDelete(id) {
+    setDeleteError('');
+    try {
+      var res = await apiFetch('/api/webhooks/book-call/' + id, { method: 'DELETE' });
+      var out = await res.json().catch(function() { return {}; });
+      if (!res.ok || out.error) setDeleteError(out.error || 'Delete failed (' + res.status + ')');
+    } catch (e) {
+      setDeleteError(e.message);
+    }
+    setConfirmDelete(null);
+    fetchCalls();
+  }
 
   async function fetchCalls() {
     setLoading(true);
@@ -102,6 +122,12 @@ export default function BookedCallsPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-8">
+
+        {deleteError && (
+          <div className="glass-card p-3 mb-4" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+            <p className="text-xs font-mono" style={{ color: '#ef4444' }}>{deleteError}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5">
           <div className="glass-card p-4 md:p-5">
@@ -220,12 +246,33 @@ export default function BookedCallsPage() {
                   {longField('Notes', call.notes)}
 
                   <ExtraFields extra={call.extra} />
+
+                  {isAdmin && (
+                    <div className="flex justify-end mt-3 pt-2" style={{ borderTop: '0.5px solid var(--crm-divider)' }}>
+                      <button
+                        onClick={function() { setConfirmDelete({ id: call.id, label: (call.leadsName || 'this booking') }); }}
+                        className="flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg hover:bg-white/5 transition-colors"
+                        style={{ color: 'var(--crm-text-muted)' }}
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete Booked Call?"
+        message={confirmDelete ? 'Permanently remove ' + confirmDelete.label + ' from the CRM.' : ''}
+        confirmLabel="Delete"
+        onConfirm={function() { handleDelete(confirmDelete.id); }}
+        onCancel={function() { setConfirmDelete(null); }}
+      />
     </div>
   );
 }

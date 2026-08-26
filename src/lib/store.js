@@ -2,7 +2,7 @@
 // On startup, data loads from DB. Every write saves to both memory AND DB.
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport } from '@/lib/db';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
@@ -1409,6 +1409,50 @@ export function addAfterCallReport(data) {
 
 export function getAfterCallReports(workspaceId) {
   return scoped(store.afterCallReports, workspaceId);
+}
+
+// ============================================
+// DELETING A RECORD
+// ============================================
+//
+// Soft delete: the record leaves memory immediately — so every rollup, leaderboard
+// and dashboard figure is correct on the next read — while the Postgres row is kept
+// with deleted_at stamped. A wrong delete on live sales data is recoverable.
+
+var DELETE_TARGETS = {
+  'book-call': { list: 'bookedCalls', table: 'booked_calls', label: 'booked call' },
+  'close-deal': { list: 'closedDeals', table: 'closed_deals', label: 'closed deal' },
+  'eod-report': { list: 'eodReports', table: 'eod_reports', label: 'EOD report' },
+  'after-call': { list: 'afterCallReports', table: 'after_call_reports', label: 'after-call report' },
+};
+
+export async function deleteRecord(kind, id) {
+  var target = DELETE_TARGETS[kind];
+  if (!target) return { error: 'Unknown record type: ' + kind };
+
+  var list = store[target.list] || [];
+  var index = -1;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] && list[i].id === id) { index = i; break; }
+  }
+  if (index === -1) return { error: 'No ' + target.label + ' with id ' + id };
+
+  var removed = list[index];
+  list.splice(index, 1);
+
+  try {
+    await softDeleteRecord(target.table, id);
+  } catch (e) {
+    // Put it back rather than leaving memory and the database disagreeing — the
+    // record would otherwise reappear on the next redeploy with no explanation.
+    list.splice(index, 0, removed);
+    console.error('[Store] Delete failed for', kind, id, '-', e.message);
+    return { error: 'Database delete failed: ' + e.message };
+  }
+
+  recalcOverview();
+  console.log('[Store] Soft-deleted', target.label, id);
+  return { deleted: removed };
 }
 
 // ============================================

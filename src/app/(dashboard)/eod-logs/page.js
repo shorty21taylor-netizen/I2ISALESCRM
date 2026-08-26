@@ -18,6 +18,7 @@ export default function EODLogsPage() {
   var [selectedDay, setSelectedDay] = useState(null); // 'YYYY-MM-DD' or null
   var [filterRep, setFilterRep] = useState('');
   var [confirmDelete, setConfirmDelete] = useState(null);
+  var [deleteError, setDeleteError] = useState('');
 
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
@@ -40,7 +41,14 @@ export default function EODLogsPage() {
   }
 
   async function handleDelete(id) {
-    await apiFetch('/api/webhooks/eod-report/' + id, { method: 'DELETE' });
+    setDeleteError('');
+    try {
+      var res = await apiFetch('/api/webhooks/eod-report/' + id, { method: 'DELETE' });
+      var out = await res.json().catch(function() { return {}; });
+      if (!res.ok || out.error) setDeleteError(out.error || 'Delete failed (' + res.status + ')');
+    } catch (e) {
+      setDeleteError(e.message);
+    }
     setConfirmDelete(null);
     fetchEods();
   }
@@ -379,6 +387,12 @@ export default function EODLogsPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-8">
+
+        {deleteError && (
+          <div className="glass-card p-3 mb-4" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+            <p className="text-xs font-mono" style={{ color: '#ef4444' }}>{deleteError}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <div className="glass-card p-4">

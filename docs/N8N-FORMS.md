@@ -174,3 +174,40 @@ HTTP Request body:
 ```
 {{ { ...$json, workspaceId: 'acme' } }}
 ```
+
+
+---
+
+## Deleting a record
+
+The Delete button on Closed Deals, EOD Logs, Booked Calls and After-Call now
+reaches a real route: `DELETE /api/webhooks/<type>/<id>`. Two properties matter:
+
+- **Operator only, enforced on the server.** Hiding the button in the UI is not a
+  permission check — the route rejects anyone but the operator account with `403`.
+- **Soft delete.** The record leaves memory at once, so every dashboard, leaderboard
+  and commission figure is correct immediately, but the Postgres row is kept with
+  `deleted_at` stamped. To bring one back:
+
+```sql
+UPDATE closed_deals SET deleted_at = NULL WHERE id = 'close-...';
+```
+
+If the database write fails, the record is put back in memory rather than leaving
+memory and Postgres disagreeing, and the page shows the error instead of silently
+refetching.
+
+## Questions worth adding to the forms
+
+Three CRM columns are blank because no form asks for them. The mappings are already
+in place — add the question and the data lands automatically, no deploy needed.
+
+| Form | Question to add | Fills | Unlocks |
+|---|---|---|---|
+| Lead Booking | `Your Name` (or `Setter`) | `setter` | Bookings attributable to a setter; setter leaderboards |
+| Lead Booking | `Call Date` + `Call Time` | `bookedDay`, `bookedTime` | No-show tracking that isn't self-reported |
+| Deal Won | `Setter` | `setter` | Closed Deals stops printing "Setter: N/A"; setter commission |
+
+Aliases accepted for each: setter — `Setter`, `Setter Name`, `Set By`, `Booked By`,
+`Your Name`; date — `Call Date`, `Booked Date`, `Appointment Date`, `Date`,
+`Booked For`; time — `Call Time`, `Booked Time`, `Appointment Time`, `Time`.

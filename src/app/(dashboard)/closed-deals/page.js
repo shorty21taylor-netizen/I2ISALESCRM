@@ -18,6 +18,7 @@ export default function ClosedDealsPage() {
   var [filterCloser, setFilterCloser] = useState('');
   var [filterProgram, setFilterProgram] = useState('');
   var [confirmDelete, setConfirmDelete] = useState(null);
+  var [deleteError, setDeleteError] = useState('');
 
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
@@ -37,7 +38,16 @@ export default function ClosedDealsPage() {
   }
 
   async function handleDelete(id) {
-    await apiFetch('/api/webhooks/close-deal/' + id, { method: 'DELETE' });
+    setDeleteError('');
+    try {
+      var res = await apiFetch('/api/webhooks/close-deal/' + id, { method: 'DELETE' });
+      var out = await res.json().catch(function() { return {}; });
+      // A failed delete used to look identical to a successful one — the list simply
+      // refetched and the row was still there. Say what went wrong instead.
+      if (!res.ok || out.error) setDeleteError(out.error || 'Delete failed (' + res.status + ')');
+    } catch (e) {
+      setDeleteError(e.message);
+    }
     setConfirmDelete(null);
     fetchDeals();
   }
@@ -95,6 +105,12 @@ export default function ClosedDealsPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-8">
+
+        {deleteError && (
+          <div className="glass-card p-3 mb-4" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+            <p className="text-xs font-mono" style={{ color: '#ef4444' }}>{deleteError}</p>
+          </div>
+        )}
 
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5">

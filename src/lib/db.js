@@ -77,6 +77,13 @@ export async function initDatabase() {
 
     await p.query("CREATE TABLE IF NOT EXISTS workspace_users (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, email TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
+    // Deletes are soft: the row stays in Postgres with deleted_at stamped, so a
+    // mis-click on live sales data is recoverable with one UPDATE.
+    var softDeleteTables = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports'];
+    for (var d = 0; d < softDeleteTables.length; d++) {
+      await p.query('ALTER TABLE ' + softDeleteTables[d] + ' ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP').catch(function() {});
+    }
+
     var migrateTables = ['booked_calls', 'closed_deals', 'eod_reports', 'closer_profiles', 'commission_rates', 'custom_messages'];
     for (var i = 0; i < migrateTables.length; i++) {
       await p.query("ALTER TABLE " + migrateTables[i] + " ADD COLUMN IF NOT EXISTS workspace_id TEXT DEFAULT 'default'").catch(function() {});
@@ -110,14 +117,14 @@ export async function loadFromDatabase() {
   var p = getPool();
   if (!p) return null;
   try {
-    var bc = await p.query('SELECT data, workspace_id FROM booked_calls ORDER BY created_at DESC LIMIT 500');
-    var cd = await p.query('SELECT data, workspace_id FROM closed_deals ORDER BY created_at DESC LIMIT 500');
-    var eod = await p.query('SELECT data, workspace_id FROM eod_reports ORDER BY created_at DESC LIMIT 500');
+    var bc = await p.query('SELECT data, workspace_id FROM booked_calls WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500');
+    var cd = await p.query('SELECT data, workspace_id FROM closed_deals WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500');
+    var eod = await p.query('SELECT data, workspace_id FROM eod_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500');
     var cp = await p.query('SELECT email, data, workspace_id FROM closer_profiles');
     var cr = await p.query('SELECT email, data, workspace_id FROM commission_rates');
     var cm = await p.query('SELECT data, workspace_id FROM custom_messages ORDER BY created_at DESC LIMIT 100');
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
-    var ac = await p.query('SELECT data, workspace_id FROM after_call_reports ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
+    var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -169,6 +176,14 @@ export async function updateDealInDB(entry) {
 
 export async function saveCustomMessage(entry) {
   return query('INSERT INTO custom_messages (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2', [entry.id, JSON.stringify(entry)]);
+}
+
+// Soft delete. The row is retained and can be brought back with:
+//   UPDATE <table> SET deleted_at = NULL WHERE id = '<id>';
+export async function softDeleteRecord(table, id) {
+  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports'];
+  if (ALLOWED.indexOf(table) === -1) throw new Error('Unknown table: ' + table);
+  return query('UPDATE ' + table + ' SET deleted_at = NOW() WHERE id = $1', [id]);
 }
 
 export async function saveAfterCallReport(entry) {

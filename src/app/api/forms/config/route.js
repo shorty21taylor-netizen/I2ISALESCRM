@@ -22,6 +22,20 @@ function maskKey(key) {
   return key.slice(0, 4) + '••••' + key.slice(-4);
 }
 
+// A saved config only holds the forms that existed when it was saved. Returning it
+// as-is would hide any form added later behind a stale row in app_config — which is
+// exactly what happened to the After-Call card. Defaults underneath, saved on top.
+function mergedForms(saved) {
+  var out = {};
+  Object.keys(DEFAULT_FORMS).forEach(function(k) { out[k] = DEFAULT_FORMS[k]; });
+  if (saved) {
+    Object.keys(saved).forEach(function(k) {
+      if (saved[k] && saved[k].url) out[k] = saved[k];
+    });
+  }
+  return out;
+}
+
 export async function GET(req) {
   await initStore();
   try {
@@ -30,7 +44,7 @@ export async function GET(req) {
     var owner = isOwner(req);
     return NextResponse.json({
       success: true,
-      forms: cfg.forms || DEFAULT_FORMS,
+      forms: mergedForms(cfg.forms),
       useExternalForms: cfg.useExternalForms !== false,
       ingestKeyConfigured: !!key,
       ingestKeySource: process.env.FORM_INGEST_KEY ? 'env' : (cfg.ingestKey ? 'settings' : 'none'),
@@ -52,7 +66,7 @@ export async function POST(req) {
     var body = await req.json();
     var cfg = (await loadAppConfig('forms')) || {};
 
-    if (body.forms) cfg.forms = body.forms;
+    if (body.forms) cfg.forms = mergedForms(body.forms);
     if (body.useExternalForms !== undefined) cfg.useExternalForms = !!body.useExternalForms;
 
     var generated = '';
@@ -67,7 +81,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      forms: cfg.forms || DEFAULT_FORMS,
+      forms: mergedForms(cfg.forms),
       useExternalForms: cfg.useExternalForms !== false,
       // Returned exactly once, right after generation — it is never readable again.
       ingestKey: generated || undefined,
