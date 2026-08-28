@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { initStore, getStore, getFilteredOverview } from '@/lib/store';
+import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
 export async function GET(request) {
   await initStore();
 
   var url = new URL(request.url);
-  var start = url.searchParams.get('start') || new Date().toISOString().split('T')[0];
-  var end = url.searchParams.get('end') || new Date().toISOString().split('T')[0];
+  var start = url.searchParams.get('start') || todayInReportTimezone();
+  var end = url.searchParams.get('end') || todayInReportTimezone();
 
   var overview = getFilteredOverview(start, end);
 
@@ -15,12 +16,12 @@ export async function GET(request) {
   var allDeals = storeData.closedDeals || [];
 
   var rangeEODs = allEODs.filter(function(e) {
-    var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
+    var d = e.date ? toReportDay(e.date) : toReportDay(e.submittedAt);
     return d >= start && d <= end;
   });
 
   var rangeDeals = allDeals.filter(function(d) {
-    var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(d.submittedAt);
     return dt >= start && dt <= end;
   });
 

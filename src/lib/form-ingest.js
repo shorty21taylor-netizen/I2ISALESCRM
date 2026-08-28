@@ -8,12 +8,14 @@
 // resolve to the same field. Anything already using CRM names passes straight
 // through, which keeps the in-app forms and the n8n forms on one code path.
 
+import { REPORT_TIMEZONE, todayInReportTimezone } from '@/lib/report-date';
+
 export var FORM_TYPES = ['book-call', 'close-deal', 'eod-report', 'after-call'];
 
 // EOD reports are filed in the evening Pacific. Stamping them with the server's UTC
 // date pushes every report after 5pm PT onto tomorrow — and month-end ones out of
 // the month-to-date rollup entirely. Override with REPORT_TIMEZONE if the team moves.
-export var REPORT_TIMEZONE = process.env.REPORT_TIMEZONE || 'America/Los_Angeles';
+export { REPORT_TIMEZONE, todayInReportTimezone };
 
 // n8n form paths -> CRM form type, so a workflow can send its own form path.
 var PATH_ALIASES = {
@@ -50,21 +52,6 @@ export function resolveFormType(value) {
 
 function normKey(k) {
   return String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-// The report's own calendar day, in the team's timezone rather than the server's.
-export function todayInReportTimezone() {
-  try {
-    // 'en-CA' formats as YYYY-MM-DD, which is exactly the shape the store expects.
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: REPORT_TIMEZONE,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date());
-  } catch (e) {
-    // A runtime without full ICU data throws on an unknown zone — UTC beats crashing.
-    console.error('[Ingest] Timezone stamp failed, falling back to UTC:', e.message);
-    return new Date().toISOString().split('T')[0];
-  }
 }
 
 // n8n can wrap the answers depending on how the workflow is wired:

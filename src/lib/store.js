@@ -2,6 +2,7 @@
 // On startup, data loads from DB. Every write saves to both memory AND DB.
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
+import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
@@ -237,7 +238,7 @@ export function addEODReport(data) {
   var entry = {
     id: 'eod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
     salesRep: data.salesRep || '',
-    date: data.date || new Date().toISOString().split('T')[0],
+    date: data.date || todayInReportTimezone(),
     netNewCallsBooked: parseInt(data.netNewCallsBooked) || 0,
     callsOnCalendar: parseInt(data.callsOnCalendar) || 0,
     callsTaken: parseInt(data.callsTaken) || 0,
@@ -329,27 +330,27 @@ export function offerDisplayName(key, program) {
 var overview = null;
 
 function recalcOverview() {
-  var today = new Date().toISOString().split('T')[0];
+  var today = todayInReportTimezone();
   overview = computeOverviewForRange(today, today);
 }
 
 function computeOverviewForRange(startDate, endDate, workspaceId) {
-  var today = new Date().toISOString().split('T')[0];
+  var today = todayInReportTimezone();
   var start = startDate || today;
   var end = endDate || today;
 
   var rangeEODs = scoped(store.eodReports, workspaceId).filter(function(e) {
-    var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
+    var d = recordDay(e);
     return d >= start && d <= end;
   });
 
   var rangeDeals = scoped(store.closedDeals, workspaceId).filter(function(d) {
-    var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(d.submittedAt);
     return dt >= start && dt <= end;
   });
 
   var rangeBooked = scoped(store.bookedCalls, workspaceId).filter(function(b) {
-    var dt = b.submittedAt ? b.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(b.submittedAt);
     return dt >= start && dt <= end;
   });
 
@@ -551,19 +552,24 @@ export function getFilteredOverview(startDate, endDate, workspaceId) {
 }
 
 export function getCloserBreakdown(startDate, endDate, workspaceId) {
-  var today = new Date().toISOString().split('T')[0];
+  var today = todayInReportTimezone();
   var start = startDate || today;
   var end = endDate || today;
   var closerMap = {};
 
+  function dayCash(c, date) {
+    if (!c.days[date]) c.days[date] = { dealCash: 0, eodCash: 0 };
+    return c.days[date];
+  }
+
   scoped(store.eodReports, workspaceId).filter(function(e) {
-    var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
+    var d = recordDay(e);
     return d >= start && d <= end;
   }).forEach(function(eod) {
     var name = eod.salesRep || eod.closerName;
     if (!name) return;
     if (!closerMap[name]) {
-      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0 };
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
     }
     var c = closerMap[name];
     c.dials += (parseInt(eod.outboundDials) || parseInt(eod.totalDials) || 0);
@@ -573,7 +579,10 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
     c.closes += (parseInt(eod.closes) || 0);
     c.cashMYFM += (parseFloat(eod.cashCollectedMYFM) || 0);
     c.cashI2I += (parseFloat(eod.cashCollectedI2I) || 0);
-    c.cash += (parseFloat(eod.cashCollectedMYFM) || 0) + (parseFloat(eod.cashCollectedI2I) || 0);
+    // Cash is settled per day at the end, taking the larger of the two sources.
+    // Adding both here counted the same money twice for anyone who logged a deal
+    // and then reported that same cash in their EOD.
+    dayCash(c, recordDay(eod)).eodCash += (parseFloat(eod.cashCollectedMYFM) || 0) + (parseFloat(eod.cashCollectedI2I) || 0);
     c.revenue += (parseFloat(eod.revenueOnDay) || 0);
     c.noShows += (parseInt(eod.callsNoShowed) || 0);
     c.eodCount++;
@@ -581,18 +590,28 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   });
 
   scoped(store.closedDeals, workspaceId).filter(function(d) {
-    var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(d.submittedAt);
     return dt >= start && dt <= end;
   }).forEach(function(deal) {
     var name = deal.closer || deal.closerName;
     if (!name) return;
     if (!closerMap[name]) {
-      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0 };
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
     }
-    closerMap[name].cash += (parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0);
+    dayCash(closerMap[name], toReportDay(deal.submittedAt)).dealCash += (parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0);
   });
 
-  return Object.values(closerMap).sort(function(a, b) { return b.cash - a.cash; });
+  var closers = Object.values(closerMap);
+  closers.forEach(function(c) {
+    c.cash = 0;
+    Object.keys(c.days).forEach(function(d) {
+      c.cash += Math.max(c.days[d].dealCash, c.days[d].eodCash);
+    });
+    c.cash = Math.round(c.cash * 100) / 100;
+    delete c.days;
+  });
+
+  return closers.sort(function(a, b) { return b.cash - a.cash; });
 }
 
 // ============================================
@@ -677,7 +696,7 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
   }
 
   scoped(store.eodReports, workspaceId).forEach(function(eod) {
-    var date = eod.date || (eod.submittedAt ? eod.submittedAt.split('T')[0] : '');
+    var date = recordDay(eod);
     if (!inRange(date, start, end)) return;
     var rep = repFor(eod.salesRep || eod.closerName);
     if (!rep) return;
@@ -707,7 +726,7 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
   });
 
   scoped(store.closedDeals, workspaceId).forEach(function(deal) {
-    var date = deal.submittedAt ? deal.submittedAt.split('T')[0] : '';
+    var date = toReportDay(deal.submittedAt);
     if (!inRange(date, start, end)) return;
     var rep = repFor(deal.closer || deal.closerName);
     if (!rep) return;
@@ -805,7 +824,7 @@ export function getPartnerLeaderboard(startDate, endDate, workspaceId) {
 
   scoped(store.closedDeals, workspaceId).forEach(function(deal) {
     if (classifyOffer(deal.program) !== 'partner') return;
-    var date = deal.submittedAt ? deal.submittedAt.split('T')[0] : '';
+    var date = toReportDay(deal.submittedAt);
     if (!inRange(date, start, end)) return;
 
     var name = (deal.closer || deal.closerName || '').trim();
@@ -922,7 +941,7 @@ export function getRecentActivity(limit, workspaceId) {
 // ============================================
 
 export function getDailyTeamSummary(dateStr) {
-  var date = dateStr || new Date().toISOString().split('T')[0];
+  var date = dateStr || todayInReportTimezone();
 
   var dayEODs = store.eodReports.filter(function(e) { return e.date === date; });
   var dayDeals = store.closedDeals.filter(function(d) { return d.submittedAt && d.submittedAt.startsWith(date); });
@@ -1014,7 +1033,7 @@ export function getDailyTeamSummary(dateStr) {
 }
 
 export function getBookedCallsForDate(dateStr) {
-  var date = dateStr || new Date().toISOString().split('T')[0];
+  var date = dateStr || todayInReportTimezone();
   return store.bookedCalls.filter(function(b) {
     return b.bookedDay === date || (b.submittedAt && b.submittedAt.startsWith(date));
   });
@@ -1138,20 +1157,20 @@ function getEmptyCommissionSummary() {
 // unattributedCash rather than dropped or misassigned.
 
 export function getOperatorRollup(startDate, endDate) {
-  var today = new Date().toISOString().split('T')[0];
+  var today = todayInReportTimezone();
   var start = startDate || today;
   var end = endDate || today;
 
   function inRange(dt) { return dt >= start && dt <= end; }
 
   var rangeDeals = store.closedDeals.filter(function(d) {
-    return inRange(d.submittedAt ? d.submittedAt.split('T')[0] : '');
+    return inRange(toReportDay(d.submittedAt));
   });
   var rangeBooked = store.bookedCalls.filter(function(b) {
-    return inRange(b.submittedAt ? b.submittedAt.split('T')[0] : '');
+    return inRange(toReportDay(b.submittedAt));
   });
   var rangeEODs = store.eodReports.filter(function(e) {
-    return inRange(e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : ''));
+    return inRange(recordDay(e));
   });
 
   // Every known workspace, plus 'default' so pre-workspace data always has a home.

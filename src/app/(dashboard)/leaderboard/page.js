@@ -286,6 +286,11 @@ export default function LeaderboardPage() {
                 <p className={'cash-figure ' + (isFirst ? 'cash-figure-xl' : 'cash-figure-lg')}>
                   {formatCurrency(rep.cash)}
                 </p>
+                {rep.dealCash > 0 && rep.eodCash > 0 && (
+                  <p className="text-[10px] font-mono text-crm-muted mt-1">
+                    {'deals ' + formatCurrency(rep.dealCash) + ' · EOD ' + formatCurrency(rep.eodCash) + ' — counted once'}
+                  </p>
+                )}
 
                 <div className="lb-bar mt-4">
                   <div className="lb-bar-fill" style={{ width: (leaderCash > 0 ? Math.round((rep.cash / leaderCash) * 100) : 0) + '%' }} />
@@ -457,8 +462,9 @@ export default function LeaderboardPage() {
 
       <div className="text-[11px] font-mono text-crm-muted relative z-10 space-y-1 pb-2">
         <p>
-          Cash is settled per day, taking the higher of a rep&apos;s closed deals and their EOD
-          cash so the same money is never counted twice. Revenue uses the EOD &ldquo;Revenue on Day&rdquo;
+          Cash is settled per day, in Pacific time, taking the higher of a rep&apos;s closed deals and
+          their EOD cash so the same money is never counted twice — log both, the board
+          settles it. Revenue uses the EOD &ldquo;Revenue on Day&rdquo;
           figure, falling back to that day&apos;s cash when it is left blank.
         </p>
         <p>

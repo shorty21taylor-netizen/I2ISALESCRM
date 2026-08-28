@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllCloserProfiles, getStore, initStore } from '@/lib/store';
+import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
 export async function GET() {
   await initStore();
@@ -7,7 +8,7 @@ export async function GET() {
     await initStore();
     var profiles = getAllCloserProfiles();
     var store = getStore();
-    var today = new Date().toISOString().split('T')[0];
+    var today = todayInReportTimezone();
 
     var closers = Object.values(profiles).map(function(profile) {
       var name = profile.name;
