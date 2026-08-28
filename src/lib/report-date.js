@@ -7,7 +7,13 @@
 // up on the leaderboard twice: the two records landed in different day buckets, so
 // the dedupe that takes the larger of the two never saw them as the same day.
 
-export var REPORT_TIMEZONE = process.env.REPORT_TIMEZONE || 'America/Los_Angeles';
+// Read by both the server and the browser bundle. Only NEXT_PUBLIC_ vars reach the
+// client, so set both if you ever move the team off Pacific — otherwise the pages
+// would bucket days in one zone while the server buckets them in another.
+export var REPORT_TIMEZONE =
+  process.env.NEXT_PUBLIC_REPORT_TIMEZONE ||
+  process.env.REPORT_TIMEZONE ||
+  'America/Los_Angeles';
 
 var formatter = null;
 
@@ -51,4 +57,16 @@ export function recordDay(record) {
   if (!record) return '';
   if (record.date) return toReportDay(record.date);
   return toReportDay(record.submittedAt);
+}
+
+// A calendar cell is not an instant. `new Date(2026, 7, 5)` is midnight in whatever
+// timezone the browser happens to be in; converting that through toReportDay() would
+// shift it to the 4th for anyone east of Pacific and slide the whole EOD grid by a
+// day. Calendar squares are formatted from their own year/month/day instead.
+export function calendarDay(d) {
+  if (!d) return '';
+  var y = d.getFullYear();
+  var m = d.getMonth() + 1;
+  var day = d.getDate();
+  return y + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
 }

@@ -90,7 +90,8 @@ export async function initStore() {
           store.eodReports.length, 'EODs,',
           Object.keys(store.closerProfiles).length, 'closers'
         );
-        recalcOverview();
+        canonicalizeRepNames();
+        recalcOverview(); // after canonicalization, so the totals group on one spelling
         dbLoaded = true; // only mark loaded once the load actually succeeds
       } else {
         // loadFromDatabase returned null (query failed / connection blip).
@@ -174,8 +175,8 @@ export function addBookedCall(data) {
     bookedDay: data.bookedDay || '',
     bookedTime: data.bookedTime || '',
     notes: data.notes || '',
-    setter: data.setter || '',
-    closer: data.closer || '',
+    setter: canonicalRep(data.setter),
+    closer: canonicalRep(data.closer),
     outboundInbound: data.outboundInbound || 'inbound',
     leadsEmail: data.leadsEmail || '',
     creditScore: data.creditScore || '',
@@ -190,6 +191,7 @@ export function addBookedCall(data) {
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
+  canonicalizeInto(entry, data, ['setter', 'closer']);
   store.bookedCalls.unshift(entry);
   if (store.bookedCalls.length > 500) store.bookedCalls = store.bookedCalls.slice(0, 500);
   saveBookedCall(entry).catch(function(e) { console.error('[DB] Save booked call error:', e.message); });
@@ -212,8 +214,8 @@ export function addClosedDeal(data) {
     paymentProcessor: data.paymentProcessor || '',
     paymentAgreement: data.paymentAgreement || '',
     cashCollected: parseFloat(data.cashCollected) || 0,
-    setter: data.setter || '',
-    closer: data.closer || '',
+    setter: canonicalRep(data.setter),
+    closer: canonicalRep(data.closer),
     closerEmail: data.closerEmail || '',
     commissionStatus: 'pending',
     outboundInbound: data.outboundInbound || '',
@@ -223,6 +225,7 @@ export function addClosedDeal(data) {
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
+  canonicalizeInto(entry, data, ['setter', 'closer']);
   store.closedDeals.unshift(entry);
   if (store.closedDeals.length > 500) store.closedDeals = store.closedDeals.slice(0, 500);
   saveClosedDeal(entry).catch(function(e) { console.error('[DB] Save closed deal error:', e.message); });
@@ -237,7 +240,7 @@ export function addClosedDeal(data) {
 export function addEODReport(data) {
   var entry = {
     id: 'eod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    salesRep: data.salesRep || '',
+    salesRep: canonicalRep(data.salesRep),
     date: data.date || todayInReportTimezone(),
     netNewCallsBooked: parseInt(data.netNewCallsBooked) || 0,
     callsOnCalendar: parseInt(data.callsOnCalendar) || 0,
@@ -264,7 +267,7 @@ export function addEODReport(data) {
     improvementPlan: data.improvementPlan || '',
     leadsCalled: data.leadsCalled || '',
     callOutcomes: data.callOutcomes || '',
-    closerName: data.closerName || '',
+    closerName: canonicalRep(data.closerName),
     closerEmail: data.closerEmail || '',
     formSource: data.formSource || 'crm',
     extra: data.extra || {},
@@ -272,6 +275,7 @@ export function addEODReport(data) {
     submittedAt: new Date().toISOString(),
     status: 'submitted',
   };
+  canonicalizeInto(entry, data, ['salesRep', 'closerName']);
   store.eodReports.unshift(entry);
   if (store.eodReports.length > 500) store.eodReports = store.eodReports.slice(0, 500);
   saveEODReport(entry).catch(function(e) { console.error('[DB] Save EOD error:', e.message); });
@@ -631,8 +635,117 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
 //
 // start/end are inclusive 'YYYY-MM-DD' strings; pass null for all time.
 
+// ============================================
+// REP NAME CANONICALIZATION
+// ============================================
+//
+// Every record references a person by free-text name, and those names drifted:
+// "Adeel"/"ADEEL", "Jarissa Bonifario"/"Bonifacio", "Issacar"/"Issacar JeanSimon",
+// "ERNEST"/"ENREST", "Shorty Taylor"/"Anthony Taylor". Each variant became its own
+// leaderboard row and its own commission row, and — worse — it reopened the
+// per-rep-per-day cash dedupe through a different door: a deal filed as "Adeel" and
+// the EOD reporting it as "ADEEL" are two different people to the rollups, so the
+// same money counts twice again.
+//
+// Every canonical name below appears in the production data; none is invented. Add a
+// line when a name is entered a new way; nothing else needs to change.
+var REP_ALIASES = {
+  'adeel': 'Adeel Fultang',
+  'adeel fultang': 'Adeel Fultang',
+  'anthony taylor': 'Anthony Taylor',
+  'shorty': 'Anthony Taylor',
+  'shorty taylor': 'Anthony Taylor',
+  'cayden': 'Cayden Fleming',
+  'cayden fleming': 'Cayden Fleming',
+  'ernest': 'Ernest Simon',
+  'enrest': 'Ernest Simon',            // transposition typo, 1 booked call
+  'ernest simon': 'Ernest Simon',
+  'issacar': 'Issacar JeanSimon',
+  'issacar jeansimon': 'Issacar JeanSimon',
+  'jarissa': 'Jarissa Bonifario',
+  'jarissa bonifario': 'Jarissa Bonifario',
+  'jarissa bonifacio': 'Jarissa Bonifario',  // misspelling, 2 deals
+  'victor': 'Victor Ikharia',
+  'victor ikharia': 'Victor Ikharia',
+  'kadynce kratka': 'Kadynce Kratka',
+  'rayan aljurhanni': 'Rayan Aljurhanni',
+  'jake reilly': 'Jake Reilly',              // departed; history retained
+  'ayah al-jurhanni': 'Ayah Al-Jurhanni',    // departed; history retained
+};
+
+export function canonicalRep(name) {
+  var raw = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!raw) return '';
+  return REP_ALIASES[raw.toLowerCase()] || raw;
+}
+
+// Canonicalize a set of name fields on a record being written, recording what was
+// actually typed whenever it differs. Nothing a rep entered is ever discarded — if an
+// alias turns out to be wrong, the original spelling is still on the record.
+function canonicalizeInto(entry, data, fields) {
+  fields.forEach(function(f) {
+    var raw = data[f];
+    var canonical = canonicalRep(raw);
+    entry[f] = canonical;
+    if (raw && canonical !== String(raw).trim()) {
+      if (!entry.nameAsEntered) entry.nameAsEntered = {};
+      entry.nameAsEntered[f] = raw;
+    }
+  });
+  return entry;
+}
+
+// Rewrite the stored name so the dashboard, leaderboard and commissions all group on
+// one spelling. Runs once after the DB load. What the rep actually typed is kept on
+// the record as nameAsEntered — the point is to merge the history, not to erase how
+// it was filed, and an alias entered in error stays recoverable.
+export function canonicalizeRepNames() {
+  var changed = 0;
+
+  function touch(rows, fields, save) {
+    (rows || []).forEach(function(r) {
+      if (!r) return;
+      var dirty = false;
+      fields.forEach(function(f) {
+        if (!r[f]) return;
+        var c = canonicalRep(r[f]);
+        if (c && c !== r[f]) {
+          if (!r.nameAsEntered) r.nameAsEntered = {};
+          if (r.nameAsEntered[f] === undefined) r.nameAsEntered[f] = r[f];
+          r[f] = c;
+          dirty = true;
+        }
+      });
+      if (dirty) {
+        changed++;
+        if (save) save(r).catch(function(e) { console.error('[Store] canonicalize save:', e.message); });
+      }
+    });
+  }
+
+  touch(store.closedDeals, ['closer', 'closerName', 'setter'], saveClosedDeal);
+  touch(store.eodReports, ['salesRep', 'closerName'], saveEODReport);
+  touch(store.bookedCalls, ['setter', 'closer'], saveBookedCall);
+  touch(store.afterCallReports, ['closer'], saveAfterCallReport);
+
+  Object.keys(store.closerProfiles || {}).forEach(function(k) {
+    var profile = store.closerProfiles[k];
+    if (!profile || !profile.name) return;
+    var c = canonicalRep(profile.name);
+    if (c && c !== profile.name) {
+      if (!profile.nameAsEntered) profile.nameAsEntered = profile.name;
+      profile.name = c;
+      changed++;
+      saveCloserProfile(k, profile).catch(function(e) { console.error('[Store] canonicalize profile:', e.message); });
+    }
+  });
+
+  if (changed) console.log('[Store] Canonicalized rep names on ' + changed + ' record(s)');
+  return changed;
+}
+
 function repKey(name) {
-  return (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  return canonicalRep(name).toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
 function emptyRep(name) {
@@ -1333,7 +1446,7 @@ export function registerCloser(email, name) {
     return;
   }
   var key = email.toLowerCase().trim();
-  var cleanName = (name || '').trim().split(' ').filter(Boolean).map(function(w) {
+  var cleanName = canonicalRep(name) || (name || '').trim().split(' ').filter(Boolean).map(function(w) {
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   }).join(' ');
   if (store.closerProfiles[key]) {
@@ -1444,13 +1557,14 @@ export function addAfterCallReport(data) {
     callNotes: data.callNotes || '',
     outcome: data.outcome || '',
     nextStep: data.nextStep || '',
-    closer: data.closer || '',
+    closer: canonicalRep(data.closer),
     closerEmail: data.closerEmail || '',
     formSource: data.formSource || 'n8n',
     extra: data.extra || {},
     workspaceId: resolveWriteWorkspace(data.workspaceId),
     submittedAt: new Date().toISOString(),
   };
+  canonicalizeInto(entry, data, ['closer']);
   store.afterCallReports.unshift(entry);
   if (store.afterCallReports.length > 500) store.afterCallReports = store.afterCallReports.slice(0, 500);
   saveAfterCallReport(entry).catch(function(e) { console.error('[DB] Save after-call error:', e.message); });

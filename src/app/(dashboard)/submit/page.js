@@ -5,6 +5,7 @@ import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, Externa
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
+import { toReportDay } from '@/lib/report-date';
 
 function buildProgramString(brand, myfmDuration, subProgram, partnerName) {
   if (brand === 'MYFM') return 'MYFM - ' + (myfmDuration || '6 Month Coaching');
@@ -166,7 +167,7 @@ export default function SubmitPage() {
       setCdCloser(u.name);
       setEodSalesRep(u.name);
     }
-    setEodDate(new Date().toISOString().split('T')[0]);
+    setEodDate(toReportDay(new Date()));
 
     apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
@@ -195,7 +196,7 @@ export default function SubmitPage() {
     setEodCanceled(''); setEodRescheduled(''); setEodTakenPitched(''); setEodCloses('');
     setEodDials(''); setEodCashMYFM(''); setEodCashI2I(''); setEodRevenue(''); setEodPlan('');
     setEodSalesRep(user ? user.name : '');
-    setEodDate(new Date().toISOString().split('T')[0]);
+    setEodDate(toReportDay(new Date()));
   }
 
   async function handleSubmitBookCall(evt) {

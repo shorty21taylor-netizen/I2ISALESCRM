@@ -5,6 +5,7 @@ import { Trophy, DollarSign, TrendingUp, Users, Handshake, Crown, Medal } from '
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
+import { toReportDay } from '@/lib/report-date';
 
 var RANGES = [
   { id: 'today', label: 'Today' },
@@ -24,7 +25,7 @@ var SORTS = [
   { id: 'dials', label: 'Dials' },
 ];
 
-function iso(d) { return d.toISOString().split('T')[0]; }
+function iso(d) { return toReportDay(d); }
 
 function initials(name) {
   return (name || '?')

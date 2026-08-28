@@ -4,6 +4,7 @@
 
 import { getBookedCallsForDate, getStore, addMessageLog } from '@/lib/store';
 import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageDB } from '@/lib/db';
+import { toReportDay } from '@/lib/report-date';
 
 var schedule = {
   eodReminder: { hour: 20, minute: 0, enabled: true, lastRun: null },
@@ -80,7 +81,7 @@ function getNow() {
       hour: fallback.getHours(),
       minute: fallback.getMinutes(),
       dayOfWeek: fallback.getDay(),
-      dateStr: fallback.toISOString().split('T')[0],
+      dateStr: toReportDay(fallback),
     };
   }
 }

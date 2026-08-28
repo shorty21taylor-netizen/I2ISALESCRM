@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDailyTeamSummary, getStore, initStore } from '@/lib/store';
+import { toReportDay } from '@/lib/report-date';
 
 export async function POST(req) {
   await initStore();
@@ -10,7 +11,7 @@ export async function POST(req) {
     // Yesterday's date
     var yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    var yesterdayStr = yesterday.toISOString().split('T')[0];
+    var yesterdayStr = toReportDay(yesterday);
     var yesterdayFormatted = yesterday.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
     // Month-to-date range

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
+import { toReportDay } from '@/lib/report-date';
 
 export default function DashboardPage() {
   var workspaceId = useWorkspace();
@@ -15,7 +16,7 @@ export default function DashboardPage() {
 
   function getDateParams() {
     var today = new Date();
-    var todayStr = today.toISOString().split('T')[0];
+    var todayStr = toReportDay(today);
 
     if (dateRange === 'today') {
       return { start: todayStr, end: todayStr };
@@ -23,22 +24,22 @@ export default function DashboardPage() {
     if (dateRange === 'yesterday') {
       var y = new Date(today);
       y.setDate(y.getDate() - 1);
-      return { start: y.toISOString().split('T')[0], end: y.toISOString().split('T')[0] };
+      return { start: toReportDay(y), end: toReportDay(y) };
     }
     if (dateRange === '7d') {
       var d7 = new Date(today);
       d7.setDate(d7.getDate() - 6);
-      return { start: d7.toISOString().split('T')[0], end: todayStr };
+      return { start: toReportDay(d7), end: todayStr };
     }
     if (dateRange === '30d') {
       var d30 = new Date(today);
       d30.setDate(d30.getDate() - 29);
-      return { start: d30.toISOString().split('T')[0], end: todayStr };
+      return { start: toReportDay(d30), end: todayStr };
     }
     if (dateRange === '365d') {
       var d365 = new Date(today);
       d365.setDate(d365.getDate() - 364);
-      return { start: d365.toISOString().split('T')[0], end: todayStr };
+      return { start: toReportDay(d365), end: todayStr };
     }
     if (dateRange === 'custom' && customStart && customEnd) {
       return { start: customStart, end: customEnd };
@@ -86,7 +87,7 @@ export default function DashboardPage() {
   // Compute yesterday's date
   var yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  var yesterdayStr = yesterday.toISOString().split('T')[0];
+  var yesterdayStr = toReportDay(yesterday);
 
   // Filter EODs to yesterday
   var yesterdayEODs = (allEODs || []).filter(function(e) {

@@ -7,6 +7,7 @@ import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ExtraFields from '@/components/ExtraFields';
+import { toReportDay, calendarDay } from '@/lib/report-date';
 
 export default function EODLogsPage() {
   var workspaceId = useWorkspace();
@@ -57,7 +58,7 @@ export default function EODLogsPage() {
   var viewMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   var monthName = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   var daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
-  var todayStr = now.toISOString().split('T')[0];
+  var todayStr = toReportDay(now);
 
   var workDays = [];
   for (var d = 1; d <= daysInMonth; d++) {
@@ -65,12 +66,12 @@ export default function EODLogsPage() {
     var dow = dt.getDay();
     if (dow >= 1 && dow <= 5) {
       workDays.push({
-        date: dt.toISOString().split('T')[0],
+        date: calendarDay(dt),
         day: d,
         label: dt.toLocaleDateString('en-US', { weekday: 'short' }),
         fullLabel: dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-        isPast: dt.toISOString().split('T')[0] < todayStr,
-        isToday: dt.toISOString().split('T')[0] === todayStr,
+        isPast: calendarDay(dt) < todayStr,
+        isToday: calendarDay(dt) === todayStr,
       });
     }
   }
@@ -124,7 +125,7 @@ export default function EODLogsPage() {
   eods.forEach(function(e) {
     var email = (e.closerEmail || '').toLowerCase().trim();
     var name = e.salesRep || e.closerName || '';
-    var date = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
+    var date = e.date || toReportDay(e.submittedAt);
     if (!date) return;
 
     // Try email match first
@@ -166,8 +167,8 @@ export default function EODLogsPage() {
     return a.name > b.name ? 1 : -1;
   });
 
-  var monthStart = viewMonth.toISOString().split('T')[0];
-  var monthEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+  var monthStart = calendarDay(viewMonth);
+  var monthEnd = calendarDay(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0));
   var monthEods = eods.filter(function(e) { var date = e.date || ''; return date >= monthStart && date <= monthEnd; });
   var totalSubmissions = monthEods.length;
   var pastWorkDays = workDays.filter(function(d) { return d.isPast; });

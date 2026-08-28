@@ -6,6 +6,7 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ExtraFields from '@/components/ExtraFields';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { getUser } from '@/lib/auth';
+import { toReportDay } from '@/lib/report-date';
 
 // Every answer the Lead Booking form collects, on one page. Before this the whole
 // form existed only as a number on the dashboard — the credit score, intent score,
@@ -62,17 +63,17 @@ export default function BookedCallsPage() {
       start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
       end.setDate(end.getDate() - 1); end.setHours(23, 59, 59);
     } else if (range === 'custom') {
-      return { start: customStart, end: customEnd || new Date().toISOString().split('T')[0] };
+      return { start: customStart, end: customEnd || toReportDay(new Date()) };
     } else {
       start.setDate(start.getDate() - parseInt(range));
     }
-    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    return { start: toReportDay(start), end: toReportDay(end) };
   }
 
   var dateRange = getDateRange();
 
   var filtered = calls.filter(function(c) {
-    var dt = c.submittedAt ? c.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(c.submittedAt);
     if (dateRange.start && dt < dateRange.start) return false;
     if (dateRange.end && dt > dateRange.end) return false;
     if (filterCloser && (c.closer || '').toLowerCase() !== filterCloser.toLowerCase()) return false;

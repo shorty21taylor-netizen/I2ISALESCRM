@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Building2, DollarSign, Wallet, Percent, Layers, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/workspace-client';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { toReportDay } from '@/lib/report-date';
 
 var RANGES = [
   { key: 'today', label: 'Today' },
@@ -15,12 +16,12 @@ var RANGES = [
 
 function rangeParams(key) {
   var today = new Date();
-  var todayStr = today.toISOString().split('T')[0];
+  var todayStr = toReportDay(today);
 
   function daysAgo(n) {
     var d = new Date(today);
     d.setDate(d.getDate() - n);
-    return d.toISOString().split('T')[0];
+    return toReportDay(d);
   }
 
   if (key === 'today') return { start: todayStr, end: todayStr };

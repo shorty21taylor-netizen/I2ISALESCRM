@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
+import { toReportDay } from '@/lib/report-date';
 
 export default function AnalyticsPage() {
   var workspaceId = useWorkspace();
@@ -21,7 +22,7 @@ export default function AnalyticsPage() {
       start.setDate(start.getDate() - parseInt(dateRange));
 
       var [dashRes, eodsRes, dealsRes, bookedRes] = await Promise.all([
-        apiFetch(withWorkspace('/api/dashboard?start=' + start.toISOString().split('T')[0] + '&end=' + end.toISOString().split('T')[0], workspaceId)),
+        apiFetch(withWorkspace('/api/dashboard?start=' + toReportDay(start) + '&end=' + toReportDay(end), workspaceId)),
         apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId)),
         apiFetch(withWorkspace('/api/webhooks/close-deal', workspaceId)),
         apiFetch(withWorkspace('/api/webhooks/book-call', workspaceId)),
@@ -32,21 +33,21 @@ export default function AnalyticsPage() {
       var deals = await dealsRes.json();
       var booked = await bookedRes.json();
 
-      var startStr = start.toISOString().split('T')[0];
-      var endStr = end.toISOString().split('T')[0];
+      var startStr = toReportDay(start);
+      var endStr = toReportDay(end);
 
       var rangeEODs = (eods.data || []).filter(function(e) {
-        var d = e.date || (e.submittedAt ? e.submittedAt.split('T')[0] : '');
+        var d = e.date || toReportDay(e.submittedAt);
         return d >= startStr && d <= endStr;
       });
 
       var rangeDeals = (deals.data || []).filter(function(d) {
-        var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
+        var dt = toReportDay(d.submittedAt);
         return dt >= startStr && dt <= endStr;
       });
 
       var rangeBooked = (booked.data || []).filter(function(b) {
-        var dt = b.submittedAt ? b.submittedAt.split('T')[0] : '';
+        var dt = toReportDay(b.submittedAt);
         return dt >= startStr && dt <= endStr;
       });
 

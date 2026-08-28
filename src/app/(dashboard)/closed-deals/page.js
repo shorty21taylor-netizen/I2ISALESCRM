@@ -7,6 +7,7 @@ import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ExtraFields from '@/components/ExtraFields';
+import { toReportDay } from '@/lib/report-date';
 
 export default function ClosedDealsPage() {
   var workspaceId = useWorkspace();
@@ -62,17 +63,17 @@ export default function ClosedDealsPage() {
       start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
       end.setDate(end.getDate() - 1); end.setHours(23, 59, 59);
     } else if (range === 'custom') {
-      return { start: customStart, end: customEnd || new Date().toISOString().split('T')[0] };
+      return { start: customStart, end: customEnd || toReportDay(new Date()) };
     } else {
       start.setDate(start.getDate() - parseInt(range));
     }
-    return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
+    return { start: toReportDay(start), end: toReportDay(end) };
   }
 
   var dateRange = getDateRange();
 
   var filtered = deals.filter(function(d) {
-    var dt = d.submittedAt ? d.submittedAt.split('T')[0] : '';
+    var dt = toReportDay(d.submittedAt);
     if (dateRange.start && dt < dateRange.start) return false;
     if (dateRange.end && dt > dateRange.end) return false;
     if (filterCloser && (d.closer || '').toLowerCase() !== filterCloser.toLowerCase()) return false;
