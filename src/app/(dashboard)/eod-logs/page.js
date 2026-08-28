@@ -26,7 +26,7 @@ export default function EODLogsPage() {
   useEffect(function() {
     Promise.all([
       apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
-      apiFetch('/api/closers').then(function(r) { return r.json(); }),
+      apiFetch('/api/closers?includeArchived=1').then(function(r) { return r.json(); }),
     ]).then(function(results) {
       setEods((results[0].data || []).filter(Boolean));
       setClosers((results[1].closers || []).filter(Boolean));
@@ -77,7 +77,7 @@ export default function EODLogsPage() {
 
   // Build closer list with emails
   var closerList = closers.map(function(c) {
-    return { name: (c.name || '').trim(), email: (c.email || '').toLowerCase().trim() };
+    return { name: (c.name || '').trim(), email: (c.email || '').toLowerCase().trim(), archived: !!c.archived };
   }).filter(function(c) { return c.name; });
 
   // Combine duplicate closer rows. Two-pass merge:
@@ -90,9 +90,10 @@ export default function EODLogsPage() {
   closerList.forEach(function(c) {
     if (c.email) {
       if (!byEmail[c.email]) {
-        byEmail[c.email] = { name: c.name, email: c.email };
-      } else if (c.name.length > byEmail[c.email].name.length) {
-        byEmail[c.email].name = c.name;
+        byEmail[c.email] = { name: c.name, email: c.email, archived: c.archived };
+      } else {
+        if (c.name.length > byEmail[c.email].name.length) byEmail[c.email].name = c.name;
+        if (!c.archived) byEmail[c.email].archived = false;
       }
     } else {
       noEmailRows.push(c);
@@ -103,10 +104,11 @@ export default function EODLogsPage() {
   Object.values(byEmail).concat(noEmailRows).forEach(function(c) {
     var nk = c.name.toLowerCase().trim();
     if (!byName[nk]) {
-      byName[nk] = { name: c.name, email: c.email };
+      byName[nk] = { name: c.name, email: c.email, archived: c.archived };
     } else {
       if (c.name.length > byName[nk].name.length) byName[nk].name = c.name;
       if (!byName[nk].email && c.email) byName[nk].email = c.email;
+      if (!c.archived) byName[nk].archived = false;
     }
   });
   var dedupedClosers = Object.values(byName)
@@ -116,7 +118,7 @@ export default function EODLogsPage() {
   var submissionMap = {};
   dedupedClosers.forEach(function(c) {
     var key = c.email || c.name.toLowerCase();
-    submissionMap[key] = { name: c.name, email: c.email, submissions: {} };
+    submissionMap[key] = { name: c.name, email: c.email, archived: c.archived, submissions: {} };
   });
 
   eods.forEach(function(e) {
@@ -152,8 +154,12 @@ export default function EODLogsPage() {
     }
   });
 
-  // Convert to array for rendering
-  var trackerRows = Object.values(submissionMap).sort(function(a, b) {
+  // Convert to array for rendering. A rep removed from the roster is kept only if
+  // they filed something — their history stays visible, but they no longer sit at
+  // the bottom of the tracker collecting red crosses for days they were gone.
+  var trackerRows = Object.values(submissionMap).filter(function(row) {
+    return !row.archived || Object.keys(row.submissions).length > 0;
+  }).sort(function(a, b) {
     // Put orphans at the bottom
     if (a.name.includes('(unlinked)') && !b.name.includes('(unlinked)')) return 1;
     if (!a.name.includes('(unlinked)') && b.name.includes('(unlinked)')) return -1;
@@ -165,7 +171,8 @@ export default function EODLogsPage() {
   var monthEods = eods.filter(function(e) { var date = e.date || ''; return date >= monthStart && date <= monthEnd; });
   var totalSubmissions = monthEods.length;
   var pastWorkDays = workDays.filter(function(d) { return d.isPast; });
-  var expectedSubmissions = pastWorkDays.length * dedupedClosers.length;
+  var activeClosers = dedupedClosers.filter(function(c) { return !c.archived; });
+  var expectedSubmissions = pastWorkDays.length * activeClosers.length;
   var missedSubmissions = Math.max(0, expectedSubmissions - totalSubmissions);
   var complianceRate = expectedSubmissions > 0 ? Math.round((totalSubmissions / expectedSubmissions) * 100) : 0;
   var totalCash = monthEods.reduce(function(s, e) { return s + (parseFloat(e.cashCollectedMYFM) || 0) + (parseFloat(e.cashCollectedI2I) || 0); }, 0);
@@ -181,7 +188,7 @@ export default function EODLogsPage() {
       var eod = row.submissions[selectedDay];
       if (eod) {
         daySubmitted.push({ name: row.name, eod: eod });
-      } else if (dayInfo && (dayInfo.isPast || dayInfo.isToday) && !row.name.includes('(unlinked)')) {
+      } else if (dayInfo && (dayInfo.isPast || dayInfo.isToday) && !row.archived && !row.name.includes('(unlinked)')) {
         dayMissed.push(row.name);
       }
     });
@@ -451,16 +458,18 @@ export default function EODLogsPage() {
                             color: isOrphan ? '#f59e0b' : 'var(--crm-text-bright)',
                             background: 'var(--crm-bg)',
                             maxWidth: '140px',
+                            opacity: row.archived ? 0.55 : 1,
                           }}>
                             {row.name}
                             {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}
+                            {row.archived && <span className="text-[9px] font-mono block" style={{ color: 'var(--crm-text-muted)' }}>removed from roster</span>}
                           </td>
                           {workDays.map(function(day) {
                             var eod = submissions[day.date];
                             var didSubmit = !!eod;
                             var isSelected = selectedDay === day.date;
 
-                            if ((day.isPast || day.isToday) && !isOrphan) expected++;
+                            if ((day.isPast || day.isToday) && !isOrphan && !row.archived) expected++;
                             if (didSubmit) submitted++;
 
                             var bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'transparent';

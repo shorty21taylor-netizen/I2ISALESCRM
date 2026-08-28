@@ -1,8 +1,33 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore, initStore } from '@/lib/store';
+import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser } from '@/lib/store';
+import { callerEmail, OWNER_EMAIL } from '@/lib/access';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
-export async function GET() {
+// Remove a rep from the roster, or put them back. Records are never touched.
+export async function POST(req) {
+  await initStore();
+  try {
+    if (callerEmail(req) !== OWNER_EMAIL) {
+      return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+    }
+    var body = await req.json();
+    var action = body.action;
+    if (!body.email) return NextResponse.json({ error: 'email required' }, { status: 400 });
+
+    var result;
+    if (action === 'archive') result = archiveCloser(body.email);
+    else if (action === 'restore') result = restoreCloser(body.email);
+    else return NextResponse.json({ error: "action must be 'archive' or 'restore'" }, { status: 400 });
+
+    if (result.error) return NextResponse.json({ error: result.error }, { status: 404 });
+    return NextResponse.json({ success: true, action: action, closer: result.profile });
+  } catch (e) {
+    console.error('[Closers POST Error]', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function GET(req) {
   await initStore();
   try {
     await initStore();
@@ -41,6 +66,8 @@ export async function GET() {
       return {
         name: profile.name,
         email: profile.email,
+        archived: !!profile.archived,
+        archivedAt: profile.archivedAt || null,
         registeredAt: profile.registeredAt,
         lastLogin: profile.lastLogin,
         lastActivity: allDates[0] || null,
@@ -59,6 +86,17 @@ export async function GET() {
         },
       };
     });
+
+    // A removed rep drops off the roster but keeps every record they filed, so the
+    // Closers page and the EOD compliance tracker stop expecting work from someone
+    // who has left. ?includeArchived=1 brings them back for the "show removed" view.
+    var includeArchived = false;
+    try {
+      includeArchived = new URL(req.url).searchParams.get('includeArchived') === '1';
+    } catch (e) { includeArchived = false; }
+    if (!includeArchived) {
+      closers = closers.filter(function(c) { return !c.archived; });
+    }
 
     // Deduplicate by normalized email (lowercase + trim).
     // Same email = same person; different/missing emails stay separate.

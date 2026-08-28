@@ -1337,7 +1337,9 @@ export function registerCloser(email, name) {
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   }).join(' ');
   if (store.closerProfiles[key]) {
-    // Update existing profile login time and name if provided
+    // Update existing profile login time and name if provided. An archived rep stays
+    // archived — a late EOD from someone who has left should not put them back on the
+    // roster; the operator restores them deliberately.
     store.closerProfiles[key].lastLogin = new Date().toISOString();
     if (cleanName && (!store.closerProfiles[key].name || store.closerProfiles[key].name === key)) {
       store.closerProfiles[key].name = cleanName;
@@ -1394,6 +1396,35 @@ export function getCloserEmailByName(name) {
 
 export function getAllCloserProfiles() {
   return store.closerProfiles;
+}
+
+// Removing a rep from the roster is an archive, never a delete. Their deals, EODs
+// and bookings are the company's record of money that was actually collected, so
+// they stay exactly where they are and keep counting in every historical total.
+// What changes is the roster: the rep stops appearing in the Closers list and stops
+// being counted as "missed" on the EOD compliance tracker every day forever.
+export function archiveCloser(email) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !store.closerProfiles[key]) return { error: 'No closer with email ' + (email || '(blank)') };
+  var profile = store.closerProfiles[key];
+  if (profile.archived) return { error: profile.name + ' is already removed from the roster' };
+
+  profile.archived = true;
+  profile.archivedAt = new Date().toISOString();
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Archive closer error:', e.message); });
+  console.log('[Store] Archived closer:', profile.name, '(' + key + ') — records kept');
+  return { profile: profile };
+}
+
+export function restoreCloser(email) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !store.closerProfiles[key]) return { error: 'No closer with email ' + (email || '(blank)') };
+  var profile = store.closerProfiles[key];
+  profile.archived = false;
+  profile.archivedAt = null;
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Restore closer error:', e.message); });
+  console.log('[Store] Restored closer:', profile.name, '(' + key + ')');
+  return { profile: profile };
 }
 
 // ============================================
