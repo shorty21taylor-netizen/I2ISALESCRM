@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
