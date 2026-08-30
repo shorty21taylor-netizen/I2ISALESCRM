@@ -60,20 +60,23 @@ export default function EODLogsPage() {
   var daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
   var todayStr = toReportDay(now);
 
-  var workDays = [];
+  // The grid shows the whole month, weekends included, so a Saturday close is
+  // visible and the weeks read as weeks. Weekends are shown but never *expected*:
+  // nobody is marked missing for not filing an EOD on their day off, and they stay
+  // out of the compliance maths.
+  var monthDays = [];
   for (var d = 1; d <= daysInMonth; d++) {
     var dt = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d);
     var dow = dt.getDay();
-    if (dow >= 1 && dow <= 5) {
-      workDays.push({
-        date: calendarDay(dt),
-        day: d,
-        label: dt.toLocaleDateString('en-US', { weekday: 'short' }),
-        fullLabel: dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-        isPast: calendarDay(dt) < todayStr,
-        isToday: calendarDay(dt) === todayStr,
-      });
-    }
+    monthDays.push({
+      date: calendarDay(dt),
+      day: d,
+      label: dt.toLocaleDateString('en-US', { weekday: 'short' }),
+      fullLabel: dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+      isWeekend: dow === 0 || dow === 6,
+      isPast: calendarDay(dt) < todayStr,
+      isToday: calendarDay(dt) === todayStr,
+    });
   }
 
   // Build closer list with emails
@@ -171,17 +174,25 @@ export default function EODLogsPage() {
   var monthEnd = calendarDay(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0));
   var monthEods = eods.filter(function(e) { var date = e.date || ''; return date >= monthStart && date <= monthEnd; });
   var totalSubmissions = monthEods.length;
-  var pastWorkDays = workDays.filter(function(d) { return d.isPast; });
+
+  // Compliance is a weekday measure. Counting weekend submissions in the numerator
+  // while the denominator is weekdays only would push the rate past 100%.
+  var weekendDates = {};
+  monthDays.forEach(function(day) { if (day.isWeekend) weekendDates[day.date] = true; });
+  var weekendSubmissions = monthEods.filter(function(e) { return weekendDates[e.date || '']; }).length;
+  var weekdaySubmissions = totalSubmissions - weekendSubmissions;
+
+  var pastWorkDays = monthDays.filter(function(d) { return d.isPast && !d.isWeekend; });
   var activeClosers = dedupedClosers.filter(function(c) { return !c.archived; });
   var expectedSubmissions = pastWorkDays.length * activeClosers.length;
-  var missedSubmissions = Math.max(0, expectedSubmissions - totalSubmissions);
-  var complianceRate = expectedSubmissions > 0 ? Math.round((totalSubmissions / expectedSubmissions) * 100) : 0;
+  var missedSubmissions = Math.max(0, expectedSubmissions - weekdaySubmissions);
+  var complianceRate = expectedSubmissions > 0 ? Math.min(100, Math.round((weekdaySubmissions / expectedSubmissions) * 100)) : 0;
   var totalCash = monthEods.reduce(function(s, e) { return s + (parseFloat(e.cashCollectedMYFM) || 0) + (parseFloat(e.cashCollectedI2I) || 0); }, 0);
 
   // Selected day data
   var selectedDayData = null;
   if (selectedDay) {
-    var dayInfo = workDays.find(function(d) { return d.date === selectedDay; });
+    var dayInfo = monthDays.find(function(d) { return d.date === selectedDay; });
     var daySubmitted = [];
     var dayMissed = [];
 
@@ -189,7 +200,7 @@ export default function EODLogsPage() {
       var eod = row.submissions[selectedDay];
       if (eod) {
         daySubmitted.push({ name: row.name, eod: eod });
-      } else if (dayInfo && (dayInfo.isPast || dayInfo.isToday) && !row.archived && !row.name.includes('(unlinked)')) {
+      } else if (dayInfo && !dayInfo.isWeekend && (dayInfo.isPast || dayInfo.isToday) && !row.archived && !row.name.includes('(unlinked)')) {
         dayMissed.push(row.name);
       }
     });
@@ -410,6 +421,11 @@ export default function EODLogsPage() {
           <div className="glass-card p-4">
             <p className="text-xs font-mono uppercase mb-1" style={{ color: 'var(--crm-text-muted)' }}>Submitted</p>
             <p className="text-xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{totalSubmissions}</p>
+            {weekendSubmissions > 0 && (
+              <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--crm-text-muted)' }}>
+                {weekendSubmissions} on a weekend
+              </p>
+            )}
           </div>
           <div className="glass-card p-4">
             <p className="text-xs font-mono uppercase mb-1" style={{ color: 'var(--crm-text-muted)' }}>Missed</p>
@@ -426,11 +442,11 @@ export default function EODLogsPage() {
             {/* GRID */}
             <div className="glass-card overflow-hidden mb-4">
               <div className="table-scroll">
-                <table className="w-full" style={{ minWidth: Math.max(400, workDays.length * 40 + 160) + 'px' }}>
+                <table className="w-full" style={{ minWidth: Math.max(400, monthDays.length * 40 + 160) + 'px' }}>
                   <thead>
                     <tr>
                       <th className="sticky left-0 z-10 text-left px-3 py-2.5 text-[10px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)', background: 'var(--crm-bg)', minWidth: '140px' }}>Closer</th>
-                      {workDays.map(function(day) {
+                      {monthDays.map(function(day) {
                         var isSelected = selectedDay === day.date;
                         return (
                           <th key={day.date}
@@ -438,8 +454,8 @@ export default function EODLogsPage() {
                             className="text-center px-0.5 py-2 cursor-pointer transition-all hover:bg-white/5"
                             style={isSelected ? { background: 'rgba(var(--accent-rgb),0.15)', borderRadius: '4px' } : {}}
                           >
-                            <div className="text-[9px] font-mono" style={{ color: day.isToday ? 'var(--crm-accent)' : isSelected ? 'var(--crm-accent)' : 'var(--crm-text-muted)' }}>{day.label}</div>
-                            <div className={'text-xs font-mono font-bold'} style={{ color: isSelected ? 'var(--crm-accent)' : day.isToday ? 'var(--crm-accent)' : 'var(--crm-text-bright)' }}>{day.day}</div>
+                            <div className="text-[9px] font-mono" style={{ color: day.isToday ? 'var(--crm-accent)' : isSelected ? 'var(--crm-accent)' : 'var(--crm-text-muted)', opacity: day.isWeekend && !day.isToday && !isSelected ? 0.5 : 1 }}>{day.label}</div>
+                            <div className={'text-xs font-mono font-bold'} style={{ color: isSelected ? 'var(--crm-accent)' : day.isToday ? 'var(--crm-accent)' : 'var(--crm-text-bright)', opacity: day.isWeekend && !day.isToday && !isSelected ? 0.5 : 1 }}>{day.day}</div>
                           </th>
                         );
                       })}
@@ -465,20 +481,25 @@ export default function EODLogsPage() {
                             {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}
                             {row.archived && <span className="text-[9px] font-mono block" style={{ color: 'var(--crm-text-muted)' }}>removed from roster</span>}
                           </td>
-                          {workDays.map(function(day) {
+                          {monthDays.map(function(day) {
                             var eod = submissions[day.date];
                             var didSubmit = !!eod;
                             var isSelected = selectedDay === day.date;
 
-                            if ((day.isPast || day.isToday) && !isOrphan && !row.archived) expected++;
-                            if (didSubmit) submitted++;
+                            if (!day.isWeekend && (day.isPast || day.isToday) && !isOrphan && !row.archived) expected++;
+                            if (didSubmit && !day.isWeekend) submitted++;
 
                             var bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'transparent';
                             var icon = null;
 
                             if (didSubmit) {
+                              // A weekend submission still counts as work done — it is
+                              // just never required.
                               bg = isSelected ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.12)';
                               icon = <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />;
+                            } else if (day.isWeekend) {
+                              bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'rgba(255,255,255,0.02)';
+                              icon = null;
                             } else if (day.isPast && !isOrphan) {
                               bg = isSelected ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.08)';
                               icon = <XCircle className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />;
@@ -513,6 +534,7 @@ export default function EODLogsPage() {
                 <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" style={{ color: '#22c55e' }} /><span className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>Submitted</span></div>
                 <div className="flex items-center gap-1.5"><XCircle className="w-3 h-3" style={{ color: '#ef4444' }} /><span className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>Missed</span></div>
                 <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" style={{ color: '#f59e0b' }} /><span className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>Pending</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid var(--crm-divider)' }} /><span className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>Weekend — not expected</span></div>
                 <span className="text-[10px] font-mono ml-auto" style={{ color: 'var(--crm-text-muted)' }}>Click any day to drill in</span>
               </div>
             </div>
@@ -524,7 +546,9 @@ export default function EODLogsPage() {
                   <div>
                     <h3 className="text-base font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{selectedDayData.info ? selectedDayData.info.fullLabel : selectedDay}</h3>
                     <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>
-                      {selectedDayData.submitted.length} submitted · {selectedDayData.missed.length} missed · {formatCurrency(selectedDayData.totalCash)} cash
+                      {selectedDayData.info && selectedDayData.info.isWeekend
+                        ? selectedDayData.submitted.length + ' submitted · weekend, no EODs expected · ' + formatCurrency(selectedDayData.totalCash) + ' cash'
+                        : selectedDayData.submitted.length + ' submitted · ' + selectedDayData.missed.length + ' missed · ' + formatCurrency(selectedDayData.totalCash) + ' cash'}
                     </p>
                   </div>
                   <button onClick={function() { setSelectedDay(null); }} className="p-2 rounded-lg hover:bg-white/5">
