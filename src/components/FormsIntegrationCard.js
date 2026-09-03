@@ -4,7 +4,7 @@
 // key n8n uses to post those submissions back into the CRM.
 
 import { useState, useEffect } from 'react';
-import { ClipboardList, Copy, Check, Save, KeyRound, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react';
+import { ClipboardList, Copy, Check, Save, KeyRound, ExternalLink, AlertCircle, RefreshCw, CalendarDays } from 'lucide-react';
 import { apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 
@@ -18,6 +18,7 @@ var FORM_ROWS = [
 export default function FormsIntegrationCard() {
   var [cfg, setCfg] = useState(null);
   var [forms, setForms] = useState({});
+  var [bookingLink, setBookingLink] = useState({ label: '', blurb: '', url: '' });
   var [useExternal, setUseExternal] = useState(true);
   var [newKey, setNewKey] = useState('');
   var [copied, setCopied] = useState('');
@@ -51,6 +52,7 @@ export default function FormsIntegrationCard() {
       .then(function(d) {
         setCfg(d);
         setForms(d.forms || {});
+        if (d.bookingLink) setBookingLink(d.bookingLink);
         setUseExternal(d.useExternalForms !== false);
       })
       .catch(function() { setCfg({ error: true }); });
@@ -67,7 +69,7 @@ export default function FormsIntegrationCard() {
     return apiFetch('/api/forms/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ forms: forms, useExternalForms: useExternal }, extra || {})),
+      body: JSON.stringify(Object.assign({ forms: forms, bookingLink: bookingLink, useExternalForms: useExternal }, extra || {})),
     })
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -136,6 +138,28 @@ export default function FormsIntegrationCard() {
             </div>
           );
         })}
+
+        <div className="glass-surface p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-crm-text-bright flex items-center gap-2">
+              <CalendarDays className="w-3.5 h-3.5 text-crm-accent" /> Round Robin booking link
+            </span>
+            {bookingLink.url && (
+              <a href={bookingLink.url} target="_blank" rel="noopener noreferrer" className="text-xs text-crm-accent flex items-center gap-1">
+                Open <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+          <input
+            className="input-field w-full text-xs font-mono"
+            value={bookingLink.url || ''}
+            placeholder="https://api.leadconnectorhq.com/widget/booking/..."
+            onChange={function(e) { setBookingLink(Object.assign({}, bookingLink, { url: e.target.value })); }}
+          />
+          <p className="text-[11px] text-crm-muted">
+            Shown as its own box on the Submit page. Clear the field to hide it.
+          </p>
+        </div>
 
         <label className="flex items-center gap-2 text-xs text-crm-muted">
           <input type="checkbox" checked={useExternal} onChange={function(e) { setUseExternal(e.target.checked); }} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -97,12 +97,15 @@ export default function SubmitPage() {
   var f1 = useState(null), formLinks = f1[0], setFormLinks = f1[1];
   var f2 = useState(true), useExternal = f2[0], setUseExternal = f2[1];
   var f3 = useState(false), showBuiltIn = f3[0], setShowBuiltIn = f3[1];
+  var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
+  var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
   useEffect(function() {
     fetch('/api/forms/config')
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d && d.forms) setFormLinks(d.forms);
+        if (d && d.bookingLink) setBookingLink(d.bookingLink);
         if (d && d.useExternalForms === false) setUseExternal(false);
       })
       .catch(function() { /* fall back to the built-in forms */ });
@@ -197,6 +200,17 @@ export default function SubmitPage() {
     setEodDials(''); setEodCashMYFM(''); setEodCashI2I(''); setEodRevenue(''); setEodPlan('');
     setEodSalesRep(user ? user.name : '');
     setEodDate(toReportDay(new Date()));
+  }
+
+  function copyBookingLink() {
+    if (!bookingLink || !bookingLink.url) return;
+    try {
+      navigator.clipboard.writeText(bookingLink.url);
+      setCopiedLink(true);
+      setTimeout(function() { setCopiedLink(false); }, 2000);
+    } catch (e) {
+      console.error('[Submit] Clipboard unavailable:', e.message);
+    }
   }
 
   async function handleSubmitBookCall(evt) {
@@ -323,6 +337,43 @@ export default function SubmitPage() {
       </header>
 
       <div className="px-8 py-8 space-y-6">
+
+        {/* ===== ROUND ROBIN BOOKING LINK ===== */}
+        {bookingLink && bookingLink.url && (
+          <div className="glass-card p-5 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(var(--accent-rgb),0.12)' }}>
+              <CalendarDays className="w-5 h-5 text-crm-accent" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-display font-semibold text-crm-text-bright">{bookingLink.label}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                  style={{ background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--crm-text-muted)' }}>
+                  GoHighLevel
+                </span>
+              </div>
+              <div className="text-xs text-crm-muted mt-1">{bookingLink.blurb}</div>
+              <div className="text-[11px] font-mono text-crm-muted mt-1.5 truncate">{bookingLink.url}</div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={copyBookingLink} className="btn-ghost flex items-center gap-2 text-xs">
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-crm-positive" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedLink ? 'Copied' : 'Copy link'}
+              </button>
+              <a
+                href={bookingLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary flex items-center gap-2 text-xs"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open calendar
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* ===== HOSTED FORMS (n8n) ===== */}
         {useExternal && formLinks && (
