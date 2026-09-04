@@ -3,7 +3,8 @@
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, softDeleteRecord } from '@/lib/db';
+import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
@@ -23,6 +24,7 @@ var store = {
   closedDeals: [],
   eodReports: [],
   afterCallReports: [],
+  skoolLeads: [],
   messageLog: [],
   commissionRates: {},
   closerProfiles: {},
@@ -81,6 +83,7 @@ export async function initStore() {
         store.closedDeals = data.closedDeals || [];
         store.eodReports = data.eodReports || [];
         store.afterCallReports = data.afterCallReports || [];
+        store.skoolLeads = data.skoolLeads || [];
         store.messageLog = data.messageLog || [];
         store.closerProfiles = data.closerProfiles || {};
         store.commissionRates = data.commissionRates || {};
@@ -1576,6 +1579,93 @@ export function getAfterCallReports(workspaceId) {
 }
 
 // ============================================
+// SKOOL COMMUNITY PIPELINE
+// ============================================
+//
+// One record per person a setter is working, in either the free or the paid Skool
+// community. Money is kept in two columns rather than one, because "what has this
+// setter collected" has two different answers worth telling apart: subscriptions
+// from moving people into the paid group, and high-ticket cash from moving people
+// onto a closer's calendar.
+
+function skoolFields(data, existing) {
+  var base = existing || {};
+  var out = {
+    name: data.name !== undefined ? String(data.name).trim() : (base.name || ''),
+    handle: data.handle !== undefined ? String(data.handle).trim() : (base.handle || ''),
+    email: data.email !== undefined ? String(data.email).trim().toLowerCase() : (base.email || ''),
+    phone: data.phone !== undefined ? String(data.phone).trim() : (base.phone || ''),
+    setter: data.setter !== undefined ? canonicalRep(data.setter) : (base.setter || ''),
+    closer: data.closer !== undefined ? canonicalRep(data.closer) : (base.closer || ''),
+    offer: data.offer !== undefined ? String(data.offer).trim() : (base.offer || ''),
+    notes: data.notes !== undefined ? String(data.notes).trim() : (base.notes || ''),
+    bookedFor: data.bookedFor !== undefined ? String(data.bookedFor).trim() : (base.bookedFor || ''),
+    communityCash: data.communityCash !== undefined ? money(data.communityCash) : money(base.communityCash),
+    highTicketCash: data.highTicketCash !== undefined ? money(data.highTicketCash) : money(base.highTicketCash),
+  };
+
+  var stage = data.stage !== undefined ? String(data.stage) : (base.stage || DEFAULT_STAGE);
+  out.stage = isStage(stage) ? stage : DEFAULT_STAGE;
+
+  var community = data.community !== undefined ? String(data.community) : (base.community || 'free');
+  out.community = isCommunity(community) ? community : 'free';
+
+  // Reaching the paid-community stage IS the upgrade: it moves them into the paid
+  // section and stamps when it happened, so "people I moved up" stays countable
+  // even after they go on to book a high-ticket call from inside the paid group.
+  out.joinedPaidAt = base.joinedPaidAt || null;
+  if (out.stage === 'paid-community' && !out.joinedPaidAt) {
+    out.joinedPaidAt = new Date().toISOString();
+  }
+  if (out.joinedPaidAt) out.community = 'paid';
+
+  return out;
+}
+
+export function addSkoolLead(data) {
+  var entry = Object.assign({
+    id: 'skool-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+  }, skoolFields(data || {}, null));
+
+  entry.workspaceId = resolveWriteWorkspace(data && data.workspaceId);
+  entry.createdAt = new Date().toISOString();
+  entry.updatedAt = entry.createdAt;
+  entry.stageHistory = [{ stage: entry.stage, at: entry.createdAt }];
+
+  store.skoolLeads.unshift(entry);
+  if (store.skoolLeads.length > 1000) store.skoolLeads = store.skoolLeads.slice(0, 1000);
+  saveSkoolLead(entry).catch(function(e) { console.error('[DB] Save skool lead error:', e.message); });
+  return entry;
+}
+
+export function updateSkoolLead(id, data) {
+  var lead = null;
+  for (var i = 0; i < store.skoolLeads.length; i++) {
+    if (store.skoolLeads[i] && store.skoolLeads[i].id === id) { lead = store.skoolLeads[i]; break; }
+  }
+  if (!lead) return { error: 'No Skool lead with id ' + id };
+
+  var previousStage = lead.stage;
+  var fields = skoolFields(data || {}, lead);
+  Object.keys(fields).forEach(function(k) { lead[k] = fields[k]; });
+  lead.updatedAt = new Date().toISOString();
+
+  // Keep the trail of how someone moved through the pipeline, not just where they
+  // landed — it is the only way to see a stage was skipped or walked backwards.
+  if (lead.stage !== previousStage) {
+    if (!Array.isArray(lead.stageHistory)) lead.stageHistory = [];
+    lead.stageHistory.push({ stage: lead.stage, at: lead.updatedAt, from: previousStage });
+  }
+
+  saveSkoolLead(lead).catch(function(e) { console.error('[DB] Update skool lead error:', e.message); });
+  return { lead: lead };
+}
+
+export function getSkoolLeads(workspaceId) {
+  return scoped(store.skoolLeads, workspaceId);
+}
+
+// ============================================
 // INGEST ATTEMPTS — did n8n actually reach us?
 // ============================================
 //
@@ -1623,6 +1713,7 @@ var DELETE_TARGETS = {
   'close-deal': { list: 'closedDeals', table: 'closed_deals', label: 'closed deal' },
   'eod-report': { list: 'eodReports', table: 'eod_reports', label: 'EOD report' },
   'after-call': { list: 'afterCallReports', table: 'after_call_reports', label: 'after-call report' },
+  'skool-lead': { list: 'skoolLeads', table: 'skool_leads', label: 'Skool lead' },
 };
 
 export async function deleteRecord(kind, id) {

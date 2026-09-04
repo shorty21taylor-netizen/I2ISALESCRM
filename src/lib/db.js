@@ -55,6 +55,10 @@ export async function initDatabase() {
     await p.query('CREATE TABLE IF NOT EXISTS commission_rates (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())');
     await p.query('CREATE TABLE IF NOT EXISTS custom_messages (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())');
 
+    // Skool community leads: the setter's pipeline for the free and paid groups.
+    await p.query("CREATE TABLE IF NOT EXISTS skool_leads (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_skool_created ON skool_leads (created_at DESC)').catch(function() {});
+
     // After-call reports: the recap a closer files once the call is over.
     await p.query("CREATE TABLE IF NOT EXISTS after_call_reports (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_after_call_created ON after_call_reports (created_at DESC)').catch(function() {});
@@ -79,7 +83,7 @@ export async function initDatabase() {
 
     // Deletes are soft: the row stays in Postgres with deleted_at stamped, so a
     // mis-click on live sales data is recoverable with one UPDATE.
-    var softDeleteTables = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports'];
+    var softDeleteTables = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads'];
     for (var d = 0; d < softDeleteTables.length; d++) {
       await p.query('ALTER TABLE ' + softDeleteTables[d] + ' ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP').catch(function() {});
     }
@@ -125,6 +129,7 @@ export async function loadFromDatabase() {
     var cm = await p.query('SELECT data, workspace_id FROM custom_messages ORDER BY created_at DESC LIMIT 100');
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
     var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
+    var sk = await p.query('SELECT data, workspace_id FROM skool_leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1000').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -143,6 +148,7 @@ export async function loadFromDatabase() {
       customMessages: cm.rows.map(withWs),
       messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
       afterCallReports: (ac && ac.rows ? ac.rows : []).map(withWs),
+      skoolLeads: (sk && sk.rows ? sk.rows : []).map(withWs),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -181,9 +187,16 @@ export async function saveCustomMessage(entry) {
 // Soft delete. The row is retained and can be brought back with:
 //   UPDATE <table> SET deleted_at = NULL WHERE id = '<id>';
 export async function softDeleteRecord(table, id) {
-  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports'];
+  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads'];
   if (ALLOWED.indexOf(table) === -1) throw new Error('Unknown table: ' + table);
   return query('UPDATE ' + table + ' SET deleted_at = NOW() WHERE id = $1', [id]);
+}
+
+export async function saveSkoolLead(entry) {
+  return query(
+    'INSERT INTO skool_leads (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3',
+    [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']
+  );
 }
 
 export async function saveAfterCallReport(entry) {
