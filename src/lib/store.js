@@ -1646,7 +1646,15 @@ export function updateSkoolLead(id, data) {
   if (!lead) return { error: 'No Skool lead with id ' + id };
 
   var previousStage = lead.stage;
+  var previousCommunity = lead.community;
   var fields = skoolFields(data || {}, lead);
+
+  // Moving someone from the free board into the paid one IS the upgrade, however it
+  // was recorded — dragged across, or marked a paid member. Creating a lead straight
+  // into the paid community is not: nobody moved them, that is where they started.
+  if (previousCommunity === 'free' && fields.community === 'paid' && !fields.joinedPaidAt) {
+    fields.joinedPaidAt = new Date().toISOString();
+  }
   Object.keys(fields).forEach(function(k) { lead[k] = fields[k]; });
   lead.updatedAt = new Date().toISOString();
 

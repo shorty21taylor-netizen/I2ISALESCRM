@@ -436,6 +436,72 @@
   }
 
   /* ============================================ */
+  /* SKOOL PIPELINE — draggable board              */
+  /* ============================================ */
+  .skool-col {
+    border-radius: 14px;
+    background: rgba(255,255,255,0.015);
+    border: 0.5px solid var(--glass-card-border);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  /* The column being dragged over lights up, so the drop target is never a guess. */
+  .skool-col-drop {
+    border-color: rgba(var(--accent-rgb),0.5);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.35), 0 0 26px rgba(var(--accent-rgb),0.22), inset 0 0 34px rgba(var(--accent-rgb),0.05);
+    animation: skoolPulse 1.3s ease-in-out infinite;
+  }
+  .skool-col-drop-green {
+    border-color: rgba(34,197,94,0.55);
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.4), 0 0 26px rgba(34,197,94,0.25), inset 0 0 34px rgba(34,197,94,0.06);
+    animation: skoolPulseGreen 1.3s ease-in-out infinite;
+  }
+  .skool-col-drop-red {
+    border-color: rgba(239,68,68,0.5);
+    box-shadow: 0 0 0 1px rgba(239,68,68,0.35), 0 0 26px rgba(239,68,68,0.2), inset 0 0 34px rgba(239,68,68,0.05);
+  }
+
+  @keyframes skoolPulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.35), 0 0 20px rgba(var(--accent-rgb),0.18), inset 0 0 30px rgba(var(--accent-rgb),0.04); }
+    50%      { box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.5),  0 0 34px rgba(var(--accent-rgb),0.3),  inset 0 0 40px rgba(var(--accent-rgb),0.08); }
+  }
+  @keyframes skoolPulseGreen {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(34,197,94,0.4), 0 0 20px rgba(34,197,94,0.2),  inset 0 0 30px rgba(34,197,94,0.05); }
+    50%      { box-shadow: 0 0 0 1px rgba(34,197,94,0.6), 0 0 36px rgba(34,197,94,0.32), inset 0 0 40px rgba(34,197,94,0.09); }
+  }
+
+  .skool-card {
+    cursor: grab;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  }
+  .skool-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,calc(0.35 * var(--shadow-strength))), 0 0 22px rgba(var(--accent-rgb),0.12);
+  }
+  .skool-card:active { cursor: grabbing; }
+  .skool-card-dragging { opacity: 0.4; transform: scale(0.97) rotate(-1.5deg); }
+
+  /* A won card carries its own quiet glow, so progress is visible at a glance. */
+  .skool-card-won { box-shadow: 0 0 18px rgba(34,197,94,0.10), inset 0 0 0 0.5px rgba(34,197,94,0.22); }
+  .skool-card-won:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.35), 0 0 26px rgba(34,197,94,0.22), inset 0 0 0 0.5px rgba(34,197,94,0.3); }
+
+  /* Each stage scrolls on its own, so one busy column cannot stretch the board and
+     push the next pipeline off the screen. */
+  .skool-stack {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+  }
+  .skool-stack::-webkit-scrollbar { width: 6px; }
+  .skool-stack::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  .skool-stack::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+  .stage-rail { height: 2px; border-radius: 2px; }
+  .stage-rail-accent { background: var(--crm-accent); box-shadow: 0 0 10px rgba(var(--accent-rgb),0.5); }
+  .stage-rail-green  { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.55); }
+  .stage-rail-red    { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.45); }
+
+  /* ============================================ */
   /* ICON CONTAINERS — Glowing icon boxes          */
   /* ============================================ */
   .icon-box {
