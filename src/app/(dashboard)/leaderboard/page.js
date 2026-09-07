@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, DollarSign, TrendingUp, Users, Handshake, Crown, Medal } from 'lucide-react';
+import { Trophy, DollarSign, TrendingUp, Users, Handshake, Crown, Medal, PhoneCall, Layers, AlertTriangle } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
@@ -126,6 +126,10 @@ export default function LeaderboardPage() {
   var leaderCash = reps.length ? Math.max.apply(null, reps.map(function(r) { return r.cash; })) : 0;
   var podium = reps.slice(0, 3);
   var partnerLeaderCash = partner.reps.length ? Math.max.apply(null, partner.reps.map(function(r) { return r.cash; })) : 0;
+
+  var setterBoard = (data && data.setters) || { setters: [], totals: { setters: 0, closes: 0, cash: 0, booked: 0 }, duplicates: { merged: 0, groups: [] }, attribution: { deals: 0, withSetter: 0, withoutSetter: 0 } };
+  var setterRows = setterBoard.setters || [];
+  var setterLeaderCash = setterRows.length ? Math.max.apply(null, setterRows.map(function(r) { return r.cash; })) : 0;
 
   var params = getDateParams();
   var dateDisplay = params.start ? (params.start === params.end ? params.start : params.start + ' → ' + params.end) : 'All time';
@@ -377,6 +381,107 @@ export default function LeaderboardPage() {
         )}
       </div>
 
+      {/* ===== SETTERS — ranked on the closes they set ===== */}
+      <div className="glass-card overflow-hidden relative z-10 stagger-5 mb-6">
+        <div className="section-header">
+          <h3><PhoneCall className="w-4 h-4 text-crm-accent" /> Setter Standings</h3>
+          <span className="section-tag">
+            {setterBoard.totals.closes} close{setterBoard.totals.closes === 1 ? '' : 's'} set
+            {setterBoard.totals.booked > 0 ? ' · ' + setterBoard.totals.booked + ' booked' : ''}
+          </span>
+        </div>
+
+        {setterRows.length === 0 ? (
+          <EmptyState
+            icon={PhoneCall}
+            title="No setter activity in this range"
+            subtitle="Setters appear here once a deal names them, or they book a call"
+          />
+        ) : (
+          <div>
+            <div className="p-5 pb-4 flex flex-wrap items-end gap-x-8 gap-y-4 border-b" style={{ borderColor: 'var(--glass-surface-border)' }}>
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-crm-muted mb-1">Cash set</p>
+                <p className="cash-figure cash-figure-xl">{formatCurrency(setterBoard.totals.cash)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-crm-muted mb-1">Setters</p>
+                <p className="text-lg font-display font-bold text-crm-text-bright">{setterBoard.totals.setters}</p>
+              </div>
+
+              {/* The whole point of this board: one close, counted once, whoever filed it. */}
+              {setterBoard.duplicates.merged > 0 && (
+                <div className="flex items-start gap-2 ml-auto max-w-sm">
+                  <Layers className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: 'var(--crm-accent)' }} />
+                  <div>
+                    <p className="text-[11px] font-mono" style={{ color: 'var(--crm-text-bright)' }}>
+                      {setterBoard.duplicates.merged} duplicate submission{setterBoard.duplicates.merged === 1 ? '' : 's'} merged
+                    </p>
+                    <p className="text-[10px] font-mono text-crm-muted">
+                      {setterBoard.duplicates.groups.slice(0, 3).map(function(g) { return g.leadsName; }).join(', ')}
+                      {setterBoard.duplicates.groups.length > 3 ? ' +' + (setterBoard.duplicates.groups.length - 3) + ' more' : ''}
+                      {' — the closer and the setter both filed these; each counts once.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {setterBoard.attribution.withoutSetter > 0 && (
+              <div className="px-5 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--glass-surface-border)', background: 'rgba(245,158,11,0.05)' }}>
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
+                <p className="text-[11px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>
+                  {setterBoard.attribution.withoutSetter} of {setterBoard.attribution.deals} closes name no setter, so nobody is credited for them
+                </p>
+              </div>
+            )}
+
+            <div className="divide-y" style={{ borderColor: 'var(--glass-surface-border)' }}>
+              {setterRows.map(function(rep) {
+                var share = setterLeaderCash > 0 ? Math.round((rep.cash / setterLeaderCash) * 100) : 0;
+                var isFirst = rep.rank === 1 && rep.cash > 0;
+                return (
+                  <div key={rep.name} className="p-4 md:px-5 flex items-center gap-4">
+                    <div className="w-7 flex-shrink-0 text-center">
+                      {isFirst
+                        ? <Crown className="w-4 h-4 mx-auto" style={{ color: '#f59e0b' }} />
+                        : <span className="text-xs font-mono text-crm-muted">#{rep.rank}</span>}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-display font-semibold text-crm-text-bright">{rep.name}</span>
+                        {isFirst && <span className="badge-positive">top setter</span>}
+                      </div>
+                      <p className="text-[11px] font-mono text-crm-muted mt-0.5">
+                        {rep.closes} close{rep.closes === 1 ? '' : 's'} set
+                        {rep.booked > 0 ? ' · ' + rep.booked + ' booked' : ''}
+                        {rep.avgDeal > 0 ? ' · avg ' + formatCurrency(rep.avgDeal) : ''}
+                        {rep.closeRate !== null && rep.closeRate !== undefined ? ' · ' + rep.closeRate + '% of booked closed' : ''}
+                      </p>
+                      <div className="lb-bar mt-2">
+                        <div className="lb-bar-fill" style={{
+                          width: share + '%',
+                          background: isFirst ? '#22c55e' : undefined,
+                          boxShadow: isFirst ? '0 0 14px rgba(34,197,94,0.45)' : undefined,
+                        }} />
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <p className="cash-figure cash-figure-lg">{formatCurrency(rep.cash)}</p>
+                      {rep.biggest > 0 && (
+                        <p className="text-[10px] font-mono text-crm-muted mt-0.5">biggest {formatCurrency(rep.biggest)}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ===== PARTNER SALES — its own board ===== */}
       <div className="glass-card overflow-hidden relative z-10 stagger-6">
         <div className="section-header">
@@ -467,6 +572,12 @@ export default function LeaderboardPage() {
           their EOD cash so the same money is never counted twice — log both, the board
           settles it. Revenue uses the EOD &ldquo;Revenue on Day&rdquo;
           figure, falling back to that day&apos;s cash when it is left blank.
+        </p>
+        <p>
+          Setters are ranked on the closes they set. A close that both the closer and the
+          setter submitted is one close: matching submissions of the same lead for the same
+          amount are merged, keeping the copy that names a setter, so nobody is paid twice
+          for filing twice. A deal with no setter named credits no one.
         </p>
         <p>
           Partner sales come from deals submitted under a &ldquo;Partner&rdquo; program. Those deals are

@@ -4,6 +4,7 @@
 
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
+import { dedupeDeals, computeSetterBoard } from '@/lib/dedupe-deals';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
@@ -671,7 +672,9 @@ var REP_ALIASES = {
   'victor': 'Victor Ikharia',
   'victor ikharia': 'Victor Ikharia',
   'kadynce kratka': 'Kadynce Kratka',
+  'rayan': 'Rayan Aljurhanni',
   'rayan aljurhanni': 'Rayan Aljurhanni',
+  'ayah': 'Ayah Al-Jurhanni',
   'jake reilly': 'Jake Reilly',              // departed; history retained
   'ayah al-jurhanni': 'Ayah Al-Jurhanni',    // departed; history retained
 };
@@ -900,6 +903,53 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
   rows.forEach(function(rep, i) { rep.rank = i + 1; });
 
   return rows;
+}
+
+// ============================================
+// SETTER LEADERBOARD
+// ============================================
+//
+// Setters compete on the closes they set. The same close reaches the CRM twice —
+// once from the closer, once from the setter who booked it — so the deals are
+// deduped before anyone is ranked on them. What was merged is returned alongside
+// the standings, because a leaderboard nobody can audit is a leaderboard nobody
+// trusts.
+
+export function getSetterLeaderboard(startDate, endDate, workspaceId) {
+  var start = startDate || null;
+  var end = endDate || null;
+
+  var deals = scoped(store.closedDeals, workspaceId).filter(function(d) {
+    return inRange(toReportDay(d.submittedAt), start, end);
+  });
+  var calls = scoped(store.bookedCalls, workspaceId).filter(function(b) {
+    return inRange(toReportDay(b.submittedAt), start, end);
+  });
+
+  var deduped = dedupeDeals(deals);
+  var setters = computeSetterBoard(deduped.deals, calls);
+
+  var attributed = deduped.deals.filter(function(d) { return (d.setter || '').trim(); }).length;
+
+  return {
+    setters: setters,
+    totals: {
+      setters: setters.length,
+      closes: setters.reduce(function(n, r) { return n + r.closes; }, 0),
+      cash: Math.round(setters.reduce(function(n, r) { return n + r.cash; }, 0) * 100) / 100,
+      booked: setters.reduce(function(n, r) { return n + r.booked; }, 0),
+    },
+    duplicates: {
+      merged: deduped.merged,
+      groups: deduped.groups,
+    },
+    // Deals nobody can be credited for, because no setter was named on the form.
+    attribution: {
+      deals: deduped.deals.length,
+      withSetter: attributed,
+      withoutSetter: deduped.deals.length - attributed,
+    },
+  };
 }
 
 export function getLeaderboardTotals(rows) {
