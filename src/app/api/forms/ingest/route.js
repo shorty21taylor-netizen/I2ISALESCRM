@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initStore, addBookedCall, addClosedDeal, addEODReport, addAfterCallReport, registerCloser, addIngestAttempt, getIngestAttempts } from '@/lib/store';
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
-import { normalizeSubmission, resolveFormType } from '@/lib/form-ingest';
+import { normalizeSubmission, resolveFormType, checkEODSanity } from '@/lib/form-ingest';
 import { sendFormNotification } from '@/lib/notify-server';
 import { getIngestKey, ingestKeyMatches } from '@/lib/ingest-auth';
 
@@ -103,6 +103,13 @@ export async function POST(req) {
     if (type === 'eod-report' && !record.salesRep) {
       note(req, { status: 'rejected', reason: 'Missing rep name (Your Name)', keyPresented: sawKey, type: type, requestedType: requestedType });
       return NextResponse.json({ error: 'Missing rep name (Your Name)' }, { status: 400, headers: cors() });
+    }
+    if (type === 'eod-report') {
+      var insane = checkEODSanity(record);
+      if (insane) {
+        note(req, { status: 'rejected', reason: insane, keyPresented: sawKey, type: type, requestedType: requestedType });
+        return NextResponse.json({ error: insane }, { status: 400, headers: cors() });
+      }
     }
     if (type !== 'eod-report' && !record.leadsName) {
       note(req, { status: 'rejected', reason: 'Missing lead name', keyPresented: sawKey, type: type, requestedType: requestedType });

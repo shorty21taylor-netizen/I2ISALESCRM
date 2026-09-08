@@ -675,6 +675,10 @@ var REP_ALIASES = {
   'rayan': 'Rayan Aljurhanni',
   'rayan aljurhanni': 'Rayan Aljurhanni',
   'ayah': 'Ayah Al-Jurhanni',
+  'leah': 'Leah Potter',
+  'leah potter': 'Leah Potter',
+  'adam': 'Adam Kuperman',
+  'adam kuperman': 'Adam Kuperman',
   'jake reilly': 'Jake Reilly',              // departed; history retained
   'ayah al-jurhanni': 'Ayah Al-Jurhanni',    // departed; history retained
 };
@@ -1657,6 +1661,59 @@ export function addAfterCallReport(data) {
 
 export function getAfterCallReports(workspaceId) {
   return scoped(store.afterCallReports, workspaceId);
+}
+
+// ============================================
+// CORRECTING AN EOD REPORT
+// ============================================
+//
+// EODs are typed by hand at the end of a long day, and a number in the wrong box can
+// wreck a rollup: one report with 12,500 in the "closes" field made up 99.8% of the
+// team's reported closes. Corrections keep what was originally filed, so the fix is
+// visible rather than a quiet rewrite of what someone said.
+
+var EOD_NUMERIC_FIELDS = [
+  'netNewCallsBooked', 'callsOnCalendar', 'callsTaken', 'callsNoShowed', 'callsCanceled',
+  'callsRescheduled', 'callsTakenAndPitched', 'closes', 'outboundDials', 'conversations',
+  'liveCalls', 'sets', 'followUpsScheduled', 'cashCollectedMYFM', 'cashCollectedI2I',
+  'revenueOnDay',
+];
+var EOD_TEXT_FIELDS = ['salesRep', 'closerName', 'date', 'improvementPlan', 'leadsCalled', 'callOutcomes', 'talkTime', 'selfRating', 'position', 'role'];
+
+export function updateEODReport(id, patch, correctedBy) {
+  var report = null;
+  for (var i = 0; i < store.eodReports.length; i++) {
+    if (store.eodReports[i] && store.eodReports[i].id === id) { report = store.eodReports[i]; break; }
+  }
+  if (!report) return { error: 'No EOD report with id ' + id };
+
+  var changes = [];
+  Object.keys(patch || {}).forEach(function(field) {
+    var isNumeric = EOD_NUMERIC_FIELDS.indexOf(field) !== -1;
+    if (!isNumeric && EOD_TEXT_FIELDS.indexOf(field) === -1) return;
+
+    var next = isNumeric ? (parseFloat(patch[field]) || 0) : String(patch[field]);
+    if (field === 'salesRep' || field === 'closerName') next = canonicalRep(next);
+    var prev = report[field];
+    if (prev === next) return;
+
+    report[field] = next;
+    changes.push({ field: field, from: prev, to: next });
+  });
+
+  if (!changes.length) return { error: 'Nothing to change' };
+
+  if (!Array.isArray(report.corrections)) report.corrections = [];
+  report.corrections.push({
+    at: new Date().toISOString(),
+    by: correctedBy || 'operator',
+    changes: changes,
+  });
+
+  saveEODReport(report).catch(function(e) { console.error('[DB] EOD correction save error:', e.message); });
+  recalcOverview();
+  console.log('[Store] Corrected EOD', id, changes.map(function(c) { return c.field + ' ' + c.from + '->' + c.to; }).join(', '));
+  return { report: report, changes: changes };
 }
 
 // ============================================

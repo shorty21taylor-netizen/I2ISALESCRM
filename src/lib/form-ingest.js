@@ -45,6 +45,35 @@ var PATH_ALIASES = {
   'postcall': 'after-call',
 };
 
+// Nobody takes 500 calls or closes 100 deals in a day. A figure past these is a cash
+// amount, a phone number, or a slipped keystroke — not a count.
+var EOD_SANITY_LIMITS = {
+  closes: 100,
+  callsTaken: 500,
+  callsTakenAndPitched: 500,
+  callsNoShowed: 500,
+  netNewCallsBooked: 500,
+  sets: 500,
+  outboundDials: 5000,
+  conversations: 5000,
+  liveCalls: 1000,
+  followUpsScheduled: 1000,
+};
+
+// Returns a message naming the offending field, or '' when the report looks sane.
+export function checkEODSanity(record) {
+  var problems = [];
+  Object.keys(EOD_SANITY_LIMITS).forEach(function(field) {
+    var value = record[field];
+    if (typeof value === 'number' && value > EOD_SANITY_LIMITS[field]) {
+      problems.push(field + ' = ' + value + ' (max ' + EOD_SANITY_LIMITS[field] + ')');
+    }
+  });
+  if (!problems.length) return '';
+  return 'That does not look like a count: ' + problems.join(', ')
+    + '. Cash goes in the cash field — please re-check and resubmit.';
+}
+
 export function resolveFormType(value) {
   var key = String(value || '').toLowerCase().trim();
   return PATH_ALIASES[key] || (FORM_TYPES.indexOf(key) !== -1 ? key : '');

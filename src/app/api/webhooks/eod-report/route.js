@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
+import { checkEODSanity } from '@/lib/form-ingest';
 
 export async function POST(req) {
   await initStore();
@@ -12,6 +13,20 @@ export async function POST(req) {
     }
     // The server decides the owning workspace; a member cannot write into
     // another client's workspace by posting a different workspaceId.
+    var insane = checkEODSanity({
+      closes: parseFloat(body.closes) || 0,
+      callsTaken: parseFloat(body.callsTaken) || 0,
+      callsTakenAndPitched: parseFloat(body.callsTakenAndPitched) || 0,
+      callsNoShowed: parseFloat(body.callsNoShowed) || 0,
+      netNewCallsBooked: parseFloat(body.netNewCallsBooked) || 0,
+      sets: parseFloat(body.sets) || 0,
+      outboundDials: parseFloat(body.outboundDials) || 0,
+      conversations: parseFloat(body.conversations) || 0,
+      liveCalls: parseFloat(body.liveCalls) || 0,
+      followUpsScheduled: parseFloat(body.followUpsScheduled) || 0,
+    });
+    if (insane) return NextResponse.json({ error: insane }, { status: 400 });
+
     body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);
     var entry = addEODReport(body);
     if (body.closerEmail || body.salesRep) {

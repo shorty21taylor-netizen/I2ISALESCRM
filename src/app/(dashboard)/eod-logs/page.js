@@ -125,6 +125,17 @@ export default function EODLogsPage() {
     submissionMap[key] = { name: c.name, email: c.email, archived: c.archived, submissions: {} };
   });
 
+  // First name -> the single profile it can belong to. Ambiguous ones are left out
+  // entirely rather than guessed at.
+  var byFirstName = {};
+  Object.keys(submissionMap).forEach(function(key) {
+    var full = submissionMap[key].name.toLowerCase().trim();
+    var first = full.split(' ')[0];
+    if (!first || first === full) return;
+    if (byFirstName[first] === undefined) byFirstName[first] = key;
+    else byFirstName[first] = null; // more than one profile starts with it
+  });
+
   eods.forEach(function(e) {
     var email = (e.closerEmail || '').toLowerCase().trim();
     var name = e.salesRep || e.closerName || '';
@@ -147,6 +158,15 @@ export default function EODLogsPage() {
         found = true;
       }
     });
+
+    // Filed under a first name only: credit the one profile it can mean.
+    if (!found && nameLower) {
+      var firstKey = byFirstName[nameLower.split(' ')[0]];
+      if (firstKey && nameLower.indexOf(' ') === -1) {
+        submissionMap[firstKey].submissions[date] = e;
+        found = true;
+      }
+    }
 
     // If no match at all, create a temporary entry (orphaned submission)
     if (!found && name) {
