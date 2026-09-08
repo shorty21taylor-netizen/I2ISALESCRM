@@ -181,8 +181,14 @@ export default function EODLogsPage() {
   // Convert to array for rendering. A rep removed from the roster is kept only if
   // they filed something — their history stays visible, but they no longer sit at
   // the bottom of the tracker collecting red crosses for days they were gone.
+  var monthStart = calendarDay(viewMonth);
+  var monthEnd = calendarDay(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0));
+
   var trackerRows = Object.values(submissionMap).filter(function(row) {
-    return !row.archived || Object.keys(row.submissions).length > 0;
+    if (!row.archived) return true;
+    return Object.keys(row.submissions).some(function(date) {
+      return date >= monthStart && date <= monthEnd;
+    });
   }).sort(function(a, b) {
     // Put orphans at the bottom
     if (a.name.includes('(unlinked)') && !b.name.includes('(unlinked)')) return 1;
@@ -190,8 +196,6 @@ export default function EODLogsPage() {
     return a.name > b.name ? 1 : -1;
   });
 
-  var monthStart = calendarDay(viewMonth);
-  var monthEnd = calendarDay(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0));
   var monthEods = eods.filter(function(e) { var date = e.date || ''; return date >= monthStart && date <= monthEnd; });
   var totalSubmissions = monthEods.length;
 
@@ -519,6 +523,10 @@ export default function EODLogsPage() {
                               icon = <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />;
                             } else if (day.isWeekend) {
                               bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'rgba(255,255,255,0.02)';
+                              icon = null;
+                            } else if (row.archived) {
+                              // Off the roster: not expected, so never marked missing.
+                              bg = isSelected ? 'rgba(var(--accent-rgb),0.08)' : 'transparent';
                               icon = null;
                             } else if (day.isPast && !isOrphan) {
                               bg = isSelected ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.08)';
