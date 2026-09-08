@@ -427,11 +427,17 @@ export default function LeaderboardPage() {
               )}
             </div>
 
-            {setterBoard.attribution.withoutSetter > 0 && (
-              <div className="px-5 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--glass-surface-border)', background: 'rgba(245,158,11,0.05)' }}>
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
+            {(setterBoard.attribution.withoutSetter > 0 || setterBoard.attribution.selfSet > 0) && (
+              <div className="px-5 py-2.5 flex items-start gap-2 border-b" style={{ borderColor: 'var(--glass-surface-border)', background: 'rgba(245,158,11,0.05)' }}>
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
                 <p className="text-[11px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>
-                  {setterBoard.attribution.withoutSetter} of {setterBoard.attribution.deals} closes name no setter, so nobody is credited for them
+                  {setterBoard.attribution.withoutSetter > 0 && (
+                    setterBoard.attribution.withoutSetter + ' of ' + setterBoard.attribution.deals + ' closes name no setter, so nobody is credited for them'
+                  )}
+                  {setterBoard.attribution.withoutSetter > 0 && setterBoard.attribution.selfSet > 0 ? ' · ' : ''}
+                  {setterBoard.attribution.selfSet > 0 && (
+                    setterBoard.attribution.selfSet + ' were set and closed by the same person, so they count on the closer board only'
+                  )}
                 </p>
               </div>
             )}
@@ -577,7 +583,10 @@ export default function LeaderboardPage() {
           Setters are ranked on the closes they set. A close that both the closer and the
           setter submitted is one close: matching submissions of the same lead for the same
           amount are merged, keeping the copy that names a setter, so nobody is paid twice
-          for filing twice. A deal with no setter named credits no one.
+          for filing twice. A deal with no setter named credits no one, and a deal set and
+          closed by the same person counts on the closer board only — setting means booking
+          onto somebody else&apos;s calendar. Anyone who is not a setter can be taken off this
+          board from their profile on the Closers page.
         </p>
         <p>
           Partner sales come from deals submitted under a &ldquo;Partner&rdquo; program. Those deals are

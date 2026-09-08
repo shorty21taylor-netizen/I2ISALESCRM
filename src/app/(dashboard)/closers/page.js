@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, UserMinus, RotateCcw, Archive } from 'lucide-react';
+import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, UserMinus, RotateCcw, Archive, PhoneCall } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -59,9 +59,14 @@ export default function ClosersPage() {
           setActionError(res.d.error || 'Could not update the roster');
           return;
         }
-        // The selected rep may have just left the list being shown.
-        if (action === 'archive' && !showArchived) setSelected(null);
-        else if (res.d.closer) setSelected(null);
+        if (action === 'setter-exclude' || action === 'setter-include') {
+          // Nobody left the list — just show the new state on the button.
+          if (res.d.closer) setSelected(Object.assign({}, selected, { excludedFromSetterBoard: !!res.d.closer.excludedFromSetterBoard }));
+        } else if (action === 'archive' && !showArchived) {
+          setSelected(null);
+        } else if (res.d.closer) {
+          setSelected(null);
+        }
         fetchClosers();
       })
       .catch(function(e) {
@@ -204,7 +209,20 @@ export default function ClosersPage() {
                   </div>
 
                   {isAdmin && (
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-2">
+                      {/* Not every closer who books the odd call is a setter. */}
+                      <button
+                        onClick={function() {
+                          rosterAction(selected.email, selected.excludedFromSetterBoard ? 'setter-include' : 'setter-exclude');
+                        }}
+                        disabled={busy}
+                        className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                        style={{ color: selected.excludedFromSetterBoard ? 'var(--crm-text-muted)' : 'var(--crm-accent)' }}
+                        title="Whether this person is ranked on the setter leaderboard"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        {selected.excludedFromSetterBoard ? 'Not a setter' : 'Counts as a setter'}
+                      </button>
                       {selected.archived ? (
                         <button
                           onClick={function() { rosterAction(selected.email, 'restore'); }}

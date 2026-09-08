@@ -4,7 +4,7 @@
 
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
-import { dedupeDeals, computeSetterBoard } from '@/lib/dedupe-deals';
+import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 
@@ -927,9 +927,15 @@ export function getSetterLeaderboard(startDate, endDate, workspaceId) {
   });
 
   var deduped = dedupeDeals(deals);
-  var setters = computeSetterBoard(deduped.deals, calls);
+  var excluded = getSetterExclusions();
+  var setters = computeSetterBoard(deduped.deals, calls, excluded);
 
-  var attributed = deduped.deals.filter(function(d) { return (d.setter || '').trim(); }).length;
+  // Self-set deals are not unattributed — they belong to the closer, not to nobody —
+  // so they are counted separately rather than reported as missing a setter.
+  var selfSet = deduped.deals.filter(isSelfSet).length;
+  var attributed = deduped.deals.filter(function(d) {
+    return (d.setter || '').trim() && !isSelfSet(d);
+  }).length;
 
   return {
     setters: setters,
@@ -947,8 +953,10 @@ export function getSetterLeaderboard(startDate, endDate, workspaceId) {
     attribution: {
       deals: deduped.deals.length,
       withSetter: attributed,
-      withoutSetter: deduped.deals.length - attributed,
+      selfSet: selfSet,
+      withoutSetter: deduped.deals.length - attributed - selfSet,
     },
+    excluded: excluded,
   };
 }
 
@@ -1580,6 +1588,29 @@ export function archiveCloser(email) {
   saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Archive closer error:', e.message); });
   console.log('[Store] Archived closer:', profile.name, '(' + key + ') — records kept');
   return { profile: profile };
+}
+
+// Roles are not always readable from the records. A closer who books the odd call
+// still shows up on the setter board with nothing to their name; this is the
+// operator saying plainly that someone is not a setter.
+export function setSetterEligibility(email, eligible) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !store.closerProfiles[key]) return { error: 'No closer with email ' + (email || '(blank)') };
+  var profile = store.closerProfiles[key];
+  profile.excludedFromSetterBoard = !eligible;
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Setter eligibility error:', e.message); });
+  console.log('[Store]', profile.name, eligible ? 'counts on the setter board' : 'removed from the setter board');
+  return { profile: profile };
+}
+
+// Names the operator has taken off the setter board.
+export function getSetterExclusions() {
+  var out = [];
+  Object.keys(store.closerProfiles || {}).forEach(function(k) {
+    var p = store.closerProfiles[k];
+    if (p && p.excludedFromSetterBoard && p.name) out.push(p.name);
+  });
+  return out;
 }
 
 export function restoreCloser(email) {

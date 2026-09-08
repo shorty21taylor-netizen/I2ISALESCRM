@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser } from '@/lib/store';
+import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility } from '@/lib/store';
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
@@ -17,7 +17,9 @@ export async function POST(req) {
     var result;
     if (action === 'archive') result = archiveCloser(body.email);
     else if (action === 'restore') result = restoreCloser(body.email);
-    else return NextResponse.json({ error: "action must be 'archive' or 'restore'" }, { status: 400 });
+    else if (action === 'setter-exclude') result = setSetterEligibility(body.email, false);
+    else if (action === 'setter-include') result = setSetterEligibility(body.email, true);
+    else return NextResponse.json({ error: "action must be 'archive', 'restore', 'setter-exclude' or 'setter-include'" }, { status: 400 });
 
     if (result.error) return NextResponse.json({ error: result.error }, { status: 404 });
     return NextResponse.json({ success: true, action: action, closer: result.profile });
@@ -67,6 +69,7 @@ export async function GET(req) {
         name: profile.name,
         email: profile.email,
         archived: !!profile.archived,
+        excludedFromSetterBoard: !!profile.excludedFromSetterBoard,
         archivedAt: profile.archivedAt || null,
         registeredAt: profile.registeredAt,
         lastLogin: profile.lastLogin,

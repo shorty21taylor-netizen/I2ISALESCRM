@@ -108,16 +108,32 @@ export function dedupeDeals(deals, options) {
   return { deals: kept, groups: groups, merged: mergedCount };
 }
 
+// A deal whose setter is also its closer was not set for anyone.
+export function isSelfSet(deal) {
+  if (!deal) return false;
+  var setter = canonicalRep(deal.setter);
+  var closer = canonicalRep(deal.closer || deal.closerName);
+  if (!setter || !closer) return false;
+  return setter.toLowerCase() === closer.toLowerCase();
+}
+
 // Setter standings, built on the deduped deals so one close counts once no matter how
 // many people filed it. Booked calls come from the booking form and are counted per
 // setter as their own effort.
-export function computeSetterBoard(deals, bookedCalls) {
+export function computeSetterBoard(deals, bookedCalls, excluded) {
   var setters = {};
+  var blocked = {};
+  (excluded || []).forEach(function(name) {
+    var c = canonicalRep(name);
+    if (c) blocked[c.toLowerCase()] = true;
+  });
 
   function rowFor(name) {
     var clean = canonicalRep(name);
     if (!clean) return null;
     var key = clean.toLowerCase();
+    // Someone the operator has said does not belong on this board.
+    if (blocked[key]) return null;
     if (!setters[key]) {
       setters[key] = {
         name: clean, closes: 0, cash: 0, booked: 0,
@@ -128,6 +144,11 @@ export function computeSetterBoard(deals, bookedCalls) {
   }
 
   (deals || []).forEach(function(deal) {
+    // Setting means booking someone onto somebody else's calendar. A closer who
+    // sourced and closed their own deal already has it on the closer board; crediting
+    // them again here is the same money counted twice, wearing a different hat — and
+    // it puts closers above the setters this board exists to rank.
+    if (isSelfSet(deal)) return;
     var row = rowFor(deal.setter);
     if (!row) return;
     var cash = cashOf(deal);
