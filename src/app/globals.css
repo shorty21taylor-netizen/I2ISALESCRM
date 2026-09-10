@@ -1624,6 +1624,30 @@ html.light .nav-link.active .nav-icon { filter: none; }
   padding: 0 30px 26px;
 }
 
+/* ---- a rep's face, wherever they are listed ---- */
+.rep-av {
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  border-radius: 50%; overflow: visible;
+  background: var(--avatar-bg); border: 1px solid var(--avatar-border);
+  font-family: 'Outfit', sans-serif; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--crm-text);
+}
+.rep-av img {
+  width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;
+}
+.rep-av-i { line-height: 1; }
+/* Small enough to read as a presence light rather than a second avatar. */
+.rep-av-dot {
+  position: absolute; right: -1px; bottom: -1px;
+  width: 30%; height: 30%; min-width: 8px; min-height: 8px; border-radius: 50%;
+  background: var(--status-ink); border: 2px solid var(--crm-surface);
+}
+.rep-av { --status-ink: var(--tone-good-ink); }
+.rep-av[data-tone="live"]  { --status-ink: var(--tone-live-ink); }
+.rep-av[data-tone="busy"]  { --status-ink: var(--tone-busy-ink); }
+.rep-av[data-tone="focus"] { --status-ink: var(--tone-focus-ink); }
+.rep-av[data-tone="off"]   { --status-ink: var(--tone-off-ink); }
+
 /* The presence palette, in one place so the ring, the pill and the menu can never
    disagree. The light theme needs its own inks: the amber and violet that read
    cleanly on near-black drop under 3:1 on white, which is unreadable for text. */

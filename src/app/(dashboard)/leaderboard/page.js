@@ -6,6 +6,8 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import { toReportDay } from '@/lib/report-date';
+import RepAvatar from '@/components/RepAvatar';
+import useRoster from '@/lib/use-roster';
 
 var RANGES = [
   { id: 'today', label: 'Today' },
@@ -27,21 +29,13 @@ var SORTS = [
 
 function iso(d) { return toReportDay(d); }
 
-function initials(name) {
-  return (name || '?')
-    .split(' ')
-    .filter(Boolean)
-    .map(function(w) { return w.charAt(0); })
-    .join('')
-    .substring(0, 2)
-    .toUpperCase();
-}
 
 function ordinal(n) {
   return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n + 'th';
 }
 
 export default function LeaderboardPage() {
+  var roster = useRoster();
   var workspaceId = useWorkspace();
   var s1 = useState(null), data = s1[0], setData = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
@@ -266,12 +260,13 @@ export default function LeaderboardPage() {
                 style={isFirst ? { boxShadow: '0 0 44px rgba(34,197,94,0.10)' } : undefined}
               >
                 <div className="flex items-center gap-3 mb-5">
-                  <div
-                    className={'avatar font-display ' + (isFirst ? 'avatar-lg' : 'avatar-md')}
+                  <RepAvatar
+                    rep={roster.find(rep.name)}
+                    name={rep.name}
+                    size={isFirst ? 48 : 36}
+                    showStatus
                     style={{ color: accent, borderColor: accent + '55', background: accent + '1a' }}
-                  >
-                    {initials(rep.name)}
-                  </div>
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       {isFirst
@@ -346,7 +341,7 @@ export default function LeaderboardPage() {
               return (
                 <div key={rep.name} className={'lb-row ' + (isLeader ? 'lb-row-leader' : '')}>
                   <div className={'rank-circle ' + (isLeader ? 'rank-1' : 'rank-default')}>{rep.rank}</div>
-                  <div className="avatar avatar-md text-crm-text font-display">{initials(rep.name)}</div>
+                  <RepAvatar rep={roster.find(rep.name)} name={rep.name} size={36} showStatus />
 
                   <div className="flex-1 min-w-0">
                     <p className="font-display font-semibold text-crm-text-bright truncate">{rep.name}</p>
@@ -536,12 +531,13 @@ export default function LeaderboardPage() {
                 return (
                   <div key={rep.name} className="lb-row">
                     <div className={'rank-circle ' + (rep.rank === 1 ? 'rank-1' : 'rank-default')}>{rep.rank}</div>
-                    <div
-                      className="avatar avatar-md font-display"
+                    <RepAvatar
+                      rep={roster.find(rep.name)}
+                      name={rep.name}
+                      size={36}
+                      showStatus
                       style={{ color: '#a78bfa', borderColor: 'rgba(167,139,250,0.35)', background: 'rgba(167,139,250,0.12)' }}
-                    >
-                      {initials(rep.name)}
-                    </div>
+                    />
 
                     <div className="flex-1 min-w-0">
                       <p className="font-display font-semibold text-crm-text-bright truncate">{rep.name}</p>

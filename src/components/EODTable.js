@@ -1,6 +1,8 @@
 'use client';
 import { FileText } from 'lucide-react';
-import { formatCurrency, formatTime, getInitials } from '@/lib/utils';
+import { formatCurrency, formatTime } from '@/lib/utils';
+import RepAvatar from '@/components/RepAvatar';
+import useRoster from '@/lib/use-roster';
 import EmptyState from '@/components/EmptyState';
 
 function StatusBadge({ status }) {
@@ -27,6 +29,7 @@ function ConfidenceBar({ score }) {
 }
 
 export default function EODTable({ reports }) {
+  var roster = useRoster();
   if (!reports || reports.length === 0) {
     return (
       <div className="glass-card overflow-hidden">
@@ -66,9 +69,7 @@ export default function EODTable({ reports }) {
                 <tr key={r.id}>
                   <td>
                     <div className="flex items-center gap-2">
-                      <div className="avatar avatar-sm text-crm-text">
-                        {getInitials(r.closerName)}
-                      </div>
+                      <RepAvatar rep={roster.find(r.closerEmail || r.closerName)} name={r.closerName} size={28} showStatus />
                       <span className="text-crm-text-bright text-sm">{r.closerName}</span>
                     </div>
                   </td>

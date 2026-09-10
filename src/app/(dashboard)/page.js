@@ -5,8 +5,11 @@ import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-rea
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
+import RepAvatar from '@/components/RepAvatar';
+import useRoster from '@/lib/use-roster';
 
 export default function DashboardPage() {
+  var roster = useRoster();
   var workspaceId = useWorkspace();
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
   var s3 = useState('today'), dateRange = s3[0], setDateRange = s3[1];
@@ -353,7 +356,6 @@ export default function DashboardPage() {
           <div className="divide-y" style={{ borderColor: 'var(--crm-divider)' }}>
             {yesterdayEODs.map(function(eod) {
               var rep = eod.salesRep || eod.closerName || 'Unknown';
-              var initials = rep.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
               var dials = parseInt(eod.outboundDials) || 0;
               var taken = parseInt(eod.callsTaken) || 0;
               var pitched = parseInt(eod.callsTakenAndPitched) || 0;
@@ -368,9 +370,13 @@ export default function DashboardPage() {
               return (
                 <div key={eod.id} className="p-4 md:p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
-                      {initials}
-                    </div>
+<RepAvatar
+                      rep={roster.find(eod.closerEmail || rep) || roster.find(rep)}
+                      name={rep}
+                      size={36}
+                      showStatus
+                      style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)', borderColor: 'rgba(var(--accent-rgb),0.3)' }}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
                       <p className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>

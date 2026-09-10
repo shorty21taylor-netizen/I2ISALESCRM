@@ -8,8 +8,11 @@ import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ExtraFields from '@/components/ExtraFields';
 import { toReportDay, calendarDay } from '@/lib/report-date';
+import RepAvatar from '@/components/RepAvatar';
+import useRoster from '@/lib/use-roster';
 
 export default function EODLogsPage() {
+  var roster = useRoster();
   var workspaceId = useWorkspace();
   var [eods, setEods] = useState([]);
   var [closers, setClosers] = useState([]);
@@ -275,7 +278,6 @@ export default function EODLogsPage() {
   // through the closer tiles is six zeros and none of the work they actually did.
   function renderEODCard(eod, showName) {
     var rep = eod.salesRep || eod.closerName || 'Unknown';
-    var initials = rep.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
     var closes = parseInt(eod.closes) || 0;
     var cashM = parseFloat(eod.cashCollectedMYFM) || 0;
     var cashI = parseFloat(eod.cashCollectedI2I) || 0;
@@ -306,9 +308,13 @@ export default function EODLogsPage() {
       <div key={eod.id} className="glass-card p-4 md:p-5">
         {showName && (
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-display font-bold flex-shrink-0" style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
-              {initials}
-            </div>
+            <RepAvatar
+              rep={roster.find(eod.closerEmail || rep) || roster.find(rep)}
+              name={rep}
+              size={36}
+              showStatus
+              style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)', borderColor: 'rgba(var(--accent-rgb),0.3)' }}
+            />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
@@ -495,15 +501,20 @@ export default function EODLogsPage() {
 
                       return (
                         <tr key={row.email || row.name} className="border-t" style={{ borderColor: 'var(--crm-divider)' }}>
-                          <td className="sticky left-0 z-10 px-3 py-2 text-xs font-display font-medium truncate" style={{
+                          <td className="sticky left-0 z-10 px-3 py-2 text-xs font-display font-medium" style={{
                             color: isOrphan ? '#f59e0b' : 'var(--crm-text-bright)',
                             background: 'var(--crm-bg)',
-                            maxWidth: '140px',
+                            maxWidth: '190px',
                             opacity: row.archived ? 0.55 : 1,
                           }}>
-                            {row.name}
-                            {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}
-                            {row.archived && <span className="text-[9px] font-mono block" style={{ color: 'var(--crm-text-muted)' }}>removed from roster</span>}
+                            <div className="flex items-center gap-2">
+                              <RepAvatar rep={roster.find(row.email || row.name)} name={row.name} size={26} />
+                              <div className="min-w-0">
+                                <span className="block truncate">{row.name}</span>
+                                {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}
+                                {row.archived && <span className="text-[9px] font-mono block" style={{ color: 'var(--crm-text-muted)' }}>removed from roster</span>}
+                              </div>
+                            </div>
                           </td>
                           {monthDays.map(function(day) {
                             var eod = submissions[day.date];
@@ -595,12 +606,10 @@ export default function EODLogsPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedDayData.missed.map(function(name) {
-                        var initials = name.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
                         return (
                           <div key={name} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-display font-bold" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                              {initials}
-                            </div>
+                            <RepAvatar rep={roster.find(name)} name={name} size={28}
+                              style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} />
                             <span className="text-xs font-display font-medium" style={{ color: '#ef4444' }}>{name}</span>
                           </div>
                         );

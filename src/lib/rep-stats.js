@@ -63,6 +63,9 @@ export function repIdentity(profile, email, accountName) {
     // name so matching never depends on how someone chose to present themselves.
     recordName: known || (profile && profile.name) || (local ? local.replace(/[._-]+/g, ' ') : email) || '',
     email: String(email || '').toLowerCase(),
+    // The same match set as matches(), flattened — for callers that need to build
+    // a lookup rather than ask about one candidate at a time.
+    matchNames: Object.keys(names),
     matches: function(candidate) { return !!names[norm(candidate)]; },
     matchesEmail: function(candidate) { return !!emails[norm(candidate)]; },
     // Whose record is this?
