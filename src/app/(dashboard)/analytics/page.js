@@ -28,6 +28,9 @@ function daysAgo(days) {
 }
 
 function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
+// A per-stage cash figure is null when that stage is not being counted; $0 would
+// claim the stage earned nothing, which is a different statement.
+function cashOr(v) { return v === null || v === undefined ? '—' : formatCurrency(v); }
 function num(v) { return (Math.round((v || 0) * 10) / 10).toLocaleString('en-US'); }
 function shortDay(day) {
   if (!day) return '';
@@ -306,6 +309,19 @@ export default function AnalyticsPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-10">
+        {m.quality.clean && !m.quality.untracked.length ? null : (
+          <div className="an-quality mb-4">
+            <span className="an-quality-t">Data quality</span>
+            {m.quality.rejectedCount ? (
+              <span>{m.quality.rejectedCount} EOD {m.quality.rejectedCount === 1 ? 'entry is' : 'entries are'} too large to be a call count and {m.quality.rejectedCount === 1 ? 'was' : 'were'} left out.</span>
+            ) : null}
+            {m.quality.untracked.length ? (
+              <span>Not reported by anyone: {m.quality.untracked.map(function(u) { return u.label; }).join(', ')}.</span>
+            ) : null}
+            <span className="an-quality-n">Anything built on those shows a dash, never a zero. Full breakdown is in the exported report.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <Hero label="Cash collected" value={formatCurrency(c.collected)} sub={c.dealCount + ' deals · ' + formatCurrency(c.avgDeal) + ' average'} series={daily} field="cash" positive />
           <Hero label="Closes" value={num(v.closes)} sub={num(v.pitched) + ' offers made'} series={daily} field="closes" />
@@ -318,10 +334,10 @@ export default function AnalyticsPage() {
             <Panel title="The funnel" note="each stage of the one above">
               <div className="an-funnel">
                 {m.funnel.map(function(f) {
-                  var conv = f.of ? Math.round((f.value / f.of) * 1000) / 10 : null;
                   // The bar shows conversion from the stage above, not share of the
                   // top: dials dwarf every later stage and flatten the whole chart.
-                  var share = conv === null ? 100 : Math.max(1.5, Math.min(100, conv));
+                  var conv = f.conversion;
+                  var share = conv === null ? null : Math.max(1.5, Math.min(100, conv));
                   return (
                     <div className="an-fn" key={f.stage}>
                       <div className="an-fn-top">
@@ -329,7 +345,7 @@ export default function AnalyticsPage() {
                         <span className="an-fn-v">{num(f.value)}</span>
                         <span className="an-fn-c">{conv === null ? '' : conv + '%'}</span>
                       </div>
-                      <span className="an-fn-bar"><i style={{ width: share + '%' }} /></span>
+                      <span className="an-fn-bar"><i style={{ width: (share === null ? 0 : share) + '%' }} /></span>
                     </div>
                   );
                 })}
@@ -376,7 +392,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
               {tab === 'calls' ? [
                 <Line2 key="a" label="Calls booked" value={num(v.sets)} />,
-                <Line2 key="b" label="On the calendar" value={num(v.onCalendar)} />,
+                <Line2 key="b" label="On the calendar" value={num(v.onCalendar)} sub={m.quality.derivedCalendar ? '· derived' : ''} />,
                 <Line2 key="c" label="Showed" value={num(v.taken)} sub={'· ' + pct(r.showRate)} />,
                 <Line2 key="d" label="No-showed" value={num(v.noShowed)} sub={'· ' + pct(r.noShowRate)} tone="#ef4444" />,
                 <Line2 key="e" label="Cancelled" value={num(v.canceled)} sub={'· ' + pct(r.cancelRate)} tone="#f59e0b" />,
@@ -414,10 +430,10 @@ export default function AnalyticsPage() {
               {tab === 'revenue' ? [
                 <Line2 key="a" label="Cash collected" value={formatCurrency(c.collected)} tone="#22c55e" />,
                 <Line2 key="b" label="Average deal" value={formatCurrency(c.avgDeal)} />,
-                <Line2 key="c" label="Cash per offer made" value={formatCurrency(c.perOffer)} />,
-                <Line2 key="d" label="Cash per call held" value={formatCurrency(c.perShow)} />,
-                <Line2 key="e" label="Cash per booked call" value={formatCurrency(c.perBookedCall)} />,
-                <Line2 key="f" label="Cash per dial" value={'$' + c.perDial.toFixed(2)} />,
+                <Line2 key="c" label="Cash per offer made" value={cashOr(c.perOffer)} />,
+                <Line2 key="d" label="Cash per call held" value={cashOr(c.perShow)} />,
+                <Line2 key="e" label="Cash per booked call" value={cashOr(c.perBookedCall)} />,
+                <Line2 key="f" label="Cash per dial" value={c.perDial === null ? '—' : '$' + c.perDial.toFixed(2)} />,
                 <Line2 key="g" label="Cash per reporting day" value={formatCurrency(c.perDay)} />,
                 <Line2 key="h" label="Inbound revenue" value={formatCurrency(m.source.inboundCash)} sub={'· ' + m.source.inboundDeals + ' deals'} />,
                 <Line2 key="i" label="Outbound revenue" value={formatCurrency(m.source.outboundCash)} sub={'· ' + m.source.outboundDeals + ' deals'} />,

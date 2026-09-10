@@ -47,11 +47,14 @@ var PATH_ALIASES = {
 
 // Nobody takes 500 calls or closes 100 deals in a day. A figure past these is a cash
 // amount, a phone number, or a slipped keystroke — not a count.
-var EOD_SANITY_LIMITS = {
+export var EOD_SANITY_LIMITS = {
   closes: 100,
   callsTaken: 500,
   callsTakenAndPitched: 500,
   callsNoShowed: 500,
+  callsOnCalendar: 500,
+  callsCanceled: 500,
+  callsRescheduled: 500,
   netNewCallsBooked: 500,
   sets: 500,
   outboundDials: 5000,

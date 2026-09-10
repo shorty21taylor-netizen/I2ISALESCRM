@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getStore, initStore, getWorkspace } from '@/lib/store';
+import { getStore, initStore, getWorkspace, getWorkspaces } from '@/lib/store';
 import { effectiveReadWorkspace, matchesWorkspace } from '@/lib/access';
 import { computeSalesReport } from '@/lib/sales-report';
 import { generateNarrative } from '@/lib/report-narrative';
@@ -45,14 +45,17 @@ export async function GET(req) {
       ? { text: '', source: 'skipped' }
       : await generateNarrative(metrics);
 
-    var ws = workspaceId && workspaceId !== '__all__' ? getWorkspace(workspaceId) : null;
+    // Viewing every workspace at once still needs a letterhead; fall back to the
+    // first workspace, which on a single-client install is the only one.
+    var ws = (workspaceId && workspaceId !== '__all__' && getWorkspace(workspaceId)) || getWorkspaces()[0] || null;
 
     return NextResponse.json({
       success: true,
       workspaceId: workspaceId || null,
       brand: {
-        name: (ws && ws.name) || 'Summit Closing Group',
+        name: (ws && ws.branding && ws.branding.reportName) || (ws && ws.name) || 'Sales Report',
         tagline: 'Sales Performance Report',
+        logoUrl: (ws && ws.branding && ws.branding.logoUrl) || '',
       },
       metrics: metrics,
       summary: summary,

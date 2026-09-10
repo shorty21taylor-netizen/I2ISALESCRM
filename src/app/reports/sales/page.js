@@ -12,6 +12,11 @@ import { GROUP_LABELS } from '@/lib/rep-groups';
 function money(v) {
   return '$' + Math.round(v || 0).toLocaleString('en-US');
 }
+// A per-stage figure is null when the stage is not being counted. Printing $0
+// there would read as "we made nothing", which is a different claim entirely.
+function cash(v) {
+  return v === null || v === undefined ? '\u2014' : money(v);
+}
 function num(v) {
   return (Math.round((v || 0) * 10) / 10).toLocaleString('en-US');
 }
@@ -183,13 +188,17 @@ function ReportBody() {
       <article className="rpt-paper">
         <header className="rpt-head">
           <div className="rpt-brand">
-            <div className="rpt-mark" aria-hidden="true">
-              <svg viewBox="0 0 120 120" width="30" height="30">
-                <path d="M6 100 L36 56 L64 100 Z" fill="#9aa3b2" />
-                <path d="M14 100 L60 26 L106 100 Z" fill="#111827" />
-                <path d="M66 40 L48 76 H60 L54 100 L78 64 H64 Z" fill="#ffffff" />
-              </svg>
-            </div>
+            {report.brand.logoUrl
+              ? <img className="rpt-logo" src={report.brand.logoUrl} alt={report.brand.name} />
+              : (
+                <div className="rpt-mark" aria-hidden="true">
+                  <svg viewBox="0 0 120 120" width="30" height="30">
+                    <path d="M6 100 L36 56 L64 100 Z" fill="#9aa3b2" />
+                    <path d="M14 100 L60 26 L106 100 Z" fill="#111827" />
+                    <path d="M66 40 L48 76 H60 L54 100 L78 64 H64 Z" fill="#ffffff" />
+                  </svg>
+                </div>
+              )}
             <div>
               <p className="rpt-brand-n">{report.brand.name}</p>
               <p className="rpt-brand-t">{report.brand.tagline}</p>
@@ -212,7 +221,7 @@ function ReportBody() {
             <Stat label="Closes" value={num(v.closes)} sub={num(v.pitched) + ' offers made'} />
             <Stat label="Close rate" value={pct(r.closeRateOfOffers)} sub="of offers made" />
             <Stat label="Show rate" value={pct(r.showRate)} sub={num(v.noShowed) + ' no-shows'} />
-            <Stat label="Cash per offer" value={money(c.perOffer)} sub="every pitch is worth" />
+            <Stat label="Cash per offer" value={cash(c.perOffer)} sub="every pitch is worth" />
           </div>
         </Section>
 
@@ -224,15 +233,15 @@ function ReportBody() {
               </thead>
               <tbody>
                 {m.funnel.map(function(f) {
-                  var conv = f.of ? Math.round((f.value / f.of) * 1000) / 10 : null;
-                  var share = conv === null ? 100 : Math.max(1, Math.min(100, conv));
+                  var conv = f.conversion;
+                  var share = conv === null ? null : Math.max(1, Math.min(100, conv));
                   return (
                     <tr key={f.stage}>
                       <td className="rpt-td-name">{f.stage}</td>
                       <td className="rpt-td-n">{num(f.value)}</td>
                       <td className="rpt-td-n">{conv === null ? '—' : conv + '%'}</td>
                       <td className="rpt-td-bar">
-                        <span className="rpt-meter"><i style={{ width: share + '%' }} /></span>
+                        {share === null ? null : <span className="rpt-meter"><i style={{ width: share + '%' }} /></span>}
                       </td>
                     </tr>
                   );
@@ -245,7 +254,7 @@ function ReportBody() {
         <div className="rpt-cols">
           <Section title="Call outcomes">
             <Row label="Calls booked" value={num(v.sets)} />
-            <Row label="On the calendar" value={num(v.onCalendar)} />
+            <Row label="On the calendar" value={num(v.onCalendar)} sub={m.quality.derivedCalendar ? '\u00b7 derived from outcomes' : ''} />
             <Row label="Showed" value={num(v.taken)} sub={'· ' + pct(r.showRate)} />
             <Row label="No-showed" value={num(v.noShowed)} sub={'· ' + pct(r.noShowRate)} />
             <Row label="Cancelled" value={num(v.canceled)} sub={'· ' + pct(r.cancelRate)} />
@@ -272,11 +281,11 @@ function ReportBody() {
         <div className="rpt-cols">
           <Section title="What each stage is worth">
             <Row label="Cash collected" value={money(c.collected)} />
-            <Row label="Per closed deal" value={money(c.avgDeal)} />
-            <Row label="Per offer made" value={money(c.perOffer)} />
-            <Row label="Per call held" value={money(c.perShow)} />
-            <Row label="Per booked call" value={money(c.perBookedCall)} />
-            <Row label="Per dial" value={'$' + c.perDial.toFixed(2)} />
+            <Row label="Per closed deal" value={cash(c.avgDeal)} />
+            <Row label="Per offer made" value={cash(c.perOffer)} />
+            <Row label="Per call held" value={cash(c.perShow)} />
+            <Row label="Per booked call" value={cash(c.perBookedCall)} />
+            <Row label="Per dial" value={c.perDial === null ? '\u2014' : '$' + c.perDial.toFixed(2)} />
             <Row label="Per reporting day" value={money(c.perDay)} />
             {c.duplicatesRemoved > 0
               ? <Row label="Duplicate deals merged" value={c.duplicatesRemoved + ' · ' + money(c.duplicateCash)} />
@@ -313,6 +322,85 @@ function ReportBody() {
             </div>
           </div>
         </Section>
+
+        {m.quality.clean && !m.quality.untracked.length ? null : (
+          <Section title="Data quality" note="What this report could not take at face value">
+            {m.quality.rejected.length ? (
+              <div style={{ marginBottom: 10 }}>
+                <p className="rpt-empty" style={{ fontStyle: 'normal', color: '#374151' }}>
+                  {m.quality.rejectedCount} {m.quality.rejectedCount === 1 ? 'entry was' : 'entries were'} left out of the
+                  totals below because the number is too large to be a count of calls. Fix these at the source and the
+                  report will pick them up.
+                </p>
+                <div className="rpt-tablewrap">
+                  <table className="rpt-table">
+                    <thead>
+                      <tr>
+                        <th className="rpt-th-name">Rep</th>
+                        <th className="rpt-th-name">Day</th>
+                        <th className="rpt-th-name">Field</th>
+                        <th className="rpt-th-n">Entered</th>
+                        <th className="rpt-th-n">Plausible max</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.quality.rejected.slice(0, 12).map(function(x, i) {
+                        return (
+                          <tr key={i}>
+                            <td className="rpt-td-name">{x.rep}</td>
+                            <td className="rpt-td-name">{shortDay(x.date)}</td>
+                            <td className="rpt-td-name">{x.label}</td>
+                            <td className="rpt-td-n">{num(x.value)}</td>
+                            <td className="rpt-td-n">{num(x.limit)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
+            {m.quality.untracked.length ? (
+              <p className="rpt-empty" style={{ fontStyle: 'normal', color: '#374151' }}>
+                Not reported by anyone in this range, so every figure built on {m.quality.untracked.length === 1 ? 'it' : 'them'} reads as
+                a dash rather than a zero: {m.quality.untracked.map(function(u) { return u.label; }).join(', ')}.
+              </p>
+            ) : null}
+
+            {m.quality.impossible.length ? (
+              <p className="rpt-empty" style={{ fontStyle: 'normal', color: '#374151' }}>
+                Withheld as impossible (a stage cannot exceed the stage it comes from):{' '}
+                {m.quality.impossible.slice(0, 6).map(function(x) { return x.metric; }).join(', ')}.
+              </p>
+            ) : null}
+
+            <div className="rpt-tablewrap" style={{ marginTop: 10 }}>
+              <table className="rpt-table">
+                <thead>
+                  <tr>
+                    <th className="rpt-th-name">Field</th>
+                    <th className="rpt-th-n">Reports carrying it</th>
+                    <th className="rpt-th-n">Of {m.quality.eodsInRange}</th>
+                    <th className="rpt-th-n">Coverage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {m.quality.coverage.map(function(cv) {
+                    return (
+                      <tr key={cv.field}>
+                        <td className="rpt-td-name">{cv.label}</td>
+                        <td className="rpt-td-n">{num(cv.reported)}</td>
+                        <td className="rpt-td-n">{num(cv.of)}</td>
+                        <td className="rpt-td-n">{pct(cv.share)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        )}
 
         <Section title="Closers" breakBefore>
           <GroupTable group="closers" rows={m.groups.closers} />
