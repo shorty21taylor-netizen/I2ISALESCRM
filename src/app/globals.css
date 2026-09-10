@@ -1331,3 +1331,212 @@
 /* The workspace's own mark, sized to the header rather than to the file. */
 .rpt-logo { max-height: 46px; max-width: 190px; width: auto; object-fit: contain; display: block; }
 @media print { .rpt-logo { max-height: 42px; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* ============================================================ */
+/* DEPTH LAYER                                                  */
+/* ============================================================ */
+/* Everything below re-skins the shared component classes rather than any one
+   page, so the whole platform moves together: softer corners, real elevation,
+   and surfaces that catch light from above instead of sitting flat on the page.
+   It is appended last on purpose — deleting this block restores the old look. */
+
+:root {
+  --r-control: 12px;
+  --r-card: 20px;
+  --r-panel: 26px;
+  --r-pill: 999px;
+  --spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+
+html.dark {
+  --sheen: inset 0 1px 0 rgba(255,255,255,0.07);
+  --ring: inset 0 0 0 1px rgba(255,255,255,0.035);
+  --e1: 0 1px 2px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.30);
+  --e2: 0 2px 5px rgba(0,0,0,0.38), 0 12px 28px -10px rgba(0,0,0,0.70);
+  --e3: 0 6px 12px rgba(0,0,0,0.42), 0 30px 66px -20px rgba(0,0,0,0.92);
+  --lift: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.012) 34%, rgba(255,255,255,0) 62%);
+  --orb-color:   rgba(var(--accent-rgb),0.13);
+  --orb-color-2: rgba(var(--accent-rgb),0.085);
+  --orb-color-3: rgba(var(--accent-rgb),0.065);
+  --orb-color-4: rgba(var(--accent-rgb),0.05);
+}
+
+html.light {
+  --sheen: inset 0 1px 0 rgba(255,255,255,0.95);
+  --ring: inset 0 0 0 1px rgba(15,23,42,0.03);
+  --e1: 0 1px 2px rgba(15,23,42,0.05), 0 2px 6px rgba(15,23,42,0.05);
+  --e2: 0 2px 5px rgba(15,23,42,0.05), 0 12px 28px -12px rgba(15,23,42,0.16);
+  --e3: 0 6px 14px rgba(15,23,42,0.07), 0 30px 60px -22px rgba(15,23,42,0.25);
+  --lift: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.35) 40%, rgba(255,255,255,0) 70%);
+}
+
+/* A floor for the page: the ambient orbs get a little more presence, and the
+   edges fall away so the content sits in the middle of something. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0,0,0,0.30) 100%);
+}
+html.light body::after {
+  background: radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(15,23,42,0.06) 100%);
+}
+
+/* ---------- cards ---------- */
+.glass-card,
+.an-card {
+  border-radius: var(--r-card);
+  background: var(--lift), var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: var(--sheen), var(--ring), var(--e2);
+  transition: transform 0.35s var(--spring), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+/* The old 1px reflection line reads as a seam at this radius. */
+.glass-card::before { display: none; }
+
+.glass-card:hover,
+.an-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glass-card-border-hover);
+  box-shadow:
+    var(--sheen), var(--ring), var(--e3),
+    0 0 44px -12px rgba(var(--accent-rgb),0.16);
+}
+/* A card holding a table is a container, not a control: it should not bounce
+   every time the pointer crosses a row. */
+.glass-card:has(table):hover,
+.an-card:has(table):hover { transform: none; }
+
+.glass-card-accent, .glass-card-green { border-radius: var(--r-card); }
+.glass-card-accent::before, .glass-card-green::before { display: none; }
+
+.an-hero {
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(130% 140% at 100% 0%, rgba(var(--accent-rgb),0.14), transparent 60%),
+    var(--lift),
+    var(--glass-card-bg);
+  box-shadow: var(--sheen), var(--ring), var(--e2);
+  transition: transform 0.35s var(--spring), box-shadow 0.35s ease;
+}
+.an-hero:hover { transform: translateY(-3px); box-shadow: var(--sheen), var(--ring), var(--e3); }
+
+/* ---------- headers inside cards ---------- */
+.section-header, .an-card-h {
+  border-bottom: 1px solid var(--section-header-border);
+  background: linear-gradient(180deg, var(--section-header-bg) 0%, transparent 100%);
+}
+
+/* ---------- sidebar: a floating panel, not a wall ---------- */
+.sidebar {
+  left: 14px;
+  top: 14px;
+  height: calc(100vh - 28px);
+  border-radius: var(--r-panel);
+  border: 1px solid var(--glass-card-border);
+  background: var(--lift), var(--sidebar-bg);
+  box-shadow: var(--sheen), var(--ring), var(--e3);
+  overflow: hidden;
+}
+.sidebar::after { display: none; }
+
+.nav-link {
+  border-radius: var(--r-control);
+  margin: 1px 0;
+  transition: background 0.22s ease, color 0.22s ease, transform 0.22s var(--spring);
+}
+.nav-link:hover { padding-left: 12px; transform: translateX(2px); }
+.nav-link.active {
+  border-left: 0;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb),0.20), rgba(var(--accent-rgb),0.10));
+  color: var(--crm-text-bright);
+  box-shadow: var(--sheen), 0 6px 16px -8px rgba(var(--accent-rgb),0.55);
+}
+
+/* ---------- controls ---------- */
+.btn-primary {
+  border-radius: var(--r-pill);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.35),
+    0 2px 6px rgba(0,0,0,0.30),
+    0 10px 24px -10px rgba(var(--accent-rgb),0.75);
+  transition: transform 0.22s var(--spring), box-shadow 0.28s ease, background 0.28s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    0 4px 10px rgba(0,0,0,0.32),
+    0 16px 34px -12px rgba(var(--accent-rgb),0.9);
+}
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+
+.btn-ghost, .an-btn-ghost, .an-chip {
+  border-radius: var(--r-pill);
+  transition: transform 0.22s var(--spring), box-shadow 0.28s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.btn-ghost:hover, .an-btn-ghost:hover, .an-chip:hover { transform: translateY(-1px); box-shadow: var(--e1); }
+.an-btn { border-radius: var(--r-pill); }
+.an-btn:hover { transform: translateY(-2px); }
+.an-btn:active { transform: translateY(0) scale(0.98); }
+
+.badge, .section-tag, .an-quality { border-radius: var(--r-pill); }
+.section-tag { padding: 4px 12px; }
+
+.input-field, .an-field input, .an-seg {
+  border-radius: 14px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.22);
+}
+html.light .input-field,
+html.light .an-field input,
+html.light .an-seg { box-shadow: inset 0 1px 2px rgba(15,23,42,0.06); }
+.an-seg-i { border-radius: 11px; }
+
+/* ---------- tables: rows that lift instead of just tinting ---------- */
+.data-table tbody tr, .tbl tbody tr, .an-tr { transition: background 0.2s ease, box-shadow 0.2s ease; }
+.data-table tbody tr:hover, .an-tr:hover { box-shadow: var(--sheen), var(--e1); }
+.data-table tbody td:first-child, .an-td-name:first-child { border-radius: 12px 0 0 12px; }
+.data-table tbody td:last-child, .an-td-n:last-child { border-radius: 0 12px 12px 0; }
+.table-scroll { border-radius: 0 0 var(--r-card) var(--r-card); }
+
+/* ---------- page chrome ---------- */
+.page-header { border-radius: 0; }
+.an-modal { border-radius: var(--r-panel); box-shadow: var(--sheen), var(--ring), var(--e3); }
+.an-fn-bar, .split-bar { border-radius: var(--r-pill); }
+.an-fn-bar i, .xp i { border-radius: var(--r-pill); }
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-card, .an-card, .an-hero, .nav-link, .btn-primary, .btn-ghost, .an-btn, .an-chip {
+    transition: none !important;
+  }
+  .glass-card:hover, .an-card:hover, .an-hero:hover, .btn-primary:hover, .an-btn:hover { transform: none; }
+}
+
+/* A pure flat black has no depth to give. A neutral light from above, behind all
+   content, is what makes the cards read as sitting on something. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(110% 62% at 50% -12%, rgba(255,255,255,0.055), transparent 62%),
+    radial-gradient(70% 55% at 102% 104%, rgba(255,255,255,0.022), transparent 66%);
+}
+html.light body::before {
+  background:
+    radial-gradient(110% 62% at 50% -12%, rgba(255,255,255,0.95), transparent 62%),
+    radial-gradient(70% 55% at 102% 104%, rgba(15,23,42,0.035), transparent 66%);
+}
+
+/* The accent is a light grey, so an accent-tinted pill all but disappears on a
+   light ground. Light mode marks the active page with the ink colour instead. */
+html.light .nav-link.active {
+  background: linear-gradient(180deg, rgba(15,23,42,0.085), rgba(15,23,42,0.045));
+  color: var(--crm-text-bright);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px -7px rgba(15,23,42,0.45);
+}
+html.light .nav-link.active .nav-icon { filter: none; }

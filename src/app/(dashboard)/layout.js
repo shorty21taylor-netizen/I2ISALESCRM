@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 ml-[240px] transition-all duration-300">{children}</main>
+      <main className="flex-1 ml-[268px] transition-all duration-300">{children}</main>
     </div>
   );
 }
