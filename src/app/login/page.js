@@ -40,9 +40,7 @@ function SignIn() {
       <div className="signin-glow" />
       <div className="signin-inner">
         <div className="signin-head">
-          <SummitMark size={62} />
-          <p className="signin-word">Summit<span>CRM</span></p>
-          <p className="signin-sub">Sales performance intelligence</p>
+          <SummitMark size={78} wordmark />
         </div>
 
         <div className="glass-card signin-card">

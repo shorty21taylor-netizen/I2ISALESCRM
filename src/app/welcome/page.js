@@ -51,12 +51,8 @@ export default function WelcomePage() {
         <div className="welcome-mark">
           <span className="welcome-ring" />
           <span className="welcome-ring r2" />
-          <SummitMark size={132} animate />
+          <SummitMark size={150} animate wordmark />
         </div>
-        <p className="welcome-word">
-          Summit<span>CRM</span>
-        </p>
-        <p className="welcome-sub">Sales performance intelligence</p>
         <button className="welcome-skip" onClick={function() { router.replace(destination); }}>
           Skip
         </button>

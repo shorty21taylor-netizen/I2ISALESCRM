@@ -2030,30 +2030,36 @@ html.light .nav-link.active .nav-icon { filter: none; }
 /* SUMMIT MARK + WELCOME TRANSITION             */
 /* ============================================ */
 
-.summit-mark { overflow: visible; filter: drop-shadow(0 0 26px rgba(var(--accent-rgb),0.45)); }
-.summit-mark .summit-ridge,
-.summit-mark .summit-peak { fill: none; }
-
-/* At rest the mark is simply drawn. Only .animate performs. */
-.summit-mark.animate .summit-ridge {
-  stroke-dasharray: 170; animation: summitDraw 0.55s ease-out 0.05s both;
+.summit-lockup { display: grid; justify-items: center; color: var(--crm-text-bright); }
+.summit-mark { overflow: visible; }
+.summit-words { text-align: center; margin-top: 14px; }
+.summit-name {
+  margin: 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 30px;
+  letter-spacing: 0.30em; text-indent: 0.30em; color: var(--crm-text-bright); line-height: 1;
 }
-.summit-mark.animate .summit-peak {
-  stroke-dasharray: 300; animation: summitDraw 0.7s ease-out 0.18s both;
-}
-.summit-mark.animate .summit-ridge-face { animation: summitFade 0.5s ease-out 0.5s both; }
-.summit-mark.animate .summit-peak-face { animation: summitFade 0.5s ease-out 0.62s both; }
-.summit-mark.animate .summit-bolt {
-  animation: summitBolt 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) 0.82s both;
-  transform-origin: 62px 66px;
+.summit-tag {
+  margin: 8px 0 0; font-family: 'Outfit', sans-serif; font-weight: 500; font-size: 13px;
+  letter-spacing: 0.34em; text-indent: 0.34em; color: var(--crm-text-bright); opacity: 0.86;
 }
 
-@keyframes summitDraw { from { stroke-dashoffset: 320; } to { stroke-dashoffset: 0; } }
-@keyframes summitFade { from { opacity: 0; } }
-@keyframes summitBolt {
-  0% { opacity: 0; transform: scale(0.4); }
-  60% { opacity: 1; transform: scale(1.18); }
-  100% { opacity: 1; transform: scale(1); }
+/* At rest the mark simply is the logo. Only .animate performs. */
+.summit-lockup.animate .summit-mark { filter: drop-shadow(0 0 30px rgba(var(--accent-rgb),0.55)); }
+.summit-lockup.animate .summit-outline {
+  stroke-dasharray: 340;
+  animation: summitDraw 1s cubic-bezier(0.65, 0, 0.35, 1) 0.1s both;
+}
+/* The range grows out of the base it stands on, rather than fading in over it. */
+.summit-lockup.animate .summit-range {
+  transform-origin: 60px 84px;
+  animation: summitRise 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) 0.95s both;
+}
+.summit-lockup.animate .summit-name { animation: welcomeRise 0.6s ease-out 1.35s both; }
+.summit-lockup.animate .summit-tag { animation: welcomeRise 0.6s ease-out 1.55s both; }
+
+@keyframes summitDraw { from { stroke-dashoffset: 340; } to { stroke-dashoffset: 0; } }
+@keyframes summitRise {
+  0% { opacity: 0; transform: scaleY(0.06); }
+  100% { opacity: 1; transform: scaleY(1); }
 }
 
 .welcome {
@@ -2062,50 +2068,40 @@ html.light .nav-link.active .nav-icon { filter: none; }
 }
 .welcome-glow {
   position: absolute; inset: -25% -10% auto -10%; height: 90%;
-  background: radial-gradient(48% 55% at 50% 42%, rgba(var(--accent-rgb),0.30), transparent 70%);
+  background: radial-gradient(48% 55% at 50% 42%, rgba(var(--accent-rgb),0.28), transparent 70%);
   filter: blur(52px); pointer-events: none;
   animation: welcomeBloom 1.6s ease-out both;
 }
 @keyframes welcomeBloom { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
 
 .welcome-inner { position: relative; display: grid; justify-items: center; text-align: center; }
-.welcome-mark { position: relative; display: grid; place-items: center; width: 190px; height: 190px; }
+.welcome-mark { position: relative; display: grid; place-items: center; }
 .welcome-ring {
-  position: absolute; width: 140px; height: 140px; border-radius: 50%;
-  border: 1.5px solid rgba(var(--accent-rgb),0.55); opacity: 0;
-  animation: welcomeRing 1.5s ease-out 0.85s both;
+  position: absolute; top: 46px; width: 150px; height: 150px; border-radius: 50%;
+  border: 1.5px solid rgba(var(--accent-rgb),0.5); opacity: 0;
+  animation: welcomeRing 1.5s ease-out 1.05s both;
 }
-.welcome-ring.r2 { animation-delay: 1.1s; }
+.welcome-ring.r2 { animation-delay: 1.3s; }
 @keyframes welcomeRing {
-  0% { opacity: 0.85; transform: scale(0.55); }
-  100% { opacity: 0; transform: scale(2.6); }
+  0% { opacity: 0.8; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(2.5); }
 }
 
-.welcome-word {
-  margin: 18px 0 0; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 34px;
-  letter-spacing: -0.035em; color: var(--crm-text-bright);
-  animation: welcomeRise 0.6s ease-out 1.15s both;
-}
-.welcome-word span { color: var(--crm-accent); }
-.welcome-sub {
-  margin: 6px 0 0; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--crm-muted); animation: welcomeRise 0.6s ease-out 1.35s both;
-}
 @keyframes welcomeRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
 .welcome-skip {
-  margin-top: 34px; padding: 7px 18px; border-radius: var(--r-pill); cursor: pointer;
+  margin-top: 40px; padding: 7px 18px; border-radius: var(--r-pill); cursor: pointer;
   border: 1px solid var(--btn-ghost-border); background: var(--btn-ghost-bg);
   color: var(--crm-muted); font-size: 12px;
-  animation: welcomeRise 0.5s ease-out 1.9s both;
+  animation: welcomeRise 0.5s ease-out 2.1s both;
 }
 .welcome-skip:hover { color: var(--crm-text); border-color: var(--btn-ghost-hover-border); }
 
 @media (prefers-reduced-motion: reduce) {
-  .summit-mark.animate .summit-ridge, .summit-mark.animate .summit-peak,
-  .summit-mark.animate .summit-ridge-face, .summit-mark.animate .summit-peak-face,
-  .summit-mark.animate .summit-bolt, .welcome-glow, .welcome-word,
-  .welcome-sub, .welcome-skip { animation: none !important; opacity: 1; }
+  .summit-lockup.animate .summit-outline, .summit-lockup.animate .summit-range,
+  .summit-lockup.animate .summit-name, .summit-lockup.animate .summit-tag,
+  .welcome-glow, .welcome-skip { animation: none !important; opacity: 1; }
+  .summit-lockup.animate .summit-range { transform: none; }
   .welcome-ring { display: none; }
 }
 
@@ -2186,3 +2182,7 @@ html.light .nav-link.active .nav-icon { filter: none; }
 .perm-list { margin: 6px 0 0; padding-left: 16px; }
 .perm-list li { font-size: 12px; line-height: 1.55; color: var(--crm-text); }
 .perm-list-no li { color: var(--crm-muted); opacity: 0.8; }
+
+/* The report's own mark inherits the brand ink so it sits with the headings. */
+.rpt-mark { background: none; border: 0; color: #111827; width: 42px; height: 42px; }
+.rpt-branded .rpt-mark { color: var(--rpt-brand); }

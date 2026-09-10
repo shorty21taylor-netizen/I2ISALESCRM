@@ -199,10 +199,10 @@ function ReportBody() {
               ? <img className="rpt-logo" src={report.brand.logoUrl} alt={report.brand.name} />
               : (
                 <div className="rpt-mark" aria-hidden="true">
-                  <svg viewBox="0 0 120 120" width="30" height="30">
-                    <path d="M6 100 L36 56 L64 100 Z" fill="#9aa3b2" />
-                    <path d="M14 100 L60 26 L106 100 Z" fill="#111827" />
-                    <path d="M66 40 L48 76 H60 L54 100 L78 64 H64 Z" fill="#ffffff" />
+                  <svg viewBox="0 0 120 120" width="34" height="34">
+                    <path d="M60 18 L110 88 L10 88 Z" fill="none"
+                      stroke="currentColor" strokeWidth="7.5" strokeLinejoin="miter" />
+                    <path d="M38.5 83.5 L56.8 56 L67 72 L70.5 68 L82.5 83.5 Z" fill="currentColor" />
                   </svg>
                 </div>
               )}

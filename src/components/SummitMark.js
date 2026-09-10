@@ -1,36 +1,44 @@
 'use client';
 
-// The Summit mark: a range drawn in, then the bolt striking it. Used at rest in
-// the sign-in header and animated on the way into the app.
-export default function SummitMark({ size, animate }) {
+// The Summit Closing Group mark: a hollow peak with a serrated range rising
+// inside it. Drawn to the logo rather than approximated — the outer form is a
+// mitred stroke, which is both what the logo is and what lets it draw itself.
+export default function SummitMark({ size, animate, wordmark }) {
   var px = size || 120;
   return (
-    <svg
-      className={'summit-mark' + (animate ? ' animate' : '')}
-      width={px}
-      height={px}
-      viewBox="0 0 120 120"
-      fill="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="summit-face" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--crm-accent-glow)" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="var(--crm-accent)" stopOpacity="0.06" />
-        </linearGradient>
-      </defs>
+    <div className={'summit-lockup' + (animate ? ' animate' : '')}>
+      <svg
+        className="summit-mark"
+        width={px}
+        height={px}
+        viewBox="0 0 120 120"
+        fill="none"
+        role="img"
+        aria-label="Summit Closing Group"
+      >
+        {/* the outer peak */}
+        <path
+          className="summit-outline"
+          d="M60 18 L110 88 L10 88 Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="7.5"
+          strokeLinejoin="miter"
+        />
+        {/* the range inside it, standing on the same base */}
+        <path
+          className="summit-range"
+          d="M38.5 83.5 L56.8 56 L67 72 L70.5 68 L82.5 83.5 Z"
+          fill="currentColor"
+        />
+      </svg>
 
-      {/* the lower ridge, drawn first so the main peak reads as nearer */}
-      <path className="summit-ridge-face" d="M2 100 L30 58 L58 100 Z" fill="url(#summit-face)" opacity="0.5" />
-      <path className="summit-ridge" d="M2 100 L30 58 L58 100 Z"
-        stroke="var(--crm-accent-muted)" strokeWidth="2.5" strokeLinejoin="round" />
-
-      <path className="summit-peak-face" d="M12 100 L60 22 L108 100 Z" fill="url(#summit-face)" />
-      <path className="summit-peak" d="M12 100 L60 22 L108 100 Z"
-        stroke="var(--crm-accent-glow)" strokeWidth="3.5" strokeLinejoin="round" />
-
-      <path className="summit-bolt" d="M67 33 L47 75 H60 L53 101 L79 61 H65 Z"
-        fill="var(--crm-text-bright)" />
-    </svg>
+      {wordmark ? (
+        <div className="summit-words">
+          <p className="summit-name">SUMMIT</p>
+          <p className="summit-tag">CLOSING GROUP</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
