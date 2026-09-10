@@ -1555,3 +1555,146 @@ html.light .nav-link.active .nav-icon { filter: none; }
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
 }
+
+/* ============================================ */
+/* MY DASHBOARD                                 */
+/* ============================================ */
+
+.me-hero { padding: 20px 22px; }
+.me-id { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+.me-avatar {
+  position: relative; width: 88px; height: 88px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; cursor: pointer; overflow: hidden; padding: 0;
+  border: 2px solid rgba(var(--accent-rgb),0.45);
+  background: linear-gradient(160deg, rgba(var(--accent-rgb),0.20), var(--glass-surface-bg));
+  box-shadow: var(--sheen), 0 12px 28px -14px rgba(var(--accent-rgb),0.9);
+  transition: transform 0.28s var(--spring), box-shadow 0.28s ease;
+}
+.me-avatar:hover { transform: translateY(-2px) scale(1.02); }
+.me-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.me-avatar-initials {
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 30px;
+  color: var(--crm-accent); letter-spacing: -0.02em;
+}
+.me-avatar-edit {
+  position: absolute; inset: auto 0 0 0; height: 26px;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.72));
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.me-avatar:hover .me-avatar-edit { opacity: 1; }
+
+.me-name {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700;
+  letter-spacing: -0.03em; color: var(--crm-text-bright);
+}
+.me-sub { margin: 4px 0 0; font-size: 13px; color: var(--crm-muted); }
+.me-sub b { color: var(--crm-text-bright); font-weight: 600; }
+.me-saving { margin: 5px 0 0; font-size: 11.5px; color: var(--crm-warning); }
+
+.me-headline { margin-left: auto; text-align: right; }
+.me-headline-l {
+  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.me-headline-v {
+  margin: 3px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 34px;
+  letter-spacing: -0.04em; color: var(--crm-positive); font-variant-numeric: tabular-nums;
+}
+.me-headline-s { margin: 2px 0 0; font-size: 11.5px; color: var(--crm-muted); }
+
+.me-stats { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; }
+.me-stat {
+  border-radius: var(--r-card); border: 1px solid var(--glass-card-border);
+  background: var(--lift), var(--glass-card-bg);
+  box-shadow: var(--sheen), var(--ring), var(--e2);
+  padding: 13px 15px;
+}
+.me-stat-l {
+  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.me-stat-v {
+  margin: 5px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 24px;
+  letter-spacing: -0.035em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+.me-stat-s { margin: 3px 0 0; font-size: 11px; color: var(--crm-muted); }
+
+.me-comm-total {
+  margin: 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 30px;
+  letter-spacing: -0.035em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+.me-comm-sub { margin: 2px 0 14px; font-size: 12px; color: var(--crm-muted); }
+.me-comm-split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.me-comm-split div {
+  border-radius: 12px; padding: 9px 10px;
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.me-comm-split span {
+  display: block; font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--crm-muted); font-weight: 600;
+}
+.me-comm-split b {
+  display: block; margin-top: 3px; font-family: 'JetBrains Mono', monospace;
+  font-size: 13.5px; font-weight: 500; color: var(--crm-text-bright);
+}
+
+.me-rec {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--divider-color);
+}
+.me-rec:last-child { border-bottom: 0; }
+.me-rec-l { font-size: 13px; color: var(--crm-text); }
+.me-rec-v {
+  margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 13.5px;
+  color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+.me-rec-s { font-size: 11px; color: var(--crm-muted); width: 88px; text-align: right; }
+
+.me-awards { display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: 10px; }
+.me-award {
+  border-radius: 16px; padding: 12px 13px;
+  border: 1px solid var(--glass-surface-border); background: var(--glass-surface-bg);
+  transition: transform 0.28s var(--spring), box-shadow 0.28s ease;
+}
+.me-award.earned { box-shadow: var(--sheen), var(--e1); }
+.me-award.earned:hover { transform: translateY(-3px); box-shadow: var(--sheen), var(--e2); }
+.me-award-top { display: flex; align-items: center; gap: 7px; }
+.me-award-icon { display: grid; place-items: center; width: 18px; }
+.me-award-name {
+  font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 13px;
+  color: var(--crm-muted); letter-spacing: -0.01em;
+}
+.me-award-detail { margin: 6px 0 9px; font-size: 11.5px; line-height: 1.45; color: var(--crm-muted); }
+.me-award-done {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--crm-positive);
+}
+.me-award-prog { display: flex; align-items: center; gap: 8px; }
+.me-award-bar {
+  flex: 1; height: 4px; border-radius: var(--r-pill); overflow: hidden;
+  background: rgba(255,255,255,0.07);
+}
+.me-award-bar i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--crm-accent-muted), var(--crm-accent));
+}
+.me-award-count {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--crm-muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.me-next {
+  display: flex; align-items: center; gap: 7px; margin: 14px 0 0;
+  font-size: 12px; color: var(--crm-muted);
+}
+.me-best {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--crm-warning);
+}
+
+@media (max-width: 1200px) { .me-stats { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 700px) {
+  .me-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .me-headline { margin-left: 0; text-align: left; width: 100%; }
+}

@@ -1572,6 +1572,30 @@ export function getCloserEmailByName(name) {
   return null;
 }
 
+// A rep's own profile fields — their photo and how they want to be introduced.
+// Only ever called for the caller's own record; the route enforces that.
+export function updateCloserProfile(email, patch) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key) return { error: 'No email' };
+  if (!store.closerProfiles[key]) {
+    store.closerProfiles[key] = {
+      name: key, email: key,
+      registeredAt: new Date().toISOString(), lastLogin: new Date().toISOString(),
+    };
+  }
+  var profile = store.closerProfiles[key];
+  ['avatarUrl', 'tagline'].forEach(function(field) {
+    if (Object.prototype.hasOwnProperty.call(patch || {}, field)) profile[field] = patch[field];
+  });
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Profile error:', e.message); });
+  return { profile: profile };
+}
+
+export function getCloserProfile(email) {
+  var key = (email || '').toLowerCase().trim();
+  return (key && store.closerProfiles[key]) || null;
+}
+
 export function getAllCloserProfiles() {
   return store.closerProfiles;
 }
