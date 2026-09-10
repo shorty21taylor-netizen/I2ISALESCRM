@@ -8,6 +8,7 @@
 import { computeSalesReport } from '@/lib/sales-report';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay } from '@/lib/report-date';
+import { parseCallDay, parseCallMinutes } from '@/lib/call-day';
 
 function n(v) {
   var x = parseFloat(v);
@@ -140,6 +141,110 @@ export function computeGoalPace(goal, deals, today) {
       ? Math.max(0, Math.round((target - collected) / remaining))
       : 0,
     shortfall: target > 0 ? Math.max(0, Math.round(target - collected)) : 0,
+  };
+}
+
+
+// What is on this rep's calendar today, and what their own history says to expect
+// from it. Every expectation is their rate, not a floor average.
+export function computeTodaysCalls(booked, today, rates, avgDeal) {
+  var scheduled = [];
+  var unscheduled = 0;
+
+  (booked || []).forEach(function(b) {
+    var day = parseCallDay(b.bookedDay, today);
+    if (!day) { unscheduled++; return; }
+    if (day !== today) return;
+    scheduled.push({
+      id: b.id,
+      lead: b.leadsName || 'Unnamed lead',
+      time: b.bookedTime || '',
+      minutes: parseCallMinutes(b.bookedTime),
+      program: b.program || '',
+      setter: b.setter || '',
+      qualified: b.qualified === true || String(b.qualified).toLowerCase() === 'yes',
+      source: b.outboundInbound || '',
+      goal: b.goal || '',
+      pain: b.pain || '',
+      notes: b.notes || '',
+      intentScore: b.intentScore || '',
+      creditScore: b.creditScore || '',
+    });
+  });
+
+  scheduled.sort(function(a, b) { return a.minutes - b.minutes; });
+
+  var count = scheduled.length;
+  var showRate = rates && rates.showRate;
+  var pitchRate = rates && rates.pitchRate;
+  var closeRate = rates && rates.closeRate;
+
+  // Each stage is only projected when the rep has a measured rate for it.
+  var expectedShows = showRate === null || showRate === undefined ? null : Math.round((count * showRate) / 100 * 10) / 10;
+  var expectedOffers = expectedShows === null || pitchRate === null || pitchRate === undefined
+    ? null : Math.round((expectedShows * pitchRate) / 100 * 10) / 10;
+  var expectedCloses = expectedOffers === null || closeRate === null || closeRate === undefined
+    ? null : Math.round((expectedOffers * closeRate) / 100 * 10) / 10;
+  var expectedCash = expectedCloses === null || !avgDeal ? null : Math.round(expectedCloses * avgDeal);
+
+  return {
+    date: today,
+    calls: scheduled,
+    count: count,
+    unscheduled: unscheduled,
+    expect: {
+      shows: expectedShows,
+      offers: expectedOffers,
+      closes: expectedCloses,
+      cash: expectedCash,
+      showRate: showRate === undefined ? null : showRate,
+      closeRate: closeRate === undefined ? null : closeRate,
+    },
+  };
+}
+
+
+// A PnL card compares a window against the one before it, so the headline is a
+// change rather than a total. Growth from nothing is not a percentage — it is
+// reported as new, because "+Infinity%" is not a claim anyone can act on.
+export function computePnl(deals, start, end) {
+  var from = String(start || '');
+  var to = String(end || '');
+  if (!from || !to || from > to) return null;
+
+  var days = Math.round((new Date(to + 'T12:00:00') - new Date(from + 'T12:00:00')) / 86400000) + 1;
+  var prevEnd = new Date(from + 'T12:00:00');
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  var prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - (days - 1));
+
+  function windowOf(a, b) {
+    var cash = 0, count = 0;
+    (deals || []).forEach(function(d) {
+      var day = toReportDay(d.submittedAt);
+      if (day >= a && day <= b) { cash += n(d.cashCollected); count++; }
+    });
+    return { cash: money(cash), closes: count };
+  }
+
+  var now = windowOf(from, to);
+  var before = windowOf(toReportDay(prevStart), toReportDay(prevEnd));
+
+  var change = null;
+  if (before.cash > 0) change = Math.round(((now.cash - before.cash) / before.cash) * 1000) / 10;
+
+  return {
+    start: from,
+    end: to,
+    days: days,
+    cash: now.cash,
+    closes: now.closes,
+    previousCash: before.cash,
+    previousCloses: before.closes,
+    // null means there is no prior period to compare against, not zero growth.
+    changePercent: change,
+    changeCash: money(now.cash - before.cash),
+    direction: change === null ? (now.cash > 0 ? 'new' : 'flat') : (change >= 0 ? 'up' : 'down'),
   };
 }
 
@@ -356,6 +461,7 @@ export function computeRepStats(input) {
       setsBooked: lifetime.volume.sets + myBooked.length,
       closeRate: lifetime.rates.closeRateOfOffers,
       showRate: lifetime.rates.showRate,
+      pitchRate: lifetime.rates.pitchRate,
       cashPerCall: lifetime.cash.perShow,
       cashPerOffer: lifetime.cash.perOffer,
       eodsFiled: myEods.length,

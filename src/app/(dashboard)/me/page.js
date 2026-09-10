@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check } from 'lucide-react';
+import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
@@ -187,6 +187,10 @@ export default function MyDashboardPage() {
   var goal = data.goal;
   var canEdit = data.canEdit;
   var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
+  var today = data.today;
+  var expect = today ? today.expect : null;
+  var longDay = today ? new Date(today.date + 'T12:00:00').toLocaleDateString('en-US',
+    { weekday: 'long', month: 'long', day: 'numeric' }) : '';
 
   return (
     <div className="min-h-screen">
@@ -322,6 +326,81 @@ export default function MyDashboardPage() {
                 </span>
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {today ? (
+          <div className="an-card mb-4">
+            <div className="an-card-h">
+              <h3 className="an-card-t">Today on your calendar</h3>
+              <span className="an-card-n">{longDay}</span>
+              {today.count > 0 ? (
+                <span className="me-today-count">{today.count} {today.count === 1 ? 'call' : 'calls'}</span>
+              ) : null}
+            </div>
+
+            {today.count > 0 ? (
+              <div>
+                <div className="me-today-list">
+                  {today.calls.map(function(c) {
+                    return (
+                      <div className="me-call" key={c.id}>
+                        <div className="me-call-time">
+                          <Clock size={12} />
+                          {c.time || 'No time set'}
+                        </div>
+                        <div className="me-call-body">
+                          <div className="me-call-head">
+                            <span className="me-call-lead">{c.lead}</span>
+                            {c.program ? <span className="me-call-tag">{c.program}</span> : null}
+                            <span className={'me-call-qual ' + (c.qualified ? 'yes' : 'no')}>
+                              {c.qualified ? 'Qualified' : 'Not qualified'}
+                            </span>
+                            {c.intentScore ? <span className="me-call-tag">Intent {c.intentScore}</span> : null}
+                          </div>
+                          {c.goal || c.pain ? (
+                            <p className="me-call-brief">
+                              {c.goal ? <><b>Wants:</b> {c.goal}</> : null}
+                              {c.goal && c.pain ? ' · ' : null}
+                              {c.pain ? <><b>Pain:</b> {c.pain}</> : null}
+                            </p>
+                          ) : null}
+                          {c.notes ? <p className="me-call-notes">{c.notes}</p> : null}
+                        </div>
+                        <div className="me-call-setter">{c.setter ? 'Set by ' + c.setter : 'No setter'}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {expect && expect.shows !== null ? (
+                  <p className="me-expect">
+                    <CalendarDays size={13} />
+                    On your own numbers, {today.count} booked usually means{' '}
+                    <b>{expect.shows}</b> held
+                    {expect.offers !== null ? <>, <b>{expect.offers}</b> offered</> : null}
+                    {expect.closes !== null ? <> and <b>{expect.closes}</b> closed</> : null}
+                    {expect.cash ? <> — about <b>{formatCurrency(expect.cash)}</b></> : null}.
+                  </p>
+                ) : (
+                  <p className="me-expect">
+                    <CalendarDays size={13} />
+                    Not enough of your own history yet to say what to expect from these.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-4">
+                <p className="me-empty-t">Nothing on your calendar today.</p>
+                {today.unscheduled > 0 ? (
+                  <p className="me-empty-s">
+                    {today.unscheduled} of your bookings have no call date on them, so they cannot be
+                    placed on a day. Adding a <b>Call Date</b> and <b>Call Time</b> question to the
+                    booking form fills this in from then on.
+                  </p>
+                ) : null}
+              </div>
+            )}
           </div>
         ) : null}
 

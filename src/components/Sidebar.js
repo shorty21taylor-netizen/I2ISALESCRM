@@ -2,27 +2,72 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap } from 'lucide-react';
+import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
 
-var navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard, teamOnly: true },
-  { href: '/me', label: 'My Dashboard', icon: UserCircle },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
-  { href: '/submit', label: 'Submit', icon: ClipboardList },
-  { href: '/booked-calls', label: 'Booked Calls', icon: Phone },
-  { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
-  { href: '/commissions', label: 'Commissions', icon: CreditCard },
-  { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
-  { href: '/after-call', label: 'After-Call', icon: PhoneCall },
-  { href: '/skool', label: 'Skool Community', icon: GraduationCap },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
-  { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
+// The menu is grouped by what someone is trying to do, not by what the data is
+// called. A section opens on its own when the page you are on lives inside it, so
+// nobody has to remember which folder holds which page.
+var navGroups = [
+  {
+    id: 'mine',
+    label: 'My Work',
+    icon: UserCircle,
+    items: [
+      { href: '/me', label: 'My Dashboard', icon: UserCircle },
+      { href: '/submit', label: 'Submit a Form', icon: ClipboardList },
+      { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+    ],
+  },
+  {
+    id: 'pipeline',
+    label: 'Pipeline',
+    icon: Phone,
+    items: [
+      { href: '/booked-calls', label: 'Booked Calls', icon: Phone },
+      { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
+      { href: '/skool', label: 'Skool Community', icon: GraduationCap },
+    ],
+  },
+  {
+    id: 'reporting',
+    label: 'Reporting',
+    icon: FileText,
+    items: [
+      { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
+      { href: '/after-call', label: 'After-Call', icon: PhoneCall },
+      { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/commissions', label: 'Commissions', icon: CreditCard },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Team',
+    icon: Users,
+    teamOnly: true,
+    items: [
+      { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
+      { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
+      { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
+      { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: Building2,
+    operatorOnly: true,
+    items: [
+      { href: '/admin/workspaces', label: 'Workspaces', icon: Building2, operatorOnly: true },
+      { href: '/admin/invites', label: 'Invite Team', icon: UserPlus, operatorOnly: true },
+      { href: '/message-scheduler', label: 'Messages', icon: MessageSquare, operatorOnly: true },
+    ],
+  },
 ];
+
+var OPEN_KEY = 'summit-crm-nav-open';
 
 var OPERATOR_EMAIL = 'shorty21taylor@gmail.com';
 
@@ -30,10 +75,23 @@ export default function Sidebar() {
   var pathname = usePathname();
   var s1 = useState(false), collapsed = s1[0], setCollapsed = s1[1];
   var s2 = useState(null), user = s2[0], setUser = s2[1];
+  var s3 = useState(null), openGroups = s3[0], setOpenGroups = s3[1];
 
   useEffect(function() {
     setUser(getUser());
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(OPEN_KEY) || 'null'); } catch (e) { saved = null; }
+    // First run opens everything, so nobody meets an empty menu and has to
+    // discover that the sections unfold.
+    setOpenGroups(saved || navGroups.reduce(function(acc, g) { acc[g.id] = true; return acc; }, {}));
   }, []);
+
+  function toggleGroup(id) {
+    var next = Object.assign({}, openGroups);
+    next[id] = !next[id];
+    setOpenGroups(next);
+    try { localStorage.setItem(OPEN_KEY, JSON.stringify(next)); } catch (e) { /* private mode */ }
+  }
 
   var access = useAccess();
   // Server is the authority on who is an owner; fall back to the known owner email
@@ -71,41 +129,56 @@ export default function Sidebar() {
 
       {canSwitch && <WorkspaceSwitcher collapsed={collapsed} />}
 
-      <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 space-y-1 overflow-y-auto">
-        {navItems.filter(function(item) {
-          if (item.operatorOnly && !isOwner) return false;
-          // A rep gets their own page and the leaderboard. Everything that reports
-          // on other people is not theirs to open.
-          if (item.teamOnly && !canSeeTeam) return false;
-          return true;
-        }).map(function(item) {
-          var isActive = pathname === item.href;
+      <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 overflow-y-auto">
+        {navGroups.map(function(group) {
+          if (group.operatorOnly && !isOwner) return null;
+          if (group.teamOnly && !canSeeTeam) return null;
+
+          var items = group.items.filter(function(item) {
+            if (item.operatorOnly && !isOwner) return false;
+            if (item.teamOnly && !canSeeTeam) return false;
+            return true;
+          });
+          if (!items.length) return null;
+
+          var holdsCurrentPage = items.some(function(item) { return pathname === item.href; });
+          // A collapsed rail has no room for section headers, so it shows every
+          // link flat; the page you are on always stays reachable.
+          var open = collapsed || holdsCurrentPage || (openGroups ? openGroups[group.id] !== false : true);
+
           return (
-            <Link key={item.href} href={item.href} className={'nav-link ' + (isActive ? 'active' : '')}>
-              <item.icon className="w-5 h-5 flex-shrink-0 nav-icon" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
+            <div key={group.id} className="nav-group">
+              {!collapsed && (
+                <button
+                  type="button"
+                  className={'nav-group-head' + (open ? ' open' : '') + (holdsCurrentPage ? ' current' : '')}
+                  onClick={function() { toggleGroup(group.id); }}
+                  aria-expanded={open}
+                >
+                  <group.icon className="w-4 h-4 flex-shrink-0 nav-group-icon" />
+                  <span>{group.label}</span>
+                  <ChevronDown className="w-3.5 h-3.5 nav-group-chev" />
+                </button>
+              )}
+              {open && (
+                <div className="nav-group-items">
+                  {items.map(function(item) {
+                    var isActive = pathname === item.href;
+                    return (
+                      <Link key={item.href} href={item.href} className={'nav-link ' + (isActive ? 'active' : '')}>
+                        <item.icon className="w-5 h-5 flex-shrink-0 nav-icon" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
 
         <hr className="divider my-2" />
 
-        {isOwner && (
-          <>
-            <Link href="/admin/workspaces" className={'nav-link ' + (pathname === '/admin/workspaces' ? 'active' : '')}>
-              <Building2 className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Workspaces</span>}
-            </Link>
-            <Link href="/admin/invites" className={'nav-link ' + (pathname === '/admin/invites' ? 'active' : '')}>
-              <UserPlus className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Invite Team</span>}
-            </Link>
-            <Link href="/message-scheduler" className={'nav-link ' + (pathname === '/message-scheduler' ? 'active' : '')}>
-              <MessageSquare className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Messages</span>}
-            </Link>
-          </>
-        )}
         <Link href="/settings" className={'nav-link ' + (pathname === '/settings' ? 'active' : '')}>
           <Settings className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Settings</span>}

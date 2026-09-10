@@ -6,7 +6,7 @@ import {
 import { callerEmail, effectiveReadWorkspace, matchesWorkspace, resolveAccess } from '@/lib/access';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
-import { computeRepStats, repIdentity, computeGoalPace } from '@/lib/rep-stats';
+import { computeRepStats, repIdentity, computeGoalPace, computeTodaysCalls, computePnl } from '@/lib/rep-stats';
 
 export var dynamic = 'force-dynamic';
 
@@ -107,6 +107,17 @@ export async function GET(req) {
     var myDeals = deduped.filter(function(d) { return identity.owns(d, 'closerEmail', 'closer'); });
     var goal = computeGoalPace(profile && profile.monthlyGoal, myDeals, todayInReportTimezone());
 
+    // Today's calendar, from the bookings filed against this closer.
+    var myBookings = mine(store.bookedCalls).filter(function(b) {
+      return identity.owns(b, 'closerEmail', 'closer');
+    });
+    var today = computeTodaysCalls(
+      myBookings,
+      todayInReportTimezone(),
+      stats.lifetime,
+      stats.lifetime.avgDeal
+    );
+
     return NextResponse.json({
       success: true,
       viewingSomeoneElse: viewingSomeoneElse,
@@ -122,6 +133,8 @@ export async function GET(req) {
         joinedAt: (profile && profile.registeredAt) || '',
       },
       goal: goal,
+      today: today,
+      pnl: computePnl(myDeals, start, end),
       stats: stats,
       standing: standing(deduped, identity, start, end),
       commissions: {
