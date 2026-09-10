@@ -213,6 +213,23 @@ export default function SubmitPage() {
     }
   }
 
+
+  // The signed-in email identifies the person filing the form, which is only the
+  // closer when they are filing for themselves. Sending it regardless credited a
+  // manager with every deal they entered on a rep's behalf, and stamped that rep's
+  // name onto the manager's own profile. A name that is not theirs carries no
+  // email, and matches by name the way older records always have.
+  function closerEmailFor(name) {
+    if (!user || !user.email) return '';
+    var typed = String(name || '').trim().toLowerCase();
+    if (!typed) return user.email;
+    var mine = String(user.name || '').trim().toLowerCase();
+    var local = String(user.email).split('@')[0].replace(/[._-]+/g, ' ').toLowerCase();
+    return (typed === mine || typed === local || typed === String(user.email).toLowerCase())
+      ? user.email
+      : '';
+  }
+
   async function handleSubmitBookCall(evt) {
     evt.preventDefault();
     if (!bcLeadsName.trim()) return;
@@ -230,7 +247,7 @@ export default function SubmitPage() {
           pricePoint: bcBrand === 'MYFM' ? bcPricePoint : '',
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
           notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
-          closerEmail: user ? user.email : '',
+          closerEmail: closerEmailFor(bcCloser),
           workspaceId: submitWorkspaceId,
           _whatsapp: waBC,
         }),
@@ -262,7 +279,7 @@ export default function SubmitPage() {
           pricePoint: cdBrand === 'MYFM' ? cdPricePoint : '',
           paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
-          setter: cdSetter, closer: cdCloser, closerEmail: user ? user.email : '',
+          setter: cdSetter, closer: cdCloser, closerEmail: closerEmailFor(cdCloser),
           workspaceId: submitWorkspaceId,
           _whatsapp: waCD,
         }),
@@ -295,7 +312,7 @@ export default function SubmitPage() {
           outboundDials: eodDials, cashCollectedMYFM: eodCashMYFM,
           cashCollectedI2I: eodCashI2I, revenueOnDay: eodRevenue,
           improvementPlan: eodPlan,
-          closerEmail: user ? user.email : '',
+          closerEmail: closerEmailFor(eodSalesRep),
           workspaceId: submitWorkspaceId,
           _whatsapp: waEOD,
         }),

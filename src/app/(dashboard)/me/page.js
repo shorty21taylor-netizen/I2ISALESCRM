@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
+import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
@@ -106,7 +107,11 @@ export default function MyDashboardPage() {
   function load() {
     if (!workspaceId) return;
     setLoading(true);
-    var q = '/api/me?start=' + start + '&end=' + end + (viewingRep ? '&rep=' + encodeURIComponent(viewingRep) : '');
+    var me = null;
+    try { me = getUser(); } catch (e) { me = null; }
+    var q = '/api/me?start=' + start + '&end=' + end
+      + (viewingRep ? '&rep=' + encodeURIComponent(viewingRep) : '')
+      + (!viewingRep && me && me.name ? '&name=' + encodeURIComponent(me.name) : '');
     apiFetch(withWorkspace(q, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(json) {
@@ -261,6 +266,11 @@ export default function MyDashboardPage() {
                   : <>No closes in this range yet</>}
               </p>
               {p.tagline ? <p className="me-tagline">{p.tagline}</p> : null}
+              {canEdit && p.nameIsGuessed ? (
+                <button className="me-notyou" onClick={function() { setEditing(true); }}>
+                  Not {p.name}? Set the name you want on this page.
+                </button>
+              ) : null}
               {canEdit ? (
                 <div className="me-id-actions">
                   <button className="an-chip" onClick={function() { setEditing(!editing); }}>Edit profile</button>

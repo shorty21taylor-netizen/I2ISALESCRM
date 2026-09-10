@@ -4,6 +4,7 @@ import {
   getCommissionsForCloser, canonicalRep,
 } from '@/lib/store';
 import { callerEmail, effectiveReadWorkspace, matchesWorkspace, resolveAccess } from '@/lib/access';
+import { getUser } from '@/lib/users';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { computeRepStats, repIdentity, computeGoalPace, computeTodaysCalls, computePnl } from '@/lib/rep-stats';
@@ -87,7 +88,13 @@ export async function GET(req) {
     }
 
     var profile = getCloserProfile(email);
-    var identity = repIdentity(profile, email);
+    // The signed-in account is the authority on what this person is called.
+    var account = await getUser(email).catch(function() { return null; });
+    // The owner is special-cased in access and may have no account record at all,
+    // so the browser's own record of who is signed in is the last resort — used
+    // only when looking at your own page, never when a manager opens someone else's.
+    var signedInHint = (!viewingSomeoneElse && url.searchParams.get('name')) || '';
+    var identity = repIdentity(profile, email, (account && account.name) || signedInHint);
     var deals = mine(store.closedDeals);
     var deduped = dedupeDeals(deals).deals;
 
@@ -123,13 +130,16 @@ export async function GET(req) {
       viewingSomeoneElse: viewingSomeoneElse,
       canEdit: !viewingSomeoneElse,
       profile: {
-        name: (profile && profile.displayName) || identity.name,
-        recordName: identity.name,
+        name: identity.name,
+        recordName: identity.recordName,
         email: identity.email,
         avatarUrl: (profile && profile.avatarUrl) || '',
         tagline: (profile && profile.tagline) || '',
         monthlyGoal: (profile && profile.monthlyGoal) || 0,
         onboarded: !!(profile && profile.onboardedAt),
+        // True when the only name we have came off a closer profile, which is
+        // created by whichever form first carried this email and is often wrong.
+        nameIsGuessed: !(profile && profile.displayName) && !(account && account.name),
         joinedAt: (profile && profile.registeredAt) || '',
       },
       goal: goal,

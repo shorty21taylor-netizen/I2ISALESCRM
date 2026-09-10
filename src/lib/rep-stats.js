@@ -24,13 +24,20 @@ function money(v) { return Math.round(n(v)); }
 // Everything a rep is called across the records. Records carry an email far more
 // reliably than a consistently spelled name, so email is the primary key and the
 // name forms are the fallback for older records filed without one.
-export function repIdentity(profile, email) {
+export function repIdentity(profile, email, accountName) {
   var names = {};
   var emails = {};
   function addName(v) { var k = norm(v); if (k) names[k] = true; }
   function addEmail(v) { var k = norm(v); if (k) emails[k] = true; }
 
-  addName(profile && profile.name);
+  // A closer profile is created by whichever form first carried this email, so its
+  // name can be somebody else's — that is how a manager filing on a rep's behalf
+  // ends up owning the rep's records. When we know the person's real name, that is
+  // the name we match on; the profile name is only trusted when nothing better
+  // exists, which is the ordinary case for a rep who has never been filed for.
+  var known = (profile && profile.displayName) || accountName || '';
+  if (known) addName(known);
+  else addName(profile && profile.name);
   addEmail(email);
   addEmail(profile && profile.email);
 
@@ -42,16 +49,37 @@ export function repIdentity(profile, email) {
     addName(local);
   }
 
+  // Whose name to show is a different question from which records are theirs.
+  // A closer profile is created by whatever form first carried the email, so a
+  // manager who filed a deal on someone else's behalf ends up with that rep's
+  // name stamped on their own profile. The account's own name outranks it.
   return {
-    name: (profile && profile.name) || (local ? local.replace(/[._-]+/g, ' ') : email) || 'Unknown',
+    name: (profile && profile.displayName)
+      || accountName
+      || (profile && profile.name)
+      || (local ? local.replace(/[._-]+/g, ' ') : email)
+      || 'Unknown',
+    // The name records are actually filed under, kept separate from the display
+    // name so matching never depends on how someone chose to present themselves.
+    recordName: known || (profile && profile.name) || (local ? local.replace(/[._-]+/g, ' ') : email) || '',
     email: String(email || '').toLowerCase(),
     matches: function(candidate) { return !!names[norm(candidate)]; },
     matchesEmail: function(candidate) { return !!emails[norm(candidate)]; },
-    // A record belongs to this rep if either its email or its name says so.
+    // Whose record is this?
+    //
+    // The name field is the deliberate one — somebody chose it when they filed the
+    // form. The email is ambient: it used to be stamped from whoever was signed in,
+    // so a manager filing on a rep's behalf produced a record carrying the manager's
+    // email and the rep's name. Matching on either would hand that record to both of
+    // them, and every personal total would count it twice.
+    //
+    // So a named record belongs to the person named. The email only decides it when
+    // there is no name to go on.
     owns: function(record, emailField, nameField) {
       if (!record) return false;
-      if (emailField && record[emailField] && emails[norm(record[emailField])]) return true;
-      return !!(nameField && record[nameField] && names[norm(record[nameField])]);
+      var name = nameField ? record[nameField] : '';
+      if (name) return !!names[norm(name)];
+      return !!(emailField && record[emailField] && emails[norm(record[emailField])]);
     },
   };
 }

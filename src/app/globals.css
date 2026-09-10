@@ -2017,3 +2017,8 @@ html.light .nav-link.active .nav-icon { filter: none; }
 .pnl-card .stat-card-foot b { color: #e8ecf8; }
 .pnl-card .stat-card-name { color: #fff; }
 .pnl-card .stat-card-sub { color: #8e98b8; }
+.me-notyou {
+  display: block; margin-top: 5px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 11.5px; color: var(--crm-warning); text-align: left;
+}
+.me-notyou:hover { text-decoration: underline; }

@@ -6,13 +6,15 @@
 // can never disagree about which deals are theirs.
 import { repOnlyFilter } from '@/lib/access';
 import { getCloserProfile } from '@/lib/store';
+import { getUser } from '@/lib/users';
 import { repIdentity } from '@/lib/rep-stats';
 
 // Returns null when the caller may see everything in their workspace.
 export async function repScope(req) {
   var email = await repOnlyFilter(req);
   if (!email) return null;
-  var identity = repIdentity(getCloserProfile(email), email);
+  var account = await getUser(email).catch(function() { return null; });
+  var identity = repIdentity(getCloserProfile(email), email, account && account.name);
   return {
     email: email,
     name: identity.name,
