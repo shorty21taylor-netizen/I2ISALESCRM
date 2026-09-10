@@ -22,6 +22,7 @@ export async function GET(req) {
       isOwner: access.isOperator,
       isOperator: access.isOperator,
       canSeeAll: access.canSeeAll,
+      canSeeTeam: access.canSeeTeam,
       // Someone in more than one workspace can still switch between their own.
       canSwitch: access.canSeeAll || visible.length > 1,
       workspaceIds: access.workspaceIds,

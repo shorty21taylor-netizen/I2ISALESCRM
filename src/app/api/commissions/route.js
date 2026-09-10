@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { effectiveReadWorkspace } from '@/lib/access';
+import { repScope } from '@/lib/rep-scope';
 import { getCommissionsForCloser, getAllCommissions, getAllCommissionRates, initStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
@@ -12,6 +13,13 @@ export async function GET(req) {
     var closerName = url.searchParams.get('closer');
     var view = url.searchParams.get('view');
     var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
+
+    // A rep can only ever ask about their own commissions, whatever they send.
+    var scope = await repScope(req);
+    if (scope) {
+      closerName = scope.name;
+      view = null;
+    }
 
     if (view === 'all') {
       var all = getAllCommissions(workspaceId);

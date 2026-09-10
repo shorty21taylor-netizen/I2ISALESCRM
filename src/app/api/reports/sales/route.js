@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getStore, initStore, getWorkspace, getWorkspaces } from '@/lib/store';
 import { effectiveReadWorkspace, matchesWorkspace } from '@/lib/access';
+import { repScope, scopeList } from '@/lib/rep-scope';
 import { computeSalesReport } from '@/lib/sales-report';
 import { generateNarrative } from '@/lib/report-narrative';
 import { todayInReportTimezone } from '@/lib/report-date';
@@ -26,17 +27,20 @@ export async function GET(req) {
 
     var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
     var store = getStore();
-    function mine(list) {
-      return (list || []).filter(function(r) { return matchesWorkspace(r, workspaceId); });
+    // A rep asking for analytics gets a report on themselves, not on the floor.
+    var scope = await repScope(req);
+    function mine(list, kind) {
+      var rows = (list || []).filter(function(r) { return matchesWorkspace(r, workspaceId); });
+      return scopeList(scope, rows, kind);
     }
 
     var metrics = computeSalesReport({
       start: start,
       end: end,
-      eods: mine(store.eodReports),
-      deals: mine(store.closedDeals),
-      booked: mine(store.bookedCalls),
-      afterCalls: mine(store.afterCallReports),
+      eods: mine(store.eodReports, 'eod'),
+      deals: mine(store.closedDeals, 'deal'),
+      booked: mine(store.bookedCalls, 'booked'),
+      afterCalls: mine(store.afterCallReports, 'afterCall'),
     });
 
     // ?narrative=skip keeps the analytics page snappy; only the printed report
@@ -52,6 +56,8 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       workspaceId: workspaceId || null,
+      scopedToSelf: !!scope,
+      scopedTo: scope ? scope.name : '',
       brand: {
         name: (ws && ws.branding && ws.branding.reportName) || (ws && ws.name) || 'Sales Report',
         tagline: 'Sales Performance Report',

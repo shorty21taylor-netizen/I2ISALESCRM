@@ -206,6 +206,9 @@ function ReportBody() {
           </div>
           <div className="rpt-head-r">
             <p className="rpt-range">{pretty(m.range.start)} — {pretty(m.range.end)}</p>
+            {report.scopedToSelf
+              ? <p className="rpt-scope">Individual report — {report.scopedTo || 'your records'} only</p>
+              : null}
             <p className="rpt-gen">
               Generated {new Date(report.generatedAt).toLocaleString('en-US')} ·
               {' '}{m.range.daysReported} reporting {m.range.daysReported === 1 ? 'day' : 'days'} ·

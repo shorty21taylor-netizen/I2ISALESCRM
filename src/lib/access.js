@@ -16,6 +16,14 @@ export var ALL_WORKSPACES = '__all__';
 // The account that owns every workspace and sees the combined Operator View.
 export var OWNER_EMAIL = 'shorty21taylor@gmail.com';
 
+// Roles that are allowed to see other people's numbers. Everyone else is a rep:
+// they see their own record and the team leaderboard, and nothing else.
+var TEAM_ROLES = { operator: true, owner: true, admin: true, manager: true };
+
+export function canSeeTeam(access) {
+  return !!(access && (access.canSeeAll || TEAM_ROLES[String(access.role || '').toLowerCase()]));
+}
+
 export function callerEmail(req) {
   try {
     return (req.headers.get('x-user-email') || '').trim().toLowerCase();
@@ -33,7 +41,7 @@ export async function resolveAccess(req) {
   var isOperator = !!email && email === OWNER_EMAIL;
 
   if (isOperator) {
-    return { email: email, isOperator: true, isOwner: true, role: 'operator', workspaceIds: [], canSeeAll: true };
+    return { email: email, isOperator: true, isOwner: true, role: 'operator', workspaceIds: [], canSeeAll: true, canSeeTeam: true };
   }
 
   var account = null;
@@ -50,14 +58,25 @@ export async function resolveAccess(req) {
   ids = ids.filter(function(id) { return id === 'default' || !!getWorkspace(id); });
   if (ids.length === 0) ids = ['default'];
 
-  return {
+  var role = (account && account.role) || 'closer';
+  var access = {
     email: email,
     isOperator: false,
     isOwner: false,
-    role: (account && account.role) || 'closer',
+    role: role,
     workspaceIds: ids,
     canSeeAll: false,
   };
+  access.canSeeTeam = canSeeTeam(access);
+  return access;
+}
+
+// A rep sees their own records; everyone senior sees the workspace. Returns the
+// email to filter by, or '' when no rep filter applies.
+export async function repOnlyFilter(req) {
+  var access = await resolveAccess(req);
+  if (access.canSeeTeam) return '';
+  return access.email || '';
 }
 
 // What a request should actually read.

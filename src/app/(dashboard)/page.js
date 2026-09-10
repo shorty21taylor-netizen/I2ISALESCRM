@@ -1,4 +1,5 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
@@ -47,6 +48,8 @@ export default function DashboardPage() {
     return { start: todayStr, end: todayStr };
   }
 
+  var router = useRouter();
+
   var fetchDashboard = useCallback(function() {
     if (!workspaceId) return; // wait for the active workspace to resolve client-side
     var params = getDateParams();
@@ -54,6 +57,8 @@ export default function DashboardPage() {
     apiFetch(withWorkspace('/api/dashboard' + qs, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        // The server refuses this payload to reps and names where they belong.
+        if (data && data.redirect) { router.replace(data.redirect); return; }
         if (data.success) {
           setLiveData(data);
           setLastFetch(new Date().toISOString());

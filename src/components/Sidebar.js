@@ -8,10 +8,10 @@ import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
 
 var navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard, teamOnly: true },
   { href: '/me', label: 'My Dashboard', icon: UserCircle },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/closers', label: 'Closers', icon: Users },
+  { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
   { href: '/submit', label: 'Submit', icon: ClipboardList },
   { href: '/booked-calls', label: 'Booked Calls', icon: Phone },
   { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
@@ -20,7 +20,7 @@ var navItems = [
   { href: '/after-call', label: 'After-Call', icon: PhoneCall },
   { href: '/skool', label: 'Skool Community', icon: GraduationCap },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/message-log', label: 'Message Log', icon: MessageSquare },
+  { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
   { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
 ];
 
@@ -44,6 +44,10 @@ export default function Sidebar() {
   // Visibility is permissive on purpose; the APIs still enforce access with a 403.
   var localOperator = !!(user && (user.email || '').toLowerCase() === OPERATOR_EMAIL);
   var isOwner = (access && access.isOwner) || localOperator;
+  // Same permissive rule as isOwner: assume a manager until the server says
+  // otherwise, so a slow /auth/me never hides the nav from someone entitled to it.
+  // The APIs are the enforcement point; this only decides what is worth showing.
+  var canSeeTeam = access ? (!!access.canSeeTeam || isOwner) : true;
   // A member belongs to exactly one workspace, so there is nothing to switch between.
   var canSwitch = access ? !!access.canSwitch : false;
 
@@ -69,7 +73,11 @@ export default function Sidebar() {
 
       <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 space-y-1 overflow-y-auto">
         {navItems.filter(function(item) {
-          return !item.operatorOnly || isOwner;
+          if (item.operatorOnly && !isOwner) return false;
+          // A rep gets their own page and the leaderboard. Everything that reports
+          // on other people is not theirs to open.
+          if (item.teamOnly && !canSeeTeam) return false;
+          return true;
         }).map(function(item) {
           var isActive = pathname === item.href;
           return (

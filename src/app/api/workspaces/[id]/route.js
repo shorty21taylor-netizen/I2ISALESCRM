@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getWorkspace, updateWorkspace, getWorkspaceUserList, initStore } from '@/lib/store';
+import { resolveAccess } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
 
@@ -15,6 +16,16 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   await initStore();
   var p = await params;
+
+  // This route rewrites a workspace wholesale — its name, branding, team password.
+  // Anyone signed in could previously call it against any workspace.
+  var access = await resolveAccess(req);
+  var mayEdit = access.canSeeAll
+    || (access.canSeeTeam && access.workspaceIds.indexOf(p.id) !== -1);
+  if (!mayEdit) {
+    return NextResponse.json({ error: 'You cannot change this workspace' }, { status: 403 });
+  }
+
   var body = await req.json();
   var ws = await updateWorkspace(p.id, body);
   if (!ws) return NextResponse.json({ error: 'Not found' }, { status: 404 });

@@ -309,6 +309,13 @@ export default function AnalyticsPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-10">
+        {report.scopedToSelf ? (
+          <div className="an-scoped mb-4">
+            <span className="an-scoped-t">Your numbers only</span>
+            <span>This page is reporting on {report.scopedTo || 'you'}, not the floor. Exports carry the same scope.</span>
+          </div>
+        ) : null}
+
         {m.quality.clean && !m.quality.untracked.length ? null : (
           <div className="an-quality mb-4">
             <span className="an-quality-t">Data quality</span>

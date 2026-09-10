@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { repScope, scopeList } from '@/lib/rep-scope';
 import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
@@ -42,5 +43,11 @@ export async function GET(req) {
   var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
   var data = store.closedDeals;
   data = data.filter(function(r) { return matchesWorkspace(r, workspaceId); });
-  return NextResponse.json({ success: true, data: data, workspaceId: workspaceId || null });
+  // A rep sees their own records; senior roles see the whole workspace.
+  var scope = await repScope(req);
+  data = scopeList(scope, data, 'deal');
+  return NextResponse.json({
+    success: true, data: data, workspaceId: workspaceId || null,
+    scopedToSelf: !!scope,
+  });
 }

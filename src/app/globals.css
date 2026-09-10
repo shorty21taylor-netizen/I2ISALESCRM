@@ -1698,3 +1698,17 @@ html.light .nav-link.active .nav-icon { filter: none; }
   .me-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .me-headline { margin-left: 0; text-align: left; width: 100%; }
 }
+
+.an-scoped {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+  padding: 10px 14px; border-radius: var(--r-pill); font-size: 12.5px; color: var(--crm-text);
+  border: 1px solid rgba(var(--accent-rgb),0.30); background: rgba(var(--accent-rgb),0.08);
+}
+.an-scoped-t {
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 11px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--crm-accent);
+}
+.rpt-scope {
+  margin: 3px 0 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #6b7280;
+}
