@@ -118,7 +118,7 @@ export default function SettingsPage() {
         assistroApiUrl: config.assistroApiUrl,
         assistroApiKey: config.assistroApiKey,
         whatsappGroupId: groupId,
-        message: '🧪 TEST — ' + labels[type] + ' notifications from Summit CRM are working! ✅',
+        message: '🧪 TEST — ' + labels[type] + ' notifications from Summit OS are working! ✅',
       }),
     })
       .then(function(r) { return r.json(); })
@@ -168,7 +168,7 @@ export default function SettingsPage() {
       message = '⏰ EOD REMINDER ⏰\n'
         + '═══════════════════════\n\n'
         + 'Team — time to submit your End of Day report!\n\n'
-        + '👉 Log into Summit CRM → Submit → End of Day\n\n'
+        + '👉 Log into Summit OS → Submit → End of Day\n\n'
         + 'Don\'t forget:\n'
         + '📞 Net new calls booked\n'
         + '🗣️ Calls taken & pitched\n'
@@ -182,7 +182,7 @@ export default function SettingsPage() {
       message = '☀️ MORNING CALL DIGEST ☀️\n'
         + '═══════════════════════\n\n'
         + 'Good morning team! Here are today\'s booked calls.\n\n'
-        + '👉 Check Summit CRM for the full list\n\n'
+        + '👉 Check Summit OS for the full list\n\n'
         + '🎯 Let\'s close some deals today!\n'
         + '═══════════════════════';
     } else if (taskType === 'adminMorningReport') {
@@ -191,7 +191,7 @@ export default function SettingsPage() {
       message = '📊 ADMIN MORNING REPORT 📊\n'
         + '═══════════════════════\n\n'
         + 'Yesterday\'s EOD submissions + MTD breakdown.\n\n'
-        + '👉 Open Summit CRM → Reports for full numbers.\n'
+        + '👉 Open Summit OS → Reports for full numbers.\n'
         + '═══════════════════════';
     }
 

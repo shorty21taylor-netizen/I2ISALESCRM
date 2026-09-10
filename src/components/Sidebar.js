@@ -6,6 +6,8 @@ import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, 
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
+import RepAvatar from '@/components/RepAvatar';
+import useRoster from '@/lib/use-roster';
 
 // The menu is grouped by what someone is trying to do, not by what the data is
 // called. A section opens on its own when the page you are on lives inside it, so
@@ -72,6 +74,7 @@ var OPEN_KEY = 'summit-crm-nav-open';
 var OPERATOR_EMAIL = 'shorty21taylor@gmail.com';
 
 export default function Sidebar() {
+  var roster = useRoster();
   var pathname = usePathname();
   var s1 = useState(false), collapsed = s1[0], setCollapsed = s1[1];
   var s2 = useState(null), user = s2[0], setUser = s2[1];
@@ -122,7 +125,7 @@ export default function Sidebar() {
         </div>
         {!collapsed && (
           <span className="font-display font-bold text-lg text-crm-text-bright">
-            Summit<span className="text-crm-accent">CRM</span>
+            Summit<span className="text-crm-accent">OS</span>
           </span>
         )}
       </div>
@@ -192,9 +195,13 @@ export default function Sidebar() {
       {!collapsed && user && (
         <div className="px-3 py-3 border-t border-crm-border/50">
           <div className="flex items-center gap-2">
-            <div className="avatar avatar-sm bg-crm-accent/10 text-crm-accent">
-              {user.name ? user.name.split(' ').map(function(n) { return n[0]; }).join('').toUpperCase() : '?'}
-            </div>
+            <RepAvatar
+              rep={roster.find(user.name, user.email)}
+              name={user.name}
+              size={28}
+              showStatus
+              style={{ background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--crm-accent)' }}
+            />
             <div className="min-w-0">
               <div className="text-sm font-medium text-crm-text-bright truncate">{user.name}</div>
               <div className="text-xs text-crm-muted truncate">{user.email}</div>

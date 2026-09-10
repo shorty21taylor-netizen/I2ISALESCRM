@@ -309,7 +309,7 @@ export default function EODLogsPage() {
         {showName && (
           <div className="flex items-center gap-3 mb-3">
             <RepAvatar
-              rep={roster.find(eod.closerEmail || rep) || roster.find(rep)}
+              rep={roster.find(rep, eod.closerEmail)}
               name={rep}
               size={36}
               showStatus
@@ -508,7 +508,7 @@ export default function EODLogsPage() {
                             opacity: row.archived ? 0.55 : 1,
                           }}>
                             <div className="flex items-center gap-2">
-                              <RepAvatar rep={roster.find(row.email || row.name)} name={row.name} size={26} />
+                              <RepAvatar rep={roster.find(row.name, row.email)} name={row.name} size={26} />
                               <div className="min-w-0">
                                 <span className="block truncate">{row.name}</span>
                                 {isOrphan && <span className="text-[9px] font-mono block" style={{ color: '#f59e0b' }}>needs profile link</span>}

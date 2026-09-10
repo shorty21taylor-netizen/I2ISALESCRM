@@ -69,7 +69,7 @@ export default function EODTable({ reports }) {
                 <tr key={r.id}>
                   <td>
                     <div className="flex items-center gap-2">
-                      <RepAvatar rep={roster.find(r.closerEmail || r.closerName)} name={r.closerName} size={28} showStatus />
+                      <RepAvatar rep={roster.find(r.closerName, r.closerEmail)} name={r.closerName} size={28} showStatus />
                       <span className="text-crm-text-bright text-sm">{r.closerName}</span>
                     </div>
                   </td>

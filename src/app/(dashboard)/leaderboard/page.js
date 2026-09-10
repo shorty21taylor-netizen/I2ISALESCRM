@@ -261,7 +261,7 @@ export default function LeaderboardPage() {
               >
                 <div className="flex items-center gap-3 mb-5">
                   <RepAvatar
-                    rep={roster.find(rep.name)}
+                    rep={roster.find(rep.name, rep.email)}
                     name={rep.name}
                     size={isFirst ? 48 : 36}
                     showStatus
@@ -341,7 +341,7 @@ export default function LeaderboardPage() {
               return (
                 <div key={rep.name} className={'lb-row ' + (isLeader ? 'lb-row-leader' : '')}>
                   <div className={'rank-circle ' + (isLeader ? 'rank-1' : 'rank-default')}>{rep.rank}</div>
-                  <RepAvatar rep={roster.find(rep.name)} name={rep.name} size={36} showStatus />
+                  <RepAvatar rep={roster.find(rep.name, rep.email)} name={rep.name} size={36} showStatus />
 
                   <div className="flex-1 min-w-0">
                     <p className="font-display font-semibold text-crm-text-bright truncate">{rep.name}</p>
@@ -532,7 +532,7 @@ export default function LeaderboardPage() {
                   <div key={rep.name} className="lb-row">
                     <div className={'rank-circle ' + (rep.rank === 1 ? 'rank-1' : 'rank-default')}>{rep.rank}</div>
                     <RepAvatar
-                      rep={roster.find(rep.name)}
+                      rep={roster.find(rep.name, rep.email)}
                       name={rep.name}
                       size={36}
                       showStatus

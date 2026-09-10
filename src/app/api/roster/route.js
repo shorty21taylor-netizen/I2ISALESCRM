@@ -31,10 +31,23 @@ export async function GET(req) {
       var profile = profiles[email];
       var account = byEmail[email];
       var identity = repIdentity(profile, email, account && account.name);
+      // Two name sets, because finding a face is a weaker claim than owning a
+      // record. matchNames is the ownership set, which deliberately drops the
+      // profile's own name once a real display name is known — that is what stops
+      // a manager who filed on a rep's behalf from inheriting the rep's deals.
+      // For a photo that rule is too strict: someone whose records are filed under
+      // "Anthony Taylor" but whose profile now reads "Shorty Taylor" is one person,
+      // and their row should show their face. So the filed name comes through as a
+      // weak alias, which only ever wins a name nothing stronger has claimed.
+      var aka = [];
+      if (profile && profile.name) aka.push(profile.name);
+      if (identity.recordName) aka.push(identity.recordName);
+
       return {
         email: identity.email,
         name: identity.name,
         names: identity.matchNames,
+        aka: aka,
         photo: photoId(email, profile && profile.avatarUrl),
         status: effectiveStatus(profile),
       };

@@ -32,17 +32,33 @@ export default function useRoster() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (cancelled || !d || !d.success) { if (!cancelled) setState(function(s) { return Object.assign({}, s, { ready: true }); }); return; }
-        var byName = {};
+        var claims = {};
         var byEmail = {};
+
+        // Two people can answer to the same name. Rank the claims rather than
+        // letting whichever profile happened to load first win: a display name
+        // beats an alias, an alias beats a filed name, and between equals the
+        // one with a photo wins — since a face is the whole point of the lookup.
+        function claim(alias, rep, strength) {
+          var key = norm(alias);
+          if (!key) return;
+          var held = claims[key];
+          if (!held
+            || strength > held.strength
+            || (strength === held.strength && rep.photo && !held.rep.photo)) {
+            claims[key] = { rep: rep, strength: strength };
+          }
+        }
+
         (d.reps || []).forEach(function(rep) {
           if (rep.email) byEmail[norm(rep.email)] = rep;
-          byName[norm(rep.name)] = rep;
-          (rep.names || []).forEach(function(alias) {
-            // First writer wins: a real display name should not be displaced by
-            // an alias that happens to collide.
-            if (!byName[norm(alias)]) byName[norm(alias)] = rep;
-          });
+          claim(rep.name, rep, 2);
+          (rep.names || []).forEach(function(alias) { claim(alias, rep, 1); });
+          (rep.aka || []).forEach(function(alias) { claim(alias, rep, 0); });
         });
+
+        var byName = {};
+        Object.keys(claims).forEach(function(key) { byName[key] = claims[key].rep; });
         setState({ ready: true, byName: byName, byEmail: byEmail, reps: d.reps || [] });
       })
       .catch(function() {
@@ -54,9 +70,14 @@ export default function useRoster() {
   return {
     ready: state.ready,
     reps: state.reps,
-    find: function(nameOrEmail) {
-      var k = norm(nameOrEmail);
-      if (!k) return null;
+    // Name first, then email — the same order records are attributed in. The
+    // email on a record is ambient (it used to be stamped from whoever was signed
+    // in), so a filed name is the more deliberate signal; the email is what
+    // catches someone whose profile has since been renamed.
+    find: function(name, email) {
+      var byName = state.byName[norm(name)];
+      if (byName) return byName;
+      var k = norm(email || name);
       return state.byEmail[k] || state.byName[k] || null;
     },
   };

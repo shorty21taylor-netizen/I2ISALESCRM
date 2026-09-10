@@ -371,7 +371,7 @@ export default function DashboardPage() {
                 <div key={eod.id} className="p-4 md:p-5">
                   <div className="flex items-center gap-3 mb-3">
 <RepAvatar
-                      rep={roster.find(eod.closerEmail || rep) || roster.find(rep)}
+                      rep={roster.find(rep, eod.closerEmail)}
                       name={rep}
                       size={36}
                       showStatus
@@ -432,7 +432,7 @@ export default function DashboardPage() {
       {/* Footer */}
       <hr className="divider" />
       <div className="text-center text-xs text-crm-muted py-4">
-        Summit CRM v1.0 &middot; Data refreshes every 30s
+        Summit OS v1.0 &middot; Data refreshes every 30s
         {liveData && liveData.counts ? (
           <span className="ml-3 text-crm-muted/50">
             ({liveData.counts.bookedCalls} bookings, {liveData.counts.closedDeals} deals, {liveData.counts.eodReports} EODs)

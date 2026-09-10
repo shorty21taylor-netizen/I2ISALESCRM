@@ -3,7 +3,7 @@ import AuthGate from '@/components/AuthGate';
 import ThemeInit from '@/components/ThemeInit';
 
 export var metadata = {
-  title: 'Summit CRM \u2014 Sales Performance Intelligence',
+  title: 'Summit OS \u2014 Sales Performance Intelligence',
   description: 'Sales team performance tracking with AI-powered insights.',
 };
 

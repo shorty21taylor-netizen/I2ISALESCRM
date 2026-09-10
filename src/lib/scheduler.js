@@ -319,7 +319,7 @@ function replacePlaceholders(text) {
     .replace(/\{date\}/g, now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
     .replace(/\{day\}/g, now.toLocaleDateString('en-US', { weekday: 'long' }))
     .replace(/\{team_count\}/g, String(Object.keys(getStore().closerProfiles || {}).length))
-    .replace(/\{crmlink\}/g, config.crmUrl || 'Summit CRM');
+    .replace(/\{crmlink\}/g, config.crmUrl || 'Summit OS');
 }
 
 export async function sendCustomMessageNow(msg) {
