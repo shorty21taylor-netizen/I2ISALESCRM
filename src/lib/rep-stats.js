@@ -85,6 +85,64 @@ function eodStreak(eods) {
   return streak;
 }
 
+
+// Weekdays are the unit a sales month is actually paced in; a target divided by
+// calendar days is wrong by a third.
+function weekdaysBetween(startDay, endDay) {
+  if (!startDay || !endDay || startDay > endDay) return 0;
+  var cursor = new Date(startDay + 'T12:00:00');
+  var stop = new Date(endDay + 'T12:00:00');
+  var count = 0;
+  while (cursor <= stop && count < 400) {
+    var dow = cursor.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}
+
+// Where a rep stands against their monthly target, and what the rest of the month
+// has to look like to hit it.
+export function computeGoalPace(goal, deals, today) {
+  var target = n(goal);
+  var day = String(today || '');
+  var month = day.slice(0, 7);
+  if (!month) return null;
+
+  var monthStart = month + '-01';
+  var lastDay = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0);
+  var monthEnd = month + '-' + String(lastDay.getDate()).padStart(2, '0');
+
+  var collected = 0;
+  (deals || []).forEach(function(d) {
+    var dealDay = toReportDay(d.submittedAt);
+    if (dealDay >= monthStart && dealDay <= day) collected += n(d.cashCollected);
+  });
+  collected = money(collected);
+
+  var elapsed = weekdaysBetween(monthStart, day);
+  var total = weekdaysBetween(monthStart, monthEnd);
+  var remaining = Math.max(0, total - elapsed);
+  var perDaySoFar = elapsed > 0 ? collected / elapsed : 0;
+
+  return {
+    goal: target,
+    collected: collected,
+    month: month,
+    weekdaysElapsed: elapsed,
+    weekdaysTotal: total,
+    weekdaysLeft: remaining,
+    // Null rather than 0% when no target is set — an unset goal is not a missed one.
+    percent: target > 0 ? Math.round((collected / target) * 1000) / 10 : null,
+    projected: elapsed > 0 ? Math.round(perDaySoFar * total) : 0,
+    onTrack: target > 0 && elapsed > 0 ? perDaySoFar * total >= target : null,
+    neededPerDay: target > 0 && remaining > 0
+      ? Math.max(0, Math.round((target - collected) / remaining))
+      : 0,
+    shortfall: target > 0 ? Math.max(0, Math.round(target - collected)) : 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Awards
 // ---------------------------------------------------------------------------

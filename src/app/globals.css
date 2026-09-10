@@ -1712,3 +1712,150 @@ html.light .nav-link.active .nav-icon { filter: none; }
   margin: 3px 0 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
   text-transform: uppercase; color: #6b7280;
 }
+
+/* ---- rep onboarding, goal pacing, stat card ---- */
+.me-setup {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: var(--r-card);
+  border: 1px solid rgba(var(--accent-rgb),0.32);
+  background: radial-gradient(120% 140% at 100% 0%, rgba(var(--accent-rgb),0.16), transparent 62%), var(--glass-card-bg);
+  box-shadow: var(--sheen), var(--e2);
+}
+.me-setup-t {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700;
+  color: var(--crm-text-bright); letter-spacing: -0.02em;
+}
+.me-setup-s { margin: 4px 0 0; font-size: 12.5px; color: var(--crm-muted); max-width: 62ch; line-height: 1.55; }
+
+.me-tagline { margin: 4px 0 0; font-size: 12.5px; color: var(--crm-text); }
+.me-id-actions { display: flex; gap: 6px; margin-top: 9px; }
+
+.me-goal { padding: 16px 18px; }
+.me-goal-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.me-goal-icon {
+  width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none;
+  background: rgba(var(--accent-rgb),0.16); color: var(--crm-accent);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+}
+.me-goal-l {
+  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.me-goal-v {
+  margin: 2px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 22px;
+  letter-spacing: -0.03em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+.me-goal-v span { font-size: 14px; font-weight: 500; color: var(--crm-muted); letter-spacing: 0; }
+.me-goal-verdict { margin-left: auto; text-align: right; }
+.me-goal-pill {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: var(--r-pill);
+  font-family: 'Outfit', sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em;
+}
+.me-goal-pill.ok { background: rgba(34,197,94,0.14); color: var(--crm-positive); border: 1px solid rgba(34,197,94,0.32); }
+.me-goal-pill.behind { background: rgba(245,158,11,0.14); color: var(--crm-warning); border: 1px solid rgba(245,158,11,0.32); }
+.me-goal-proj { margin: 4px 0 0; font-size: 11.5px; color: var(--crm-muted); }
+.me-goal-proj b { color: var(--crm-text-bright); font-weight: 600; }
+.me-goal-bar {
+  position: relative; display: block; height: 10px; border-radius: var(--r-pill);
+  margin: 14px 0 8px; overflow: visible;
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.me-goal-bar i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--crm-accent-muted), var(--crm-accent));
+  box-shadow: 0 0 16px -2px rgba(var(--accent-rgb),0.75);
+}
+/* Where the month is, so "behind" is visible rather than asserted. */
+.me-goal-now {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 2px;
+  background: var(--crm-text-bright); opacity: 0.55;
+}
+.me-goal-foot { margin: 0; font-size: 11.5px; color: var(--crm-muted); }
+
+.me-goal-empty {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 13px 18px; font-size: 12.5px; color: var(--crm-muted);
+  cursor: pointer; text-align: left;
+}
+.me-goal-empty:hover { color: var(--crm-text); }
+
+/* The card a rep screenshots into the team chat. */
+.card-stage { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+.card-wrap { width: 100%; max-width: 460px; }
+.card-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.stat-card {
+  border-radius: 26px; padding: 26px 26px 22px; position: relative; overflow: hidden;
+  border: 1px solid rgba(var(--accent-rgb),0.30);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(var(--accent-rgb),0.22), transparent 58%),
+    var(--lift), var(--crm-card);
+  box-shadow: var(--sheen), var(--ring), var(--e3);
+}
+.stat-card-top { display: flex; align-items: center; gap: 14px; }
+.stat-card-avatar {
+  width: 62px; height: 62px; border-radius: 50%; flex: none; overflow: hidden;
+  display: grid; place-items: center; border: 2px solid rgba(var(--accent-rgb),0.5);
+  background: rgba(var(--accent-rgb),0.14); color: var(--crm-accent);
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 21px;
+}
+.stat-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.stat-card-name {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 21px; font-weight: 700;
+  letter-spacing: -0.03em; color: var(--crm-text-bright);
+}
+.stat-card-sub { margin: 2px 0 0; font-size: 12px; color: var(--crm-muted); }
+.stat-card-hero { margin: 22px 0 4px; }
+.stat-card-hero-l {
+  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.stat-card-hero-v {
+  margin: 4px 0 0; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 44px;
+  letter-spacing: -0.045em; color: var(--crm-positive); font-variant-numeric: tabular-nums;
+}
+.stat-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 20px; }
+.stat-card-grid div {
+  border-radius: 14px; padding: 10px 11px;
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.stat-card-grid span {
+  display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--crm-muted); font-weight: 600;
+}
+.stat-card-grid b {
+  display: block; margin-top: 3px; font-family: 'Outfit', sans-serif; font-weight: 700;
+  font-size: 17px; color: var(--crm-text-bright); letter-spacing: -0.02em;
+}
+.stat-card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+.stat-card-badge {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 11px;
+  border-radius: var(--r-pill); font-size: 11.5px;
+  background: rgba(var(--accent-rgb),0.13); color: var(--crm-accent);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+}
+.stat-card-foot {
+  display: flex; align-items: center; gap: 8px; margin: 20px 0 0; padding-top: 14px;
+  border-top: 1px solid var(--divider-color); font-size: 10.5px; color: var(--crm-muted);
+}
+.stat-card-foot b { margin-left: auto; color: var(--crm-text); font-weight: 600; }
+
+/* A branded report tints its structure, not its text: the rules that divide it,
+   the meters, and the figures that are the point of the page. Body copy stays
+   near-black so the document is still a document. */
+.rpt-branded .rpt-head { border-bottom-color: var(--rpt-brand); }
+.rpt-branded .rpt-h2 { color: var(--rpt-brand); }
+.rpt-branded .rpt-meter i { background: var(--rpt-brand); }
+.rpt-branded .rpt-stat { border-color: color-mix(in srgb, var(--rpt-brand) 28%, #e5e7eb); }
+.rpt-branded .rpt-stat-v { color: var(--rpt-brand); }
+.rpt-branded .rpt-summary { border-left-color: var(--rpt-brand); }
+.rpt-branded .rpt-table th { border-bottom-color: color-mix(in srgb, var(--rpt-brand) 45%, #d1d5db); }
+@media print {
+  .rpt-branded .rpt-head, .rpt-branded .rpt-h2, .rpt-branded .rpt-meter i,
+  .rpt-branded .rpt-stat-v, .rpt-branded .rpt-summary {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}
+
+/* Chips carrying an icon need to lay out as a row, not stack it above the label. */
+.an-chip { display: inline-flex; align-items: center; gap: 6px; }
+.an-btn-ghost { display: inline-flex; align-items: center; gap: 7px; }

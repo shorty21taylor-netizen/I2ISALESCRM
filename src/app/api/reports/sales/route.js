@@ -62,6 +62,7 @@ export async function GET(req) {
         name: (ws && ws.branding && ws.branding.reportName) || (ws && ws.name) || 'Sales Report',
         tagline: 'Sales Performance Report',
         logoUrl: (ws && ws.branding && ws.branding.logoUrl) || '',
+        accentColor: (ws && ws.branding && ws.branding.accentColor) || '',
       },
       metrics: metrics,
       summary: summary,

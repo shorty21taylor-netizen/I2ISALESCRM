@@ -1,4 +1,5 @@
 'use client';
+import { useRouter } from 'next/navigation';
 
 import { useState, useEffect } from 'react';
 import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, UserMinus, RotateCcw, Archive, PhoneCall } from 'lucide-react';
@@ -19,6 +20,7 @@ export default function ClosersPage() {
   var s8 = useState(false), busy = s8[0], setBusy = s8[1];
 
   var user = getUser();
+  var router = useRouter();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
 
   useEffect(function() {
@@ -201,6 +203,12 @@ export default function ClosersPage() {
                         Joined {selected.registeredAt ? new Date(selected.registeredAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
                       </span>
                     </div>
+                    <button
+                      className="an-chip mt-2"
+                      onClick={function() { router.push('/me?rep=' + encodeURIComponent(selected.email)); }}
+                    >
+                      Open their dashboard
+                    </button>
                     {selected.archived && (
                       <p className="text-xs font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
                         Removed from the roster{selected.archivedAt ? ' on ' + new Date(selected.archivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''} — their records are still counted

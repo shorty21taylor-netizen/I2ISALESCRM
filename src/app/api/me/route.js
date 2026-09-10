@@ -3,10 +3,10 @@ import {
   initStore, getStore, getCloserProfile, updateCloserProfile,
   getCommissionsForCloser, canonicalRep,
 } from '@/lib/store';
-import { callerEmail, effectiveReadWorkspace, matchesWorkspace } from '@/lib/access';
+import { callerEmail, effectiveReadWorkspace, matchesWorkspace, resolveAccess } from '@/lib/access';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
-import { computeRepStats, repIdentity } from '@/lib/rep-stats';
+import { computeRepStats, repIdentity, computeGoalPace } from '@/lib/rep-stats';
 
 export var dynamic = 'force-dynamic';
 
@@ -61,10 +61,17 @@ function standing(deals, identity, start, end) {
 export async function GET(req) {
   await initStore();
   try {
-    var email = callerEmail(req);
-    if (!email) return NextResponse.json({ error: 'Sign in to see your stats' }, { status: 401 });
+    var viewer = callerEmail(req);
+    if (!viewer) return NextResponse.json({ error: 'Sign in to see your stats' }, { status: 401 });
 
     var url = new URL(req.url);
+    // ?rep= lets a manager open someone else's page. A rep asking for another
+    // rep gets their own, not a 403 — there is nothing to leak and nothing to
+    // explain.
+    var access = await resolveAccess(req);
+    var requested = (url.searchParams.get('rep') || '').trim().toLowerCase();
+    var email = (access.canSeeTeam && requested) ? requested : viewer;
+    var viewingSomeoneElse = email !== viewer;
     var end = url.searchParams.get('end') || todayInReportTimezone();
     var start = url.searchParams.get('start');
     if (!start) {
@@ -97,16 +104,24 @@ export async function GET(req) {
     });
 
     var commissions = getCommissionsForCloser(identity.name, workspaceId);
+    var myDeals = deduped.filter(function(d) { return identity.owns(d, 'closerEmail', 'closer'); });
+    var goal = computeGoalPace(profile && profile.monthlyGoal, myDeals, todayInReportTimezone());
 
     return NextResponse.json({
       success: true,
+      viewingSomeoneElse: viewingSomeoneElse,
+      canEdit: !viewingSomeoneElse,
       profile: {
-        name: identity.name,
+        name: (profile && profile.displayName) || identity.name,
+        recordName: identity.name,
         email: identity.email,
         avatarUrl: (profile && profile.avatarUrl) || '',
         tagline: (profile && profile.tagline) || '',
+        monthlyGoal: (profile && profile.monthlyGoal) || 0,
+        onboarded: !!(profile && profile.onboardedAt),
         joinedAt: (profile && profile.registeredAt) || '',
       },
+      goal: goal,
       stats: stats,
       standing: standing(deduped, identity, start, end),
       commissions: {
@@ -125,10 +140,20 @@ export async function GET(req) {
 export async function POST(req) {
   await initStore();
   try {
-    var email = callerEmail(req);
-    if (!email) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+    var viewer = callerEmail(req);
+    if (!viewer) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
 
     var body = await req.json();
+    var access = await resolveAccess(req);
+    var target = (body.rep || '').trim().toLowerCase();
+    // Only a manager may write to someone else's profile, and then only their goal.
+    // A rep naming someone else is refused outright rather than having the change
+    // quietly applied to their own record.
+    if (target && target !== viewer && !access.canSeeTeam) {
+      return NextResponse.json({ error: 'You can only change your own profile' }, { status: 403 });
+    }
+    var email = (access.canSeeTeam && target) ? target : viewer;
+    var editingSomeoneElse = email !== viewer;
     var patch = {};
 
     if (typeof body.avatarUrl === 'string') {
@@ -142,6 +167,26 @@ export async function POST(req) {
       patch.avatarUrl = body.avatarUrl;
     }
     if (typeof body.tagline === 'string') patch.tagline = body.tagline.slice(0, 90);
+    if (typeof body.displayName === 'string') patch.displayName = body.displayName.trim().slice(0, 60);
+    if (body.monthlyGoal !== undefined) {
+      var goalValue = Math.max(0, Math.round(parseFloat(body.monthlyGoal) || 0));
+      if (goalValue > 100000000) {
+        return NextResponse.json({ error: 'That target is not a number of dollars' }, { status: 400 });
+      }
+      patch.monthlyGoal = goalValue;
+    }
+    if (body.onboarded) patch.onboardedAt = new Date().toISOString();
+
+    if (editingSomeoneElse) {
+      // A manager sets targets. Someone's photo and how they introduce
+      // themselves are theirs alone.
+      patch = Object.prototype.hasOwnProperty.call(patch, 'monthlyGoal')
+        ? { monthlyGoal: patch.monthlyGoal }
+        : {};
+      if (!Object.keys(patch).length) {
+        return NextResponse.json({ error: 'You can only set this rep\'s target' }, { status: 403 });
+      }
+    }
 
     var result = updateCloserProfile(email, patch);
     if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });

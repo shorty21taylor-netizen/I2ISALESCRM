@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { isLoggedIn } from '@/lib/auth';
 import { GROUP_LABELS } from '@/lib/rep-groups';
+import { readableOn, isValidHex } from '@/lib/brand-theme';
 
 // The printed Summit Closing Group report. It lives outside the dashboard shell
 // so the paper is the whole page: what you see here is what lands in the PDF.
@@ -168,6 +169,12 @@ function ReportBody() {
   if (error) return <div className="rpt-state rpt-state-bad">{error}</div>;
   if (!report) return null;
 
+  // The paper is white, so the brand colour is darkened until it reads on it.
+  var brandInk = report.brand.accentColor && isValidHex(report.brand.accentColor)
+    ? readableOn(report.brand.accentColor, '#ffffff', 4.5)
+    : '';
+  var brandVars = brandInk ? { '--rpt-brand': brandInk } : {};
+
   var m = report.metrics;
   var v = m.volume;
   var r = m.rates;
@@ -185,7 +192,7 @@ function ReportBody() {
         </div>
       </div>
 
-      <article className="rpt-paper">
+      <article className={'rpt-paper' + (brandInk ? ' rpt-branded' : '')} style={brandVars}>
         <header className="rpt-head">
           <div className="rpt-brand">
             {report.brand.logoUrl

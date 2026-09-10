@@ -1584,7 +1584,7 @@ export function updateCloserProfile(email, patch) {
     };
   }
   var profile = store.closerProfiles[key];
-  ['avatarUrl', 'tagline'].forEach(function(field) {
+  ['avatarUrl', 'tagline', 'displayName', 'monthlyGoal', 'onboardedAt'].forEach(function(field) {
     if (Object.prototype.hasOwnProperty.call(patch || {}, field)) profile[field] = patch[field];
   });
   saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Profile error:', e.message); });

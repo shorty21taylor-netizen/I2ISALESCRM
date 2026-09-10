@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Camera, Trophy, Lock, Flame, Crown } from 'lucide-react';
+import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
@@ -86,6 +87,9 @@ function Record({ label, value, sub }) {
 
 export default function MyDashboardPage() {
   var workspaceId = useWorkspace();
+  var params = useSearchParams();
+  var router = useRouter();
+  var viewingRep = params.get('rep') || '';
   var fileRef = useRef(null);
   var [data, setData] = useState(null);
   var [loading, setLoading] = useState(true);
@@ -93,6 +97,8 @@ export default function MyDashboardPage() {
   var [range, setRange] = useState('30');
   var [showAll, setShowAll] = useState(false);
   var [saving, setSaving] = useState('');
+  var [editing, setEditing] = useState(false);
+  var [form, setForm] = useState({ displayName: '', tagline: '', monthlyGoal: '' });
 
   var start = daysAgo(range);
   var end = todayInReportTimezone();
@@ -100,17 +106,26 @@ export default function MyDashboardPage() {
   function load() {
     if (!workspaceId) return;
     setLoading(true);
-    apiFetch(withWorkspace('/api/me?start=' + start + '&end=' + end, workspaceId))
+    var q = '/api/me?start=' + start + '&end=' + end + (viewingRep ? '&rep=' + encodeURIComponent(viewingRep) : '');
+    apiFetch(withWorkspace(q, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(json) {
         if (!json.success) setError(json.error || 'Could not load your stats');
-        else { setData(json); setError(''); }
+        else {
+          setData(json);
+          setForm({
+            displayName: json.profile.name || '',
+            tagline: json.profile.tagline || '',
+            monthlyGoal: json.profile.monthlyGoal ? String(json.profile.monthlyGoal) : '',
+          });
+          setError('');
+        }
         setLoading(false);
       })
       .catch(function() { setError('Could not reach the server'); setLoading(false); });
   }
 
-  useEffect(load, [workspaceId, range, start, end]);
+  useEffect(load, [workspaceId, range, start, end, viewingRep]);
 
   function onPhoto(e) {
     var file = e.target.files && e.target.files[0];
@@ -120,6 +135,23 @@ export default function MyDashboardPage() {
     reader.onload = function() { savePhoto(String(reader.result)); };
     reader.onerror = function() { setSaving('Could not read that file'); };
     reader.readAsDataURL(file);
+  }
+
+  function saveProfile(patch, done) {
+    setSaving('Saving…');
+    apiFetch('/api/me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({}, patch, viewingRep ? { rep: viewingRep } : {})),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(json) {
+        if (!json.success) { setSaving(json.error || 'Could not save'); return; }
+        setSaving('');
+        if (done) done();
+        load();
+      })
+      .catch(function() { setSaving('Could not reach the server'); });
   }
 
   function savePhoto(url) {
@@ -152,6 +184,9 @@ export default function MyDashboardPage() {
   var initials = (p.name || '?').split(' ').map(function(w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
   var awards = showAll ? s.awards : s.awards.filter(function(a) { return a.earned; }).concat(s.nextUp);
   var daily = (per.daily || []).map(function(d) { return Object.assign({}, d, { label: shortDay(d.date) }); });
+  var goal = data.goal;
+  var canEdit = data.canEdit;
+  var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
 
   return (
     <div className="min-h-screen">
@@ -175,6 +210,33 @@ export default function MyDashboardPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-10">
+        {data.viewingSomeoneElse ? (
+          <div className="an-scoped mb-4">
+            <span className="an-scoped-t">Manager view</span>
+            <span>You are looking at {p.name}. You can set their monthly target; their photo and bio are theirs.</span>
+            <button className="an-chip" style={{ marginLeft: 'auto' }} onClick={function() { router.push('/me'); }}>
+              Back to mine
+            </button>
+          </div>
+        ) : null}
+
+        {needsSetup ? (
+          <div className="me-setup mb-4">
+            <div>
+              <h3 className="me-setup-t">Welcome. Make this yours.</h3>
+              <p className="me-setup-s">
+                Add a photo, say how you want to be introduced, and set the number you are chasing
+                this month. It takes about thirty seconds and it is the difference between a page of
+                numbers and your page.
+              </p>
+            </div>
+            <button className="an-btn" onClick={function() { setEditing(true); }}>Set up my profile</button>
+            <button className="an-btn-ghost" onClick={function() { saveProfile({ onboarded: true }); }}>
+              Later
+            </button>
+          </div>
+        ) : null}
+
         {/* ---- identity ---- */}
         <div className="me-hero glass-card mb-4">
           <div className="me-id">
@@ -194,6 +256,15 @@ export default function MyDashboardPage() {
                   ? <>Rank <b>{stand.rank}</b> of {stand.of} this period{stand.behindBy > 0 ? <> · {formatCurrency(stand.behindBy)} behind the rep above</> : null}</>
                   : <>No closes in this range yet</>}
               </p>
+              {p.tagline ? <p className="me-tagline">{p.tagline}</p> : null}
+              {canEdit ? (
+                <div className="me-id-actions">
+                  <button className="an-chip" onClick={function() { setEditing(!editing); }}>Edit profile</button>
+                  <button className="an-chip" onClick={function() { router.push('/me/card'); }}>
+                    <Share2 size={12} /> Stat card
+                  </button>
+                </div>
+              ) : null}
               {saving ? <p className="me-saving">{saving}</p> : null}
             </div>
 
@@ -216,6 +287,85 @@ export default function MyDashboardPage() {
           <Stat label="This period" value={formatCurrency(per.cash)} sub={num(per.deals) + ' deals · ' + pct(per.closeRate) + ' close rate'} tone="#22c55e" />
           <Stat label="EOD streak" value={num(rec.currentStreak)} sub={'best ' + num(rec.longestStreak) + ' weekdays'} />
         </div>
+
+        {editing ? (
+          <div className="an-card mb-4">
+            <div className="an-card-h"><h3 className="an-card-t">Your profile</h3></div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="an-field">
+                <span>Display name</span>
+                <input value={form.displayName}
+                  onChange={function(e) { setForm(Object.assign({}, form, { displayName: e.target.value })); }} />
+              </label>
+              <label className="an-field">
+                <span>How you introduce yourself</span>
+                <input value={form.tagline} placeholder="Closer · third year on the floor"
+                  onChange={function(e) { setForm(Object.assign({}, form, { tagline: e.target.value })); }} />
+              </label>
+              <label className="an-field">
+                <span>Monthly cash target ($)</span>
+                <input value={form.monthlyGoal} inputMode="numeric" placeholder="50000"
+                  onChange={function(e) { setForm(Object.assign({}, form, { monthlyGoal: e.target.value.replace(/[^0-9]/g, '') })); }} />
+              </label>
+              <div className="md:col-span-3 flex items-center gap-2">
+                <button className="an-btn" onClick={function() {
+                  saveProfile({
+                    displayName: form.displayName,
+                    tagline: form.tagline,
+                    monthlyGoal: form.monthlyGoal || 0,
+                    onboarded: true,
+                  }, function() { setEditing(false); });
+                }}>Save profile</button>
+                <button className="an-btn-ghost" onClick={function() { setEditing(false); }}>Cancel</button>
+                <span className="text-xs" style={{ color: 'var(--crm-muted)' }}>
+                  Your name here is for display only — your records stay linked by email.
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {goal && goal.goal > 0 ? (
+          <div className="me-goal glass-card mb-4">
+            <div className="me-goal-head">
+              <span className="me-goal-icon"><Target size={15} /></span>
+              <div>
+                <p className="me-goal-l">{monthName(goal.month)} target</p>
+                <p className="me-goal-v">
+                  {formatCurrency(goal.collected)} <span>of {formatCurrency(goal.goal)}</span>
+                </p>
+              </div>
+              <div className="me-goal-verdict">
+                <span className={'me-goal-pill ' + (goal.onTrack ? 'ok' : 'behind')}>
+                  {goal.onTrack ? 'On pace' : 'Behind pace'}
+                </span>
+                <p className="me-goal-proj">
+                  {goal.weekdaysLeft > 0
+                    ? <>on this pace you finish at <b>{formatCurrency(goal.projected)}</b></>
+                    : <>month closed</>}
+                </p>
+              </div>
+            </div>
+            <span className="me-goal-bar">
+              <i style={{ width: Math.min(100, goal.percent || 0) + '%' }} />
+              {goal.weekdaysTotal > 0 ? (
+                <em className="me-goal-now"
+                  style={{ left: Math.min(100, Math.round((goal.weekdaysElapsed / goal.weekdaysTotal) * 100)) + '%' }} />
+              ) : null}
+            </span>
+            <p className="me-goal-foot">
+              {goal.percent}% of target · {goal.weekdaysLeft} working {goal.weekdaysLeft === 1 ? 'day' : 'days'} left
+              {goal.shortfall > 0 && goal.weekdaysLeft > 0
+                ? <> · {formatCurrency(goal.neededPerDay)} a day to close the gap</>
+                : null}
+              {goal.shortfall === 0 ? <> · target hit</> : null}
+            </p>
+          </div>
+        ) : canEdit && !needsSetup ? (
+          <button className="me-goal-empty glass-card mb-4" onClick={function() { setEditing(true); }}>
+            <Target size={15} /> Set a monthly cash target and this page will pace you against it.
+          </button>
+        ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           {/* ---- bonuses ---- */}
