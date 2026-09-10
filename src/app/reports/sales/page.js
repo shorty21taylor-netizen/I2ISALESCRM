@@ -200,9 +200,9 @@ function ReportBody() {
               : (
                 <div className="rpt-mark" aria-hidden="true">
                   <svg viewBox="0 0 120 120" width="34" height="34">
-                    <path d="M60 18 L110 88 L10 88 Z" fill="none"
+                    <path d="M60 14 L110 88 L10 88 Z" fill="none"
                       stroke="currentColor" strokeWidth="7.5" strokeLinejoin="miter" />
-                    <path d="M38.5 83.5 L56.8 56 L67 72 L70.5 68 L82.5 83.5 Z" fill="currentColor" />
+                    <path d="M36 83.5 L53 50 L64 74 L70 62 L84 83.5 Z" fill="currentColor" />
                   </svg>
                 </div>
               )}
