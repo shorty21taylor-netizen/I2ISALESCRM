@@ -3,17 +3,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays } from 'lucide-react';
+import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays, ChevronDown } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
+import { STATUSES, DURATIONS, DEFAULT_STATUS } from '@/lib/rep-status';
+import { fileToAvatar, MAX_UPLOAD_BYTES } from '@/lib/avatar-file';
 
 // A rep's own page. Every figure is theirs; the only number belonging to anyone
 // else is how far ahead the rep above them is, and only as a distance.
 
-var MAX_BYTES = 400 * 1024;
 var RANGES = [{ id: '30', label: '30d' }, { id: '90', label: '90d' }, { id: '365', label: 'Year' }];
 
 function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
@@ -27,6 +28,12 @@ function monthName(m) {
   if (!m) return '';
   return new Date(m + '-01T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
+function clockTime(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
 function daysAgo(days) {
   var d = new Date();
   d.setDate(d.getDate() - (parseInt(days, 10) - 1));
@@ -39,6 +46,97 @@ var TIER_STYLE = {
   gold:     { ring: 'rgba(245,180,60,0.55)', fill: 'rgba(245,180,60,0.15)',  ink: '#f3ce8e' },
   platinum: { ring: 'rgba(var(--accent-rgb),0.6)', fill: 'rgba(var(--accent-rgb),0.16)', ink: 'var(--crm-accent)' },
 };
+
+// The presence light. Available is the resting state, so picking it applies at
+// once — that is the "off" half of the toggle. Anything else is a deliberate act,
+// so it gets a duration and an optional note before it is saved.
+function StatusControl({ status, canEdit, onSave }) {
+  var [open, setOpen] = useState(false);
+  var [pick, setPick] = useState(status.id);
+  var [note, setNote] = useState(status.note || '');
+  var [minutes, setMinutes] = useState(60);
+  var wrapRef = useRef(null);
+
+  useEffect(function() {
+    if (!open) return;
+    function away(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', away);
+    return function() { document.removeEventListener('mousedown', away); };
+  }, [open]);
+
+  function start() {
+    setPick(status.id);
+    setNote(status.note || '');
+    setOpen(true);
+  }
+
+  function choose(id) {
+    setPick(id);
+    // Going back to Available is the whole point of the toggle — no ceremony.
+    if (id === DEFAULT_STATUS) { setOpen(false); onSave({ status: id }); }
+  }
+
+  return (
+    <div className="me-status-wrap" ref={wrapRef}>
+      <button
+        className={'me-status' + (canEdit ? ' live' : '')}
+        data-tone={status.tone}
+        onClick={function() { if (!canEdit) return; open ? setOpen(false) : start(); }}
+        title={canEdit ? 'Change your status' : status.detail}
+      >
+        <span className="me-status-dot" />
+        <span className="me-status-l">{status.label}</span>
+        {status.note ? <span className="me-status-x">· {status.note}</span> : null}
+        {status.until ? <span className="me-status-x">· till {clockTime(status.until)}</span> : null}
+        {canEdit ? <ChevronDown size={12} /> : null}
+      </button>
+
+      {open ? (
+        <div className="me-status-menu">
+          {STATUSES.map(function(o) {
+            return (
+              <button key={o.id} className={'me-status-opt' + (pick === o.id ? ' on' : '')}
+                data-tone={o.tone} onClick={function() { choose(o.id); }}>
+                <span className="me-status-dot" />
+                <span>
+                  <b>{o.label}</b>
+                  <i>{o.detail}</i>
+                </span>
+                {pick === o.id ? <Check size={13} /> : null}
+              </button>
+            );
+          })}
+
+          {pick !== DEFAULT_STATUS ? (
+            <div className="me-status-set">
+              <p className="me-status-lab">For how long</p>
+              <div className="me-status-durs">
+                {DURATIONS.map(function(d) {
+                  return (
+                    <button key={d.id} className={'an-chip' + (minutes === d.minutes ? ' on' : '')}
+                      onClick={function() { setMinutes(d.minutes); }}>{d.label}</button>
+                  );
+                })}
+              </div>
+              <input className="me-status-note" value={note} maxLength={60}
+                placeholder="Add a note — optional"
+                onChange={function(e) { setNote(e.target.value); }} />
+              <div className="me-status-go">
+                <button className="an-btn" onClick={function() {
+                  setOpen(false);
+                  onSave({ status: pick, statusNote: note, statusMinutes: minutes });
+                }}>Set status</button>
+                <button className="an-btn-ghost" onClick={function() { setOpen(false); }}>Cancel</button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function Award({ a }) {
   var t = TIER_STYLE[a.tier] || TIER_STYLE.bronze;
@@ -99,7 +197,7 @@ export default function MyDashboardPage() {
   var [showAll, setShowAll] = useState(false);
   var [saving, setSaving] = useState('');
   var [editing, setEditing] = useState(false);
-  var [form, setForm] = useState({ displayName: '', tagline: '', monthlyGoal: '' });
+  var [form, setForm] = useState({ displayName: '', tagline: '', bio: '', monthlyGoal: '' });
 
   var start = daysAgo(range);
   var end = todayInReportTimezone();
@@ -121,6 +219,7 @@ export default function MyDashboardPage() {
           setForm({
             displayName: json.profile.name || '',
             tagline: json.profile.tagline || '',
+            bio: json.profile.bio || '',
             monthlyGoal: json.profile.monthlyGoal ? String(json.profile.monthlyGoal) : '',
           });
           setError('');
@@ -134,12 +233,13 @@ export default function MyDashboardPage() {
 
   function onPhoto(e) {
     var file = e.target.files && e.target.files[0];
+    // Let the same file be picked twice — after a failure, that is the natural retry.
+    e.target.value = '';
     if (!file) return;
-    if (file.size > MAX_BYTES) { setSaving('That photo is over 400KB — try a smaller one.'); return; }
-    var reader = new FileReader();
-    reader.onload = function() { savePhoto(String(reader.result)); };
-    reader.onerror = function() { setSaving('Could not read that file'); };
-    reader.readAsDataURL(file);
+    setSaving('Resizing your photo…');
+    fileToAvatar(file)
+      .then(function(url) { savePhoto(url); })
+      .catch(function(err) { setSaving(err && err.message ? err.message : 'Could not read that file'); });
   }
 
   function saveProfile(patch, done) {
@@ -193,6 +293,7 @@ export default function MyDashboardPage() {
   var canEdit = data.canEdit;
   var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
   var today = data.today;
+  var status = p.status || { id: 'available', label: 'Available', tone: 'good', detail: '', note: '', until: '' };
   var expect = today ? today.expect : null;
   var longDay = today ? new Date(today.date + 'T12:00:00').toLocaleDateString('en-US',
     { weekday: 'long', month: 'long', day: 'numeric' }) : '';
@@ -249,23 +350,33 @@ export default function MyDashboardPage() {
         {/* ---- identity ---- */}
         <div className="me-hero glass-card mb-4">
           <div className="me-id">
-            <button className="me-avatar" onClick={function() { fileRef.current && fileRef.current.click(); }}
-              title="Change your photo">
-              {p.avatarUrl
-                ? <img src={p.avatarUrl} alt={p.name} />
-                : <span className="me-avatar-initials">{initials}</span>}
-              <span className="me-avatar-edit"><Camera size={14} /></span>
-            </button>
+            <div className="me-avatar-wrap" data-tone={status.tone}>
+              <span className="me-avatar-halo" aria-hidden="true" />
+              <button className="me-avatar" disabled={!canEdit}
+                onClick={function() { fileRef.current && fileRef.current.click(); }}
+                title={canEdit ? 'Change your photo' : p.name}>
+                {p.avatarUrl
+                  ? <img src={p.avatarUrl} alt={p.name} />
+                  : <span className="me-avatar-initials">{initials}</span>}
+                {canEdit ? <span className="me-avatar-edit"><Camera size={15} /> Change</span> : null}
+              </button>
+              <span className="me-avatar-dot" title={status.label} />
+            </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={onPhoto} className="hidden" />
 
-            <div className="min-w-0">
+            <div className="me-id-main min-w-0">
               <h2 className="me-name">{p.name}</h2>
+              {p.tagline ? <p className="me-tagline">{p.tagline}</p> : null}
               <p className="me-sub">
                 {stand.rank
                   ? <>Rank <b>{stand.rank}</b> of {stand.of} this period{stand.behindBy > 0 ? <> · {formatCurrency(stand.behindBy)} behind the rep above</> : null}</>
                   : <>No closes in this range yet</>}
               </p>
-              {p.tagline ? <p className="me-tagline">{p.tagline}</p> : null}
+
+              <StatusControl status={status} canEdit={canEdit} onSave={function(patch) { saveProfile(patch); }} />
+
+              {p.bio ? <p className="me-bio">{p.bio}</p> : null}
+
               {canEdit && p.nameIsGuessed ? (
                 <button className="me-notyou" onClick={function() { setEditing(true); }}>
                   Not {p.name}? Set the name you want on this page.
@@ -321,18 +432,26 @@ export default function MyDashboardPage() {
                 <input value={form.monthlyGoal} inputMode="numeric" placeholder="50000"
                   onChange={function(e) { setForm(Object.assign({}, form, { monthlyGoal: e.target.value.replace(/[^0-9]/g, '') })); }} />
               </label>
+              <label className="an-field md:col-span-3">
+                <span>Bio <i className="me-count">{form.bio.length}/280</i></span>
+                <textarea rows={3} value={form.bio} maxLength={280}
+                  placeholder="What you sell, who you sell it to, and anything the floor should know about you."
+                  onChange={function(e) { setForm(Object.assign({}, form, { bio: e.target.value })); }} />
+              </label>
               <div className="md:col-span-3 flex items-center gap-2">
                 <button className="an-btn" onClick={function() {
                   saveProfile({
                     displayName: form.displayName,
                     tagline: form.tagline,
+                    bio: form.bio,
                     monthlyGoal: form.monthlyGoal || 0,
                     onboarded: true,
                   }, function() { setEditing(false); });
                 }}>Save profile</button>
                 <button className="an-btn-ghost" onClick={function() { setEditing(false); }}>Cancel</button>
                 <span className="text-xs" style={{ color: 'var(--crm-muted)' }}>
-                  Your name here is for display only — your records stay linked by email.
+                  Photos up to {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB — they get resized here, so
+                  straight off your phone is fine. Your name is for display only; your records stay linked by email.
                 </span>
               </div>
             </div>

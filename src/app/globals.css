@@ -1310,6 +1310,15 @@
   outline: none; border-color: rgba(var(--accent-rgb),0.5);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.12);
 }
+.an-field textarea {
+  width: 100%; min-height: 78px; padding: 9px 11px; border-radius: 9px; resize: vertical;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  color: var(--crm-text); font-family: inherit; font-size: 13px; line-height: 1.55;
+}
+.an-field textarea:focus {
+  outline: none; border-color: rgba(var(--accent-rgb),0.5);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.12);
+}
 .an-quick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
 .an-quick-l { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--crm-muted); margin-right: 2px; }
 .an-chip {
@@ -1317,6 +1326,10 @@
   border: 1px solid var(--btn-ghost-border); background: var(--btn-ghost-bg); color: var(--crm-text);
 }
 .an-chip:hover { border-color: var(--btn-ghost-hover-border); background: var(--btn-ghost-hover-bg); }
+.an-chip.on {
+  border-color: rgba(var(--accent-rgb),0.55); background: rgba(var(--accent-rgb),0.14);
+  color: var(--crm-accent); font-weight: 600;
+}
 .an-warn { margin: 12px 0 0; font-size: 11.5px; color: #f59e0b; }
 .an-fn-c.wide { width: auto; min-width: 96px; }
 
@@ -1563,35 +1576,155 @@ html.light .nav-link.active .nav-icon { filter: none; }
 /* MY DASHBOARD                                 */
 /* ============================================ */
 
-.me-hero { padding: 20px 22px; }
-.me-id { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+/* The status menu opens past the bottom edge of this card, so unlike every other
+   glass card it cannot clip — and because .glass-card carries a backdrop-filter,
+   which makes its own stacking context, the menu's z-index only counts inside it.
+   Hence the z-index here, lifting the whole card above the tiles underneath.
+   The hover lift goes too: a popover that slides three pixels when the pointer
+   crosses the card behind it is a popover people misclick. */
+.me-hero {
+  padding: 24px 26px; overflow: visible; z-index: 5;
+  background: radial-gradient(90% 160% at 0% 0%, rgba(var(--accent-rgb),0.10), transparent 60%), var(--glass-card-bg);
+}
+.me-hero:hover { transform: none; }
+.me-id { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
 
+/* The presence palette, in one place so the ring, the pill and the menu can never
+   disagree. The light theme needs its own inks: the amber and violet that read
+   cleanly on near-black drop under 3:1 on white, which is unreadable for text. */
+:root {
+  --tone-good-ink: #22c55e;           --tone-good-rgb: 34, 197, 94;
+  --tone-live-ink: var(--crm-accent); --tone-live-rgb: var(--accent-rgb);
+  --tone-busy-ink: #f59e0b;           --tone-busy-rgb: 245, 158, 11;
+  --tone-focus-ink: #a78bfa;          --tone-focus-rgb: 167, 139, 250;
+  --tone-off-ink: #8b93a7;            --tone-off-rgb: 139, 147, 167;
+}
+html.light {
+  --tone-good-ink: #15803d;  --tone-good-rgb: 21, 128, 61;
+  --tone-busy-ink: #b45309;  --tone-busy-rgb: 180, 83, 9;
+  --tone-focus-ink: #6d28d9; --tone-focus-rgb: 109, 40, 217;
+  --tone-off-ink: #52607a;   --tone-off-rgb: 82, 96, 122;
+}
+
+/* The photo is the one thing on this page that is a person rather than a number,
+   so it gets to be the largest object in the header. The ring around it carries
+   the rep's status, which is why the colour is a variable rather than the accent. */
+.me-avatar-wrap { position: relative; flex: none; display: grid; place-items: center; }
+.me-avatar-wrap { --status-ink: var(--tone-good-ink); --status-rgb: var(--tone-good-rgb); }
+.me-avatar-wrap[data-tone="live"]  { --status-ink: var(--tone-live-ink);  --status-rgb: var(--tone-live-rgb); }
+.me-avatar-wrap[data-tone="busy"]  { --status-ink: var(--tone-busy-ink);  --status-rgb: var(--tone-busy-rgb); }
+.me-avatar-wrap[data-tone="focus"] { --status-ink: var(--tone-focus-ink); --status-rgb: var(--tone-focus-rgb); }
+.me-avatar-wrap[data-tone="off"]   { --status-ink: var(--tone-off-ink);   --status-rgb: var(--tone-off-rgb); }
+
+/* Enough glow to make the photo the anchor of the header, not so much that
+   Available — which is most of the day — turns the whole card green. */
+.me-avatar-halo {
+  position: absolute; width: 186px; height: 186px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(var(--status-rgb),0.20), transparent 72%);
+  filter: blur(16px);
+}
 .me-avatar {
-  position: relative; width: 88px; height: 88px; border-radius: 50%; flex: none;
+  position: relative; width: 132px; height: 132px; border-radius: 50%; flex: none;
   display: grid; place-items: center; cursor: pointer; overflow: hidden; padding: 0;
-  border: 2px solid rgba(var(--accent-rgb),0.45);
-  background: linear-gradient(160deg, rgba(var(--accent-rgb),0.20), var(--glass-surface-bg));
-  box-shadow: var(--sheen), 0 12px 28px -14px rgba(var(--accent-rgb),0.9);
+  border: 3px solid var(--status-ink);
+  background: linear-gradient(160deg, rgba(var(--accent-rgb),0.22), var(--glass-surface-bg));
+  box-shadow:
+    var(--sheen),
+    0 0 0 7px rgba(var(--status-rgb),0.13),
+    0 24px 46px -22px rgba(var(--status-rgb),0.75);
   transition: transform 0.28s var(--spring), box-shadow 0.28s ease;
 }
-.me-avatar:hover { transform: translateY(-2px) scale(1.02); }
+.me-avatar:disabled { cursor: default; }
+.me-avatar:not(:disabled):hover { transform: translateY(-3px) scale(1.03); }
 .me-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .me-avatar-initials {
-  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 30px;
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 44px;
   color: var(--crm-accent); letter-spacing: -0.02em;
 }
 .me-avatar-edit {
-  position: absolute; inset: auto 0 0 0; height: 26px;
-  display: grid; place-items: center; color: #fff;
-  background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.72));
+  position: absolute; inset: auto 0 0 0; height: 36px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #fff;
+  background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.78));
   opacity: 0; transition: opacity 0.22s ease;
 }
-.me-avatar:hover .me-avatar-edit { opacity: 1; }
+.me-avatar:hover .me-avatar-edit, .me-avatar:focus-visible .me-avatar-edit { opacity: 1; }
 
-.me-name {
-  margin: 0; font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700;
-  letter-spacing: -0.03em; color: var(--crm-text-bright);
+/* The status light, repeated on the photo so it reads without going to the pill. */
+.me-avatar-dot {
+  position: absolute; right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--status-ink); border: 4px solid var(--crm-surface);
+  box-shadow: 0 0 0 1px rgba(var(--status-rgb),0.5), 0 4px 12px -3px rgba(var(--status-rgb),0.9);
 }
+
+.me-id-main { flex: 1 1 280px; }
+.me-name {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 30px; font-weight: 700;
+  letter-spacing: -0.03em; color: var(--crm-text-bright); line-height: 1.1;
+}
+.me-bio {
+  margin: 10px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.6;
+  color: var(--crm-text);
+}
+.me-count { font-style: normal; float: right; opacity: 0.7; font-weight: 500; }
+
+/* ---- presence ---- */
+.me-status-wrap { position: relative; margin-top: 10px; }
+.me-status {
+  display: inline-flex; align-items: center; gap: 7px; cursor: default;
+  padding: 6px 12px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600;
+  color: var(--status-ink); border: 1px solid rgba(var(--status-rgb),0.45);
+  background: rgba(var(--status-rgb),0.12);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.me-status.live { cursor: pointer; }
+.me-status.live:hover { background: rgba(var(--status-rgb),0.2); border-color: rgba(var(--status-rgb),0.7); }
+.me-status { --status-ink: var(--tone-good-ink); --status-rgb: var(--tone-good-rgb); }
+.me-status[data-tone="live"]  { --status-ink: var(--tone-live-ink);  --status-rgb: var(--tone-live-rgb); }
+.me-status[data-tone="busy"]  { --status-ink: var(--tone-busy-ink);  --status-rgb: var(--tone-busy-rgb); }
+.me-status[data-tone="focus"] { --status-ink: var(--tone-focus-ink); --status-rgb: var(--tone-focus-rgb); }
+.me-status[data-tone="off"]   { --status-ink: var(--tone-off-ink);   --status-rgb: var(--tone-off-rgb); }
+.me-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: none; background: currentColor;
+  box-shadow: 0 0 0 3px rgba(var(--status-rgb),0.22);
+}
+.me-status-x { font-weight: 500; opacity: 0.85; }
+
+.me-status-menu {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 300px; max-width: 88vw;
+  padding: 7px; border-radius: var(--r-card);
+  border: 1px solid var(--glass-card-border); background: var(--crm-surface);
+  box-shadow: var(--sheen), var(--ring), var(--e3);
+}
+.me-status-opt {
+  width: 100%; display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 9px 10px; border-radius: 12px; cursor: pointer;
+  background: transparent; border: 1px solid transparent; color: var(--crm-text);
+}
+.me-status-opt { --status-ink: var(--tone-good-ink); --status-rgb: var(--tone-good-rgb); }
+.me-status-opt[data-tone="live"]  { --status-ink: var(--tone-live-ink);  --status-rgb: var(--tone-live-rgb); }
+.me-status-opt[data-tone="busy"]  { --status-ink: var(--tone-busy-ink);  --status-rgb: var(--tone-busy-rgb); }
+.me-status-opt[data-tone="focus"] { --status-ink: var(--tone-focus-ink); --status-rgb: var(--tone-focus-rgb); }
+.me-status-opt[data-tone="off"]   { --status-ink: var(--tone-off-ink);   --status-rgb: var(--tone-off-rgb); }
+.me-status-opt .me-status-dot { color: var(--status-ink); margin-top: 5px; }
+.me-status-opt:hover { background: rgba(var(--status-rgb),0.10); border-color: rgba(var(--status-rgb),0.28); }
+.me-status-opt.on { background: rgba(var(--status-rgb),0.14); border-color: rgba(var(--status-rgb),0.5); }
+.me-status-opt b { display: block; font-size: 13px; font-weight: 600; color: var(--crm-text-bright); }
+.me-status-opt i { display: block; font-style: normal; font-size: 11.5px; color: var(--crm-muted); opacity: 0.75; margin-top: 1px; }
+.me-status-opt svg { margin-left: auto; color: var(--status-ink); flex: none; align-self: center; }
+
+.me-status-set { padding: 10px 10px 4px; border-top: 1px solid var(--glass-card-border); margin-top: 6px; }
+.me-status-lab {
+  margin: 0 0 7px; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.me-status-durs { display: flex; flex-wrap: wrap; gap: 5px; }
+.me-status-note {
+  width: 100%; margin-top: 9px; padding: 8px 10px; border-radius: 10px; font-size: 12.5px;
+  border: 1px solid var(--glass-card-border); background: var(--input-bg); color: var(--crm-text);
+}
+.me-status-note:focus { outline: none; border-color: rgba(var(--accent-rgb),0.6); }
+.me-status-go { display: flex; gap: 7px; margin: 10px 0 6px; }
 .me-sub { margin: 4px 0 0; font-size: 13px; color: var(--crm-muted); }
 .me-sub b { color: var(--crm-text-bright); font-weight: 600; }
 .me-saving { margin: 5px 0 0; font-size: 11.5px; color: var(--crm-warning); }
@@ -1700,6 +1833,11 @@ html.light .nav-link.active .nav-icon { filter: none; }
 @media (max-width: 700px) {
   .me-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .me-headline { margin-left: 0; text-align: left; width: 100%; }
+  .me-avatar { width: 104px; height: 104px; }
+  .me-avatar-halo { width: 142px; height: 142px; }
+  .me-avatar-initials { font-size: 34px; }
+  .me-avatar-dot { width: 22px; height: 22px; right: 3px; bottom: 3px; border-width: 3px; }
+  .me-name { font-size: 25px; }
 }
 
 .an-scoped {

@@ -8,10 +8,16 @@ import { getUser } from '@/lib/users';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { computeRepStats, repIdentity, computeGoalPace, computeTodaysCalls, computePnl } from '@/lib/rep-stats';
+import { statusById, effectiveStatus, DEFAULT_STATUS, MAX_STATUS_MINUTES, MAX_NOTE } from '@/lib/rep-status';
 
 export var dynamic = 'force-dynamic';
 
-var MAX_AVATAR_BYTES = 400 * 1024;
+// The cap on what reaches the database. It is not the limit on what a rep may
+// pick: the browser resizes a photo to a 512px square first, which lands well
+// under this whatever came off the phone. This only has to stop something that
+// skipped that path.
+var MAX_AVATAR_BYTES = 700 * 1024;
+var MAX_BIO = 280;
 
 // Who finished each month on top, used for the "Top of the Board" award.
 function leadersByMonth(deals) {
@@ -135,6 +141,8 @@ export async function GET(req) {
         email: identity.email,
         avatarUrl: (profile && profile.avatarUrl) || '',
         tagline: (profile && profile.tagline) || '',
+        bio: (profile && profile.bio) || '',
+        status: effectiveStatus(profile),
         monthlyGoal: (profile && profile.monthlyGoal) || 0,
         onboarded: !!(profile && profile.onboardedAt),
         // True when the only name we have came off a closer profile, which is
@@ -181,7 +189,7 @@ export async function POST(req) {
 
     if (typeof body.avatarUrl === 'string') {
       if (body.avatarUrl.length > MAX_AVATAR_BYTES) {
-        return NextResponse.json({ error: 'That photo is too large. Keep it under 400KB.' }, { status: 413 });
+        return NextResponse.json({ error: 'That photo did not get resized before upload — try picking it again.' }, { status: 413 });
       }
       var ok = body.avatarUrl === ''
         || body.avatarUrl.indexOf('data:image/') === 0
@@ -190,6 +198,21 @@ export async function POST(req) {
       patch.avatarUrl = body.avatarUrl;
     }
     if (typeof body.tagline === 'string') patch.tagline = body.tagline.slice(0, 90);
+    if (typeof body.bio === 'string') patch.bio = body.bio.trim().slice(0, MAX_BIO);
+
+    if (typeof body.status === 'string') {
+      var picked = statusById(body.status);
+      if (!picked) return NextResponse.json({ error: 'That is not a status' }, { status: 400 });
+      var minutes = Math.max(0, Math.min(MAX_STATUS_MINUTES, parseInt(body.statusMinutes, 10) || 0));
+      patch.status = picked.id;
+      patch.statusNote = typeof body.statusNote === 'string' ? body.statusNote.trim().slice(0, MAX_NOTE) : '';
+      patch.statusSetAt = new Date().toISOString();
+      // Available is the resting state, so it never carries an expiry — and a
+      // busy status with no duration chosen stands until the rep clears it.
+      patch.statusUntil = (picked.id !== DEFAULT_STATUS && minutes)
+        ? new Date(Date.now() + minutes * 60000).toISOString()
+        : '';
+    }
     if (typeof body.displayName === 'string') patch.displayName = body.displayName.trim().slice(0, 60);
     if (body.monthlyGoal !== undefined) {
       var goalValue = Math.max(0, Math.round(parseFloat(body.monthlyGoal) || 0));
@@ -201,8 +224,9 @@ export async function POST(req) {
     if (body.onboarded) patch.onboardedAt = new Date().toISOString();
 
     if (editingSomeoneElse) {
-      // A manager sets targets. Someone's photo and how they introduce
-      // themselves are theirs alone.
+      // A manager sets targets. Someone's photo, their bio, and whether they are
+      // marked as in a meeting are theirs alone — a presence light nobody but its
+      // owner can flip is the only kind worth trusting.
       patch = Object.prototype.hasOwnProperty.call(patch, 'monthlyGoal')
         ? { monthlyGoal: patch.monthlyGoal }
         : {};
