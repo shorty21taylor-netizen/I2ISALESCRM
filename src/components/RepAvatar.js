@@ -9,7 +9,10 @@ import { initialsOf } from '@/lib/use-roster';
 // failed to load costs nothing.
 export default function RepAvatar({ rep, name, size, className, style, showStatus }) {
   var px = size || 36;
-  var label = (rep && rep.name) || name || '';
+  // The initials have to match the name printed beside them. Taking them from the
+  // matched profile instead turns "Cayden Fleming" into "C" whenever that profile
+  // happens to be stored under a single word.
+  var label = name || (rep && rep.name) || '';
   var status = showStatus && rep && rep.status ? rep.status : null;
 
   var box = Object.assign(

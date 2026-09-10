@@ -371,7 +371,7 @@ export default function DashboardPage() {
                 <div key={eod.id} className="p-4 md:p-5">
                   <div className="flex items-center gap-3 mb-3">
 <RepAvatar
-                      rep={roster.find(rep, eod.closerEmail)}
+                      rep={roster.find(rep)}
                       name={rep}
                       size={36}
                       showStatus

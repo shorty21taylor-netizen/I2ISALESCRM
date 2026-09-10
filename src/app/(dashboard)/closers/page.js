@@ -8,8 +8,10 @@ import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { getUser } from '@/lib/auth';
 import { apiFetch } from '@/lib/workspace-client';
+import useRoster from '@/lib/use-roster';
 
 export default function ClosersPage() {
+  var roster = useRoster();
   var s1 = useState([]), closers = s1[0], setClosers = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
   var s3 = useState(''), search = s3[0], setSearch = s3[1];
@@ -224,6 +226,22 @@ export default function ClosersPage() {
                         </button>
                       )}
                     </div>
+
+                    {/* A face only shows next to a name this profile actually claims.
+                        When that list is empty the rep is on the board under a name
+                        no login answers to — which is exactly why a photo goes
+                        missing, so say so here rather than leave them guessing. */}
+                    {(function() {
+                      var entry = roster.findByEmail(selected.email);
+                      var names = (entry && entry.names) || [];
+                      return (
+                        <p className="text-[11px] font-mono mt-2" style={{ color: names.length ? 'var(--crm-muted)' : '#f59e0b' }}>
+                          {names.length
+                            ? 'Photo shows next to: ' + names.join(', ')
+                            : 'No photo will show for this login — nothing on the boards matches it'}
+                        </p>
+                      );
+                    })()}
 
                     {selected.archived && (
                       <p className="text-xs font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>

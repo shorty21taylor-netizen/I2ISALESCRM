@@ -196,7 +196,7 @@ export default function Sidebar() {
         <div className="px-3 py-3 border-t border-crm-border/50">
           <div className="flex items-center gap-2">
             <RepAvatar
-              rep={roster.find(user.name, user.email)}
+              rep={roster.find(user.name) || roster.findByEmail(user.email)}
               name={user.name}
               size={28}
               showStatus

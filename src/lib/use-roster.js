@@ -69,15 +69,24 @@ export default function useRoster() {
   return {
     ready: state.ready,
     reps: state.reps,
-    // Name first, then email — the same order records are attributed in. The
-    // email on a record is ambient (it used to be stamped from whoever was signed
-    // in), so a filed name is the more deliberate signal; the email is what
-    // catches someone whose profile has since been renamed.
-    find: function(name, email) {
-      var byName = state.byName[norm(name)];
-      if (byName) return byName;
-      var k = norm(email || name);
-      return state.byEmail[k] || state.byName[k] || null;
+    // Name only, and only against the ownership set.
+    //
+    // The email on a record is ambient: it is stamped from whoever was signed in
+    // when the form went out, so every EOD a manager files on a rep's behalf
+    // carries the manager's address. Falling back to it does not find the rep —
+    // it finds the person who filed for them, and puts their face on the rep's
+    // row. Same failure the profile-name alias had, one step removed.
+    //
+    // So a face is shown only when a profile actually claims the name on the row.
+    // When none does, initials — and the fix is to correct the profile's name in
+    // Admin -> Closers, which is exactly what that control is for.
+    find: function(name) {
+      return state.byName[norm(name)] || null;
+    },
+    // The one place an email can be trusted: the signed-in session's own address,
+    // which is who the viewer actually is rather than who filed a form.
+    findByEmail: function(email) {
+      return state.byEmail[norm(email)] || null;
     },
   };
 }
