@@ -1960,14 +1960,15 @@ export function getWorkspace(id) {
   return store.workspaces.find(function(w) { return w.id === id; }) || null;
 }
 
-// Older workspaces were stored with coloured branding (red, purple). The UI is
-// monochrome now, so normalize any stored brand colour to a neutral on read.
+// Brand colours used to be flattened to a neutral here, because the UI was
+// monochrome. Workspaces now choose the accent the whole platform wears, so a
+// stored colour wins and these are only the fallback for one that has not picked.
+// (Also returns a copy: the old version rewrote the stored record on every read.)
 var NEUTRAL_BRAND = { primaryColor: '#a3a3a3', secondaryColor: '#525252' };
 
 function normalizeBranding(ws) {
   if (!ws) return ws;
-  ws.branding = Object.assign({}, ws.branding, NEUTRAL_BRAND);
-  return ws;
+  return Object.assign({}, ws, { branding: Object.assign({}, NEUTRAL_BRAND, ws.branding) });
 }
 
 export async function createWorkspace(data) {

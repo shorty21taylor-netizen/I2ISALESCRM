@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import BrandTheme from '@/components/BrandTheme';
 import { isLoggedIn } from '@/lib/auth';
 import { getFormConfig } from '@/lib/form-config';
 
@@ -25,6 +26,7 @@ export default function DashboardLayout({ children }) {
   if (!ready) return <div className="flex items-center justify-center min-h-screen bg-crm-bg"><div className="w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full animate-spin" /></div>;
   return (
     <div className="flex min-h-screen">
+      <BrandTheme />
       <Sidebar />
       <main className="flex-1 ml-[268px] transition-all duration-300">{children}</main>
     </div>

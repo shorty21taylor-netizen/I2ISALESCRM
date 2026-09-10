@@ -280,7 +280,7 @@ export default function AnalyticsPage() {
   var r = m.rates;
   var c = m.cash;
   var daily = m.daily.map(function(d) { return Object.assign({}, d, { label: shortDay(d.date) }); });
-  var tooltipStyle = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fafafa', fontSize: '12px' };
+  var tooltipStyle = { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '12px', color: 'var(--crm-text-bright)', fontSize: '12px' };
 
   return (
     <div className="min-h-screen">
@@ -360,12 +360,12 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={daily}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="label" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
-                      <YAxis yAxisId="dials" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
-                      <YAxis yAxisId="calls" orientation="right" stroke="#6b6b6b" tick={{ fontSize: 10 }} />
+                      <XAxis dataKey="label" stroke="var(--crm-muted)" tick={{ fontSize: 9, fill: "var(--crm-muted)" }} />
+                      <YAxis yAxisId="dials" stroke="var(--crm-muted)" tick={{ fontSize: 10, fill: "var(--crm-muted)" }} />
+                      <YAxis yAxisId="calls" orientation="right" stroke="var(--crm-muted)" tick={{ fontSize: 10, fill: "var(--crm-muted)" }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Area yAxisId="dials" type="monotone" dataKey="dials" stroke="#a3a3a3" fill="rgba(var(--accent-rgb),0.10)" name="Dials (left)" />
-                      <Area yAxisId="calls" type="monotone" dataKey="taken" stroke="#fafafa" fill="rgba(255,255,255,0.06)" name="Showed (right)" />
+                      <Area yAxisId="dials" type="monotone" dataKey="dials" stroke="var(--crm-muted)" fill="rgba(var(--accent-rgb),0.08)" name="Dials (left)" />
+                      <Area yAxisId="calls" type="monotone" dataKey="taken" stroke="var(--crm-accent)" fill="rgba(var(--accent-rgb),0.16)" name="Showed (right)" />
                       <Area yAxisId="calls" type="monotone" dataKey="closes" stroke="#22c55e" fill="rgba(34,197,94,0.12)" name="Closes (right)" />
                       <Legend wrapperStyle={{ fontSize: '10px' }} />
                     </AreaChart>
@@ -481,8 +481,8 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={daily}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="label" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
-                    <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} tickFormatter={function(x) { return x >= 1000 ? '$' + Math.round(x / 1000) + 'k' : '$' + x; }} />
+                    <XAxis dataKey="label" stroke="var(--crm-muted)" tick={{ fontSize: 9, fill: "var(--crm-muted)" }} />
+                    <YAxis stroke="var(--crm-muted)" tick={{ fontSize: 10, fill: "var(--crm-muted)" }} tickFormatter={function(x) { return x >= 1000 ? '$' + Math.round(x / 1000) + 'k' : '$' + x; }} />
                     <Tooltip contentStyle={tooltipStyle} formatter={function(x) { return ['$' + x.toLocaleString(), 'Cash']; }} />
                     <Line type="monotone" dataKey="cash" stroke="#22c55e" strokeWidth={2} dot={{ r: 2.5 }} name="Cash" />
                   </LineChart>
@@ -497,8 +497,8 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={daily}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="label" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
-                    <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} />
+                    <XAxis dataKey="label" stroke="var(--crm-muted)" tick={{ fontSize: 9, fill: "var(--crm-muted)" }} />
+                    <YAxis stroke="var(--crm-muted)" tick={{ fontSize: 10, fill: "var(--crm-muted)" }} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="sets" fill="#22c55e" radius={[4, 4, 0, 0]} name="Booked" />
                     <Bar dataKey="noShowed" fill="#ef4444" radius={[4, 4, 0, 0]} name="No-shows" />
@@ -535,10 +535,10 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={daily}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="label" stroke="#6b6b6b" tick={{ fontSize: 9 }} />
-                    <YAxis stroke="#6b6b6b" tick={{ fontSize: 10 }} />
+                    <XAxis dataKey="label" stroke="var(--crm-muted)" tick={{ fontSize: 9, fill: "var(--crm-muted)" }} />
+                    <YAxis stroke="var(--crm-muted)" tick={{ fontSize: 10, fill: "var(--crm-muted)" }} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="pitched" fill="#a3a3a3" radius={[4, 4, 0, 0]} name="Offers" />
+                    <Bar dataKey="pitched" fill="var(--crm-accent)" radius={[4, 4, 0, 0]} name="Offers" />
                     <Bar dataKey="closes" fill="#22c55e" radius={[4, 4, 0, 0]} name="Closes" />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
                   </BarChart>
