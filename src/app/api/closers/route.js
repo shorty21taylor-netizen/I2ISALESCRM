@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility } from '@/lib/store';
+import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility, renameCloser } from '@/lib/store';
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
@@ -19,7 +19,8 @@ export async function POST(req) {
     else if (action === 'restore') result = restoreCloser(body.email);
     else if (action === 'setter-exclude') result = setSetterEligibility(body.email, false);
     else if (action === 'setter-include') result = setSetterEligibility(body.email, true);
-    else return NextResponse.json({ error: "action must be 'archive', 'restore', 'setter-exclude' or 'setter-include'" }, { status: 400 });
+    else if (action === 'rename') result = renameCloser(body.email, body.name);
+    else return NextResponse.json({ error: "action must be 'archive', 'restore', 'rename', 'setter-exclude' or 'setter-include'" }, { status: 400 });
 
     if (result.error) return NextResponse.json({ error: result.error }, { status: 404 });
     return NextResponse.json({ success: true, action: action, closer: result.profile });

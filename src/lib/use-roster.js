@@ -37,8 +37,8 @@ export default function useRoster() {
 
         // Two people can answer to the same name. Rank the claims rather than
         // letting whichever profile happened to load first win: a display name
-        // beats an alias, an alias beats a filed name, and between equals the
-        // one with a photo wins — since a face is the whole point of the lookup.
+        // beats an alias, and between equals the one with a photo wins — since a
+        // face is the whole point of the lookup.
         function claim(alias, rep, strength) {
           var key = norm(alias);
           if (!key) return;
@@ -54,7 +54,6 @@ export default function useRoster() {
           if (rep.email) byEmail[norm(rep.email)] = rep;
           claim(rep.name, rep, 2);
           (rep.names || []).forEach(function(alias) { claim(alias, rep, 1); });
-          (rep.aka || []).forEach(function(alias) { claim(alias, rep, 0); });
         });
 
         var byName = {};

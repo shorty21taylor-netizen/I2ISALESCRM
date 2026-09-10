@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, UserMinus, RotateCcw, Archive, PhoneCall } from 'lucide-react';
+import { Users, Search, Phone, DollarSign, Target, BarChart3, Clock, Mail, UserMinus, RotateCcw, Archive, PhoneCall , PenLine} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -18,6 +18,8 @@ export default function ClosersPage() {
   var s6 = useState(null), confirmRemove = s6[0], setConfirmRemove = s6[1];
   var s7 = useState(''), actionError = s7[0], setActionError = s7[1];
   var s8 = useState(false), busy = s8[0], setBusy = s8[1];
+  var s9 = useState(''), renaming = s9[0], setRenaming = s9[1];
+  var s10 = useState(''), renameTo = s10[0], setRenameTo = s10[1];
 
   var user = getUser();
   var router = useRouter();
@@ -45,13 +47,13 @@ export default function ClosersPage() {
       .catch(function() { setLoading(false); });
   }
 
-  function rosterAction(email, action) {
+  function rosterAction(email, action, name) {
     setBusy(true);
     setActionError('');
     apiFetch('/api/closers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, action: action }),
+      body: JSON.stringify({ email: email, action: action, name: name }),
     })
       .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
       .then(function(res) {
@@ -61,7 +63,10 @@ export default function ClosersPage() {
           setActionError(res.d.error || 'Could not update the roster');
           return;
         }
-        if (action === 'setter-exclude' || action === 'setter-include') {
+        if (action === 'rename') {
+          setRenaming('');
+          if (res.d.closer) setSelected(Object.assign({}, selected, { name: res.d.closer.name }));
+        } else if (action === 'setter-exclude' || action === 'setter-include') {
           // Nobody left the list — just show the new state on the button.
           if (res.d.closer) setSelected(Object.assign({}, selected, { excludedFromSetterBoard: !!res.d.closer.excludedFromSetterBoard }));
         } else if (action === 'archive' && !showArchived) {
@@ -203,12 +208,23 @@ export default function ClosersPage() {
                         Joined {selected.registeredAt ? new Date(selected.registeredAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
                       </span>
                     </div>
-                    <button
-                      className="an-chip mt-2"
-                      onClick={function() { router.push('/me?rep=' + encodeURIComponent(selected.email)); }}
-                    >
-                      Open their dashboard
-                    </button>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <button
+                        className="an-chip"
+                        onClick={function() { router.push('/me?rep=' + encodeURIComponent(selected.email)); }}
+                      >
+                        Open their dashboard
+                      </button>
+                      {isAdmin && (
+                        <button className="an-chip" onClick={function() {
+                          setRenaming(renaming === selected.email ? '' : selected.email);
+                          setRenameTo(selected.name || '');
+                        }}>
+                          <PenLine className="w-3 h-3" /> Wrong name?
+                        </button>
+                      )}
+                    </div>
+
                     {selected.archived && (
                       <p className="text-xs font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
                         Removed from the roster{selected.archivedAt ? ' on ' + new Date(selected.archivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''} — their records are still counted
@@ -252,6 +268,34 @@ export default function ClosersPage() {
                     </div>
                   )}
                 </div>
+
+                {/* A profile's name is stamped by whichever form first carried
+                    the email, so it can be somebody else's entirely. This is how
+                    that gets corrected — the records stay where they are. */}
+                {isAdmin && renaming === selected.email && (
+                  <div className="mt-3 p-3 rounded-xl" style={{ background: 'var(--crm-bg)', border: '1px solid var(--glass-card-border)' }}>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.08em] mb-2" style={{ color: 'var(--crm-muted)' }}>
+                      Name on {selected.email}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        value={renameTo}
+                        onChange={function(e) { setRenameTo(e.target.value); }}
+                        placeholder="Their real name"
+                        className="px-3 h-9 rounded-lg text-sm"
+                        style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--crm-text)', minWidth: '220px' }}
+                      />
+                      <button className="an-btn" disabled={busy || !renameTo.trim()}
+                        onClick={function() { rosterAction(selected.email, 'rename', renameTo.trim()); }}>
+                        Save name
+                      </button>
+                      <button className="an-btn-ghost" onClick={function() { setRenaming(''); }}>Cancel</button>
+                    </div>
+                    <p className="text-[11px] mt-2" style={{ color: 'var(--crm-muted)' }}>
+                      Fixes the name on this login only. Their closes, EODs and cash are untouched.
+                    </p>
+                  </div>
+                )}
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

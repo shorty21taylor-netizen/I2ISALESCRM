@@ -1594,6 +1594,29 @@ export function updateCloserProfile(email, patch) {
   return { profile: profile };
 }
 
+// Take a wrong name off a profile.
+//
+// registerCloser stamps a profile's name from whichever form first carried the
+// email, so a manager who filed an EOD on a rep's behalf ends up with that rep's
+// name sitting on their own profile forever. This writes both fields: name, so
+// the roster and the closers list stop showing the wrong person, and displayName,
+// so repIdentity treats it as deliberate and never silently reverts. Records are
+// not touched — use the attribution repair for those.
+export function renameCloser(email, name) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key) return { error: 'No email' };
+  var profile = store.closerProfiles[key];
+  if (!profile) return { error: 'No profile for ' + key };
+
+  var clean = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  if (!clean) return { error: 'A name is required' };
+
+  profile.name = clean;
+  profile.displayName = clean;
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Rename error:', e.message); });
+  return { profile: profile };
+}
+
 export function getCloserProfile(email) {
   var key = (email || '').toLowerCase().trim();
   return (key && store.closerProfiles[key]) || null;
