@@ -1583,11 +1583,46 @@ html.light .nav-link.active .nav-icon { filter: none; }
    The hover lift goes too: a popover that slides three pixels when the pointer
    crosses the card behind it is a popover people misclick. */
 .me-hero {
-  padding: 24px 26px; overflow: visible; z-index: 5;
+  padding: 0; overflow: visible; z-index: 5;
   background: radial-gradient(90% 160% at 0% 0%, rgba(var(--accent-rgb),0.10), transparent 60%), var(--glass-card-bg);
 }
 .me-hero:hover { transform: none; }
-.me-id { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+
+/* ---- the company banner ---- */
+.me-banner {
+  position: relative; height: 216px; overflow: hidden;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+.me-banner > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Before anyone uploads one: the brand, at rest. */
+.me-banner-blank {
+  width: 100%; height: 100%; display: grid; place-items: center;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 15px),
+    radial-gradient(120% 190% at 14% 0%, rgba(var(--accent-rgb),0.52), transparent 60%),
+    radial-gradient(95% 150% at 90% 105%, rgba(var(--accent-rgb),0.24), transparent 58%),
+    linear-gradient(118deg, var(--crm-surface), var(--crm-bg));
+}
+.me-banner-blank img { max-height: 62%; max-width: 46%; opacity: 0.24; object-fit: contain; }
+.me-banner-btn {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  height: 30px; padding: 0 12px; border-radius: var(--r-pill);
+  font-size: 11.5px; font-weight: 600; color: #fff;
+  border: 1px solid rgba(255,255,255,0.28); background: rgba(0,0,0,0.44);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  /* Visible at rest: a control nobody can find is a feature nobody has. */
+  opacity: 0.75; transition: opacity 0.22s ease, background 0.22s ease;
+}
+.me-banner:hover .me-banner-btn, .me-banner-btn:focus-visible { opacity: 1; }
+.me-banner-btn:hover { background: rgba(0,0,0,0.66); }
+
+/* The face overlaps the banner the way a profile header always has: pulled up
+   over the seam, so the two read as one object rather than two stacked strips. */
+.me-id {
+  display: flex; align-items: flex-start; gap: 30px; flex-wrap: wrap;
+  padding: 0 30px 26px;
+}
 
 /* The presence palette, in one place so the ring, the pill and the menu can never
    disagree. The light theme needs its own inks: the amber and violet that read
@@ -1609,7 +1644,10 @@ html.light {
 /* The photo is the one thing on this page that is a person rather than a number,
    so it gets to be the largest object in the header. The ring around it carries
    the rep's status, which is why the colour is a variable rather than the accent. */
-.me-avatar-wrap { position: relative; flex: none; display: grid; place-items: center; }
+.me-avatar-wrap {
+  position: relative; flex: none; display: grid; place-items: center;
+  margin-top: -132px;
+}
 .me-avatar-wrap { --status-ink: var(--tone-good-ink); --status-rgb: var(--tone-good-rgb); }
 .me-avatar-wrap[data-tone="live"]  { --status-ink: var(--tone-live-ink);  --status-rgb: var(--tone-live-rgb); }
 .me-avatar-wrap[data-tone="busy"]  { --status-ink: var(--tone-busy-ink);  --status-rgb: var(--tone-busy-rgb); }
@@ -1619,48 +1657,50 @@ html.light {
 /* Enough glow to make the photo the anchor of the header, not so much that
    Available — which is most of the day — turns the whole card green. */
 .me-avatar-halo {
-  position: absolute; width: 186px; height: 186px; border-radius: 50%; pointer-events: none;
+  position: absolute; width: 320px; height: 320px; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(var(--status-rgb),0.20), transparent 72%);
-  filter: blur(16px);
+  filter: blur(22px);
 }
 .me-avatar {
-  position: relative; width: 132px; height: 132px; border-radius: 50%; flex: none;
+  position: relative; width: 236px; height: 236px; border-radius: 50%; flex: none;
   display: grid; place-items: center; cursor: pointer; overflow: hidden; padding: 0;
-  border: 3px solid var(--status-ink);
+  /* Cut out of the banner by a thick ring of the card's own surface, with the
+     status ring drawn outside that — the photo reads as sitting in front of the
+     banner rather than floating on it. */
+  border: 9px solid var(--crm-surface);
   background: linear-gradient(160deg, rgba(var(--accent-rgb),0.22), var(--glass-surface-bg));
   box-shadow:
-    var(--sheen),
-    0 0 0 7px rgba(var(--status-rgb),0.13),
-    0 24px 46px -22px rgba(var(--status-rgb),0.75);
+    0 0 0 4px var(--status-ink),
+    0 28px 56px -24px rgba(var(--status-rgb),0.7);
   transition: transform 0.28s var(--spring), box-shadow 0.28s ease;
 }
 .me-avatar:disabled { cursor: default; }
 .me-avatar:not(:disabled):hover { transform: translateY(-3px) scale(1.03); }
 .me-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .me-avatar-initials {
-  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 44px;
+  font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 76px;
   color: var(--crm-accent); letter-spacing: -0.02em;
 }
 .me-avatar-edit {
-  position: absolute; inset: auto 0 0 0; height: 36px;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #fff;
-  background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.78));
+  position: absolute; inset: auto 0 0 0; height: 62px; padding-bottom: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em; color: #fff;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.8));
   opacity: 0; transition: opacity 0.22s ease;
 }
 .me-avatar:hover .me-avatar-edit, .me-avatar:focus-visible .me-avatar-edit { opacity: 1; }
 
 /* The status light, repeated on the photo so it reads without going to the pill. */
 .me-avatar-dot {
-  position: absolute; right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--status-ink); border: 4px solid var(--crm-surface);
-  box-shadow: 0 0 0 1px rgba(var(--status-rgb),0.5), 0 4px 12px -3px rgba(var(--status-rgb),0.9);
+  position: absolute; right: 16px; bottom: 16px; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--status-ink); border: 6px solid var(--crm-surface);
+  box-shadow: 0 0 0 1px rgba(var(--status-rgb),0.5), 0 6px 16px -4px rgba(var(--status-rgb),0.9);
 }
 
-.me-id-main { flex: 1 1 280px; }
+.me-id-main { flex: 1 1 300px; padding-top: 18px; }
 .me-name {
-  margin: 0; font-family: 'Outfit', sans-serif; font-size: 30px; font-weight: 700;
-  letter-spacing: -0.03em; color: var(--crm-text-bright); line-height: 1.1;
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 36px; font-weight: 700;
+  letter-spacing: -0.035em; color: var(--crm-text-bright); line-height: 1.08;
 }
 .me-bio {
   margin: 10px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.6;
@@ -1729,7 +1769,7 @@ html.light {
 .me-sub b { color: var(--crm-text-bright); font-weight: 600; }
 .me-saving { margin: 5px 0 0; font-size: 11.5px; color: var(--crm-warning); }
 
-.me-headline { margin-left: auto; text-align: right; }
+.me-headline { margin-left: auto; text-align: right; padding-top: 18px; }
 .me-headline-l {
   margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
   text-transform: uppercase; color: var(--crm-muted);
@@ -1830,14 +1870,26 @@ html.light {
 }
 
 @media (max-width: 1200px) { .me-stats { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 1000px) {
+  .me-avatar { width: 178px; height: 178px; border-width: 7px; }
+  .me-avatar-wrap { margin-top: -100px; }
+  .me-avatar-initials { font-size: 58px; }
+  .me-banner { height: 178px; }
+}
 @media (max-width: 700px) {
   .me-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .me-headline { margin-left: 0; text-align: left; width: 100%; }
-  .me-avatar { width: 104px; height: 104px; }
-  .me-avatar-halo { width: 142px; height: 142px; }
-  .me-avatar-initials { font-size: 34px; }
-  .me-avatar-dot { width: 22px; height: 22px; right: 3px; bottom: 3px; border-width: 3px; }
-  .me-name { font-size: 25px; }
+  .me-headline { margin-left: 0; text-align: left; width: 100%; padding-top: 0; }
+  .me-id { gap: 18px; padding: 0 18px 22px; }
+  .me-id-main { padding-top: 12px; }
+  .me-avatar { width: 128px; height: 128px; border-width: 5px; }
+  .me-avatar-wrap { margin-top: -72px; }
+  .me-avatar-halo { width: 176px; height: 176px; }
+  .me-avatar-initials { font-size: 42px; }
+  .me-avatar-edit { height: 40px; font-size: 0; gap: 0; }
+  .me-avatar-dot { width: 26px; height: 26px; right: 6px; bottom: 6px; border-width: 4px; }
+  .me-banner { height: 128px; }
+  .me-banner-btn { opacity: 1; }
+  .me-name { font-size: 27px; }
 }
 
 .an-scoped {

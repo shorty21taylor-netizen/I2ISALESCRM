@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   initStore, getStore, getCloserProfile, updateCloserProfile,
-  getCommissionsForCloser, canonicalRep,
+  getCommissionsForCloser, canonicalRep, getWorkspace, getWorkspaces,
 } from '@/lib/store';
 import { callerEmail, effectiveReadWorkspace, matchesWorkspace, resolveAccess } from '@/lib/access';
 import { getUser } from '@/lib/users';
@@ -17,7 +17,12 @@ export var dynamic = 'force-dynamic';
 // under this whatever came off the phone. This only has to stop something that
 // skipped that path.
 var MAX_AVATAR_BYTES = 700 * 1024;
+var MAX_BANNER_BYTES = 1200 * 1024;
 var MAX_BIO = 280;
+
+function isImageValue(v) {
+  return v === '' || v.indexOf('data:image/') === 0 || v.indexOf('https://') === 0;
+}
 
 // Who finished each month on top, used for the "Top of the Board" award.
 function leadersByMonth(deals) {
@@ -142,6 +147,7 @@ export async function GET(req) {
         avatarUrl: (profile && profile.avatarUrl) || '',
         tagline: (profile && profile.tagline) || '',
         bio: (profile && profile.bio) || '',
+        bannerUrl: (profile && profile.bannerUrl) || '',
         status: effectiveStatus(profile),
         monthlyGoal: (profile && profile.monthlyGoal) || 0,
         onboarded: !!(profile && profile.onboardedAt),
@@ -150,6 +156,16 @@ export async function GET(req) {
         nameIsGuessed: !(profile && profile.displayName) && !(account && account.name),
         joinedAt: (profile && profile.registeredAt) || '',
       },
+      // What the banner falls back to before anyone uploads one: the workspace's
+      // own mark, so a profile nobody has touched still reads as the company's.
+      brand: (function() {
+        var ws = (workspaceId && workspaceId !== '__all__' && getWorkspace(workspaceId))
+          || getWorkspaces()[0] || null;
+        return {
+          name: (ws && ws.name) || '',
+          logoUrl: (ws && ws.branding && ws.branding.logoUrl) || '',
+        };
+      })(),
       goal: goal,
       today: today,
       pnl: computePnl(myDeals, start, end),
@@ -191,11 +207,19 @@ export async function POST(req) {
       if (body.avatarUrl.length > MAX_AVATAR_BYTES) {
         return NextResponse.json({ error: 'That photo did not get resized before upload — try picking it again.' }, { status: 413 });
       }
-      var ok = body.avatarUrl === ''
-        || body.avatarUrl.indexOf('data:image/') === 0
-        || body.avatarUrl.indexOf('https://') === 0;
-      if (!ok) return NextResponse.json({ error: 'Photo must be an uploaded image or an https link' }, { status: 400 });
+      if (!isImageValue(body.avatarUrl)) {
+        return NextResponse.json({ error: 'Photo must be an uploaded image or an https link' }, { status: 400 });
+      }
       patch.avatarUrl = body.avatarUrl;
+    }
+    if (typeof body.bannerUrl === 'string') {
+      if (body.bannerUrl.length > MAX_BANNER_BYTES) {
+        return NextResponse.json({ error: 'That banner did not get resized before upload — try picking it again.' }, { status: 413 });
+      }
+      if (!isImageValue(body.bannerUrl)) {
+        return NextResponse.json({ error: 'Banner must be an uploaded image or an https link' }, { status: 400 });
+      }
+      patch.bannerUrl = body.bannerUrl;
     }
     if (typeof body.tagline === 'string') patch.tagline = body.tagline.slice(0, 90);
     if (typeof body.bio === 'string') patch.bio = body.bio.trim().slice(0, MAX_BIO);
@@ -224,9 +248,9 @@ export async function POST(req) {
     if (body.onboarded) patch.onboardedAt = new Date().toISOString();
 
     if (editingSomeoneElse) {
-      // A manager sets targets. Someone's photo, their bio, and whether they are
-      // marked as in a meeting are theirs alone — a presence light nobody but its
-      // owner can flip is the only kind worth trusting.
+      // A manager sets targets. Someone's photo, their banner, their bio, and
+      // whether they are marked as in a meeting are theirs alone — a presence
+      // light nobody but its owner can flip is the only kind worth trusting.
       patch = Object.prototype.hasOwnProperty.call(patch, 'monthlyGoal')
         ? { monthlyGoal: patch.monthlyGoal }
         : {};

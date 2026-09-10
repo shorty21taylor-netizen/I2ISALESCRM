@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays, ChevronDown } from 'lucide-react';
+import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays, ChevronDown, ImagePlus } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { STATUSES, DURATIONS, DEFAULT_STATUS } from '@/lib/rep-status';
-import { fileToAvatar, MAX_UPLOAD_BYTES } from '@/lib/avatar-file';
+import { fileToAvatar, fileToBanner, MAX_UPLOAD_BYTES } from '@/lib/avatar-file';
 
 // A rep's own page. Every figure is theirs; the only number belonging to anyone
 // else is how far ahead the rep above them is, and only as a distance.
@@ -190,6 +190,7 @@ export default function MyDashboardPage() {
   var router = useRouter();
   var viewingRep = params.get('rep') || '';
   var fileRef = useRef(null);
+  var bannerRef = useRef(null);
   var [data, setData] = useState(null);
   var [loading, setLoading] = useState(true);
   var [error, setError] = useState('');
@@ -231,14 +232,20 @@ export default function MyDashboardPage() {
 
   useEffect(load, [workspaceId, range, start, end, viewingRep]);
 
-  function onPhoto(e) {
+  // Photo and banner differ only in the shape they are cropped to and the field
+  // they land in, so one handler covers both.
+  function onImage(e, resize, field, noun) {
     var file = e.target.files && e.target.files[0];
     // Let the same file be picked twice — after a failure, that is the natural retry.
     e.target.value = '';
     if (!file) return;
-    setSaving('Resizing your photo…');
-    fileToAvatar(file)
-      .then(function(url) { savePhoto(url); })
+    setSaving('Resizing your ' + noun + '…');
+    resize(file)
+      .then(function(url) {
+        var patch = {};
+        patch[field] = url;
+        saveProfile(patch);
+      })
       .catch(function(err) { setSaving(err && err.message ? err.message : 'Could not read that file'); });
   }
 
@@ -254,22 +261,6 @@ export default function MyDashboardPage() {
         if (!json.success) { setSaving(json.error || 'Could not save'); return; }
         setSaving('');
         if (done) done();
-        load();
-      })
-      .catch(function() { setSaving('Could not reach the server'); });
-  }
-
-  function savePhoto(url) {
-    setSaving('Saving…');
-    apiFetch('/api/me', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ avatarUrl: url }),
-    })
-      .then(function(r) { return r.json(); })
-      .then(function(json) {
-        if (!json.success) { setSaving(json.error || 'Could not save'); return; }
-        setSaving('');
         load();
       })
       .catch(function() { setSaving('Could not reach the server'); });
@@ -293,6 +284,7 @@ export default function MyDashboardPage() {
   var canEdit = data.canEdit;
   var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
   var today = data.today;
+  var brand = data.brand || { name: '', logoUrl: '' };
   var status = p.status || { id: 'available', label: 'Available', tone: 'good', detail: '', note: '', until: '' };
   var expect = today ? today.expect : null;
   var longDay = today ? new Date(today.date + 'T12:00:00').toLocaleDateString('en-US',
@@ -335,9 +327,9 @@ export default function MyDashboardPage() {
             <div>
               <h3 className="me-setup-t">Welcome. Make this yours.</h3>
               <p className="me-setup-s">
-                Add a photo, say how you want to be introduced, and set the number you are chasing
-                this month. It takes about thirty seconds and it is the difference between a page of
-                numbers and your page.
+                Add a photo and a banner, write a line or two about how you sell, and set the number
+                you are chasing this month. It takes about a minute and it is the difference between a
+                page of numbers and your page.
               </p>
             </div>
             <button className="an-btn" onClick={function() { setEditing(true); }}>Set up my profile</button>
@@ -349,6 +341,28 @@ export default function MyDashboardPage() {
 
         {/* ---- identity ---- */}
         <div className="me-hero glass-card mb-4">
+          {/* The company's banner, and the face in front of it. Before anyone
+              uploads one the strip still carries the workspace mark, so a profile
+              nobody has touched already looks like it belongs here. */}
+          <div className="me-banner">
+            {p.bannerUrl
+              ? <img src={p.bannerUrl} alt="" />
+              : (
+                <div className="me-banner-blank" aria-hidden="true">
+                  {brand.logoUrl ? <img src={brand.logoUrl} alt="" /> : null}
+                </div>
+              )}
+            {canEdit ? (
+              <button className="me-banner-btn"
+                onClick={function() { bannerRef.current && bannerRef.current.click(); }}>
+                <ImagePlus size={13} />
+                {p.bannerUrl ? 'Change banner' : 'Add a banner'}
+              </button>
+            ) : null}
+          </div>
+          <input ref={bannerRef} type="file" accept="image/*" className="hidden"
+            onChange={function(e) { onImage(e, fileToBanner, 'bannerUrl', 'banner'); }} />
+
           <div className="me-id">
             <div className="me-avatar-wrap" data-tone={status.tone}>
               <span className="me-avatar-halo" aria-hidden="true" />
@@ -358,11 +372,12 @@ export default function MyDashboardPage() {
                 {p.avatarUrl
                   ? <img src={p.avatarUrl} alt={p.name} />
                   : <span className="me-avatar-initials">{initials}</span>}
-                {canEdit ? <span className="me-avatar-edit"><Camera size={15} /> Change</span> : null}
+                {canEdit ? <span className="me-avatar-edit"><Camera size={17} /> Change photo</span> : null}
               </button>
               <span className="me-avatar-dot" title={status.label} />
             </div>
-            <input ref={fileRef} type="file" accept="image/*" onChange={onPhoto} className="hidden" />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden"
+              onChange={function(e) { onImage(e, fileToAvatar, 'avatarUrl', 'photo'); }} />
 
             <div className="me-id-main min-w-0">
               <h2 className="me-name">{p.name}</h2>

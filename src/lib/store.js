@@ -1585,7 +1585,7 @@ export function updateCloserProfile(email, patch) {
   }
   var profile = store.closerProfiles[key];
   [
-    'avatarUrl', 'tagline', 'bio', 'displayName', 'monthlyGoal', 'onboardedAt',
+    'avatarUrl', 'bannerUrl', 'tagline', 'bio', 'displayName', 'monthlyGoal', 'onboardedAt',
     'status', 'statusNote', 'statusSetAt', 'statusUntil',
   ].forEach(function(field) {
     if (Object.prototype.hasOwnProperty.call(patch || {}, field)) profile[field] = patch[field];
