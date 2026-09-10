@@ -66,7 +66,7 @@ export default function Sidebar() {
 
       {canSwitch && <WorkspaceSwitcher collapsed={collapsed} />}
 
-      <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
+      <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 space-y-1 overflow-y-auto">
         {navItems.filter(function(item) {
           return !item.operatorOnly || isOwner;
         }).map(function(item) {
@@ -78,11 +78,9 @@ export default function Sidebar() {
             </Link>
           );
         })}
-      </nav>
 
-      <hr className="divider mx-2" />
+        <hr className="divider my-2" />
 
-      <div className="px-2 py-2 space-y-1">
         {isOwner && (
           <>
             <Link href="/admin/workspaces" className={'nav-link ' + (pathname === '/admin/workspaces' ? 'active' : '')}>
@@ -107,7 +105,7 @@ export default function Sidebar() {
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Sign Out</span>}
         </button>
-      </div>
+      </nav>
 
       {!collapsed && user && (
         <div className="px-3 py-3 border-t border-crm-border/50">
