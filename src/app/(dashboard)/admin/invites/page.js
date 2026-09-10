@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserPlus, Users, Trash2, Save, Key, Check, AlertCircle, X, Building2 } from 'lucide-react';
 import { apiFetch } from '@/lib/workspace-client';
+import { ROLES, roleById, roleLabel } from '@/lib/roles';
 
 function emptyForm() {
   return { name: '', email: '', password: '', role: 'closer', workspaceIds: [] };
@@ -10,6 +11,9 @@ function emptyForm() {
 export default function TeamPage() {
   var s1 = useState([]), users = s1[0], setUsers = s1[1];
   var s2 = useState([]), workspaces = s2[0], setWorkspaces = s2[1];
+  // The server decides which roles this caller may hand out; the screen offers
+  // exactly those, so nothing on it can be refused after the fact.
+  var g1 = useState(null), grantable = g1[0], setGrantable = g1[1];
   var s3 = useState(emptyForm()), form = s3[0], setForm = s3[1];
   var s4 = useState(null), msg = s4[0], setMsg = s4[1];
   var s5 = useState(true), loading = s5[0], setLoading = s5[1];
@@ -25,7 +29,11 @@ export default function TeamPage() {
       })
       .then(function(d) {
         if (!d) return;
-        if (d.success) { setUsers(d.users || []); setWorkspaces(d.workspaces || []); }
+        if (d.success) {
+          setUsers(d.users || []);
+          setWorkspaces(d.workspaces || []);
+          setGrantable(d.grantable || null);
+        }
       })
       .catch(function() {})
       .then(function() { setLoading(false); });
@@ -98,11 +106,43 @@ export default function TeamPage() {
   }
 
   function workspaceNames(ids) {
-    return (ids || []).map(function(id) {
+  return (ids || []).map(function(id) {
       var w = workspaces.filter(function(x) { return x.id === id; })[0];
       return w ? w.name : id;
     });
   }
+
+  var offered = ROLES.filter(function(r) {
+    return !grantable || grantable.indexOf(r.id) !== -1;
+  });
+
+  function RoleOptions() {
+    return offered.map(function(r) {
+      return <option key={r.id} value={r.id}>{r.label} — {r.summary}</option>;
+    });
+  }
+
+  function RolePermissions({ id }) {
+    var role = roleById(id);
+    if (!role) return null;
+    return (
+      <div className="perm-card">
+        <p className="perm-t">{role.label} can</p>
+        <ul className="perm-list">
+          {(role.can || []).map(function(line, i) { return <li key={'c' + i}>{line}</li>; })}
+        </ul>
+        {(role.cannot || []).length ? (
+          <>
+            <p className="perm-t perm-t-no">Cannot</p>
+            <ul className="perm-list perm-list-no">
+              {role.cannot.map(function(line, i) { return <li key={'n' + i}>{line}</li>; })}
+            </ul>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
 
   if (denied) {
     return (
@@ -119,7 +159,7 @@ export default function TeamPage() {
       <div className="flex items-center gap-3 mb-6">
         <UserPlus className="w-6 h-6 text-crm-accent" />
         <div>
-          <h1 className="font-display text-2xl font-bold text-crm-text-bright">Team Members</h1>
+          <h1 className="font-display text-2xl font-bold text-crm-text-bright">Team & Permissions</h1>
           <p className="text-xs text-crm-muted mt-0.5">
             Set someone&apos;s password and choose which workspaces they can reach
           </p>
@@ -160,10 +200,9 @@ export default function TeamPage() {
               <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Role</label>
               <select className="input-field" value={form.role}
                 onChange={function(e) { setForm(Object.assign({}, form, { role: e.target.value })); }}>
-                <option value="closer">Closer</option>
-                <option value="setter">Setter</option>
-                <option value="manager">Manager</option>
+                {RoleOptions()}
               </select>
+              <RolePermissions id={form.role} />
             </div>
           </div>
 
@@ -218,7 +257,7 @@ export default function TeamPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-display font-semibold text-crm-text-bright">{u.name}</span>
-                        <span className="section-tag">{u.role}</span>
+                        <span className="section-tag">{roleLabel(u.role)}</span>
                       </div>
                       <div className="text-xs font-mono text-crm-muted mt-0.5">{u.email}</div>
                       <div className="text-[11px] text-crm-muted/70 mt-1">
@@ -249,10 +288,9 @@ export default function TeamPage() {
                         <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Role</label>
                         <select className="input-field text-sm" value={editing.role}
                           onChange={function(e) { setEditing(Object.assign({}, editing, { role: e.target.value })); }}>
-                          <option value="closer">Closer</option>
-                          <option value="setter">Setter</option>
-                          <option value="manager">Manager</option>
+                          {RoleOptions()}
                         </select>
+                        <RolePermissions id={editing.role} />
                       </div>
                     </div>
                     <div>

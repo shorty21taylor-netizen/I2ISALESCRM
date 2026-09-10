@@ -2172,3 +2172,17 @@ html.light .nav-link.active .nav-icon { filter: none; }
 .stat-card-grid span, .signin-field span, .an-field span, .nav-group-head {
   opacity: 0.72;
 }
+
+/* ---- what a role can do, shown where it is granted ---- */
+.perm-card {
+  margin-top: 10px; padding: 11px 13px; border-radius: var(--r-control);
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.perm-t {
+  margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--crm-accent);
+}
+.perm-t-no { margin-top: 9px; color: var(--crm-warning); }
+.perm-list { margin: 6px 0 0; padding-left: 16px; }
+.perm-list li { font-size: 12px; line-height: 1.55; color: var(--crm-text); }
+.perm-list-no li { color: var(--crm-muted); opacity: 0.8; }

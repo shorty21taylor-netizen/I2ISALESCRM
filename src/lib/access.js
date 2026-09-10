@@ -10,18 +10,15 @@
 
 import { getWorkspace } from '@/lib/store';
 import { getUser } from '@/lib/users';
+import { roleSeesTeam } from '@/lib/roles';
 
 export var ALL_WORKSPACES = '__all__';
 
 // The account that owns every workspace and sees the combined Operator View.
 export var OWNER_EMAIL = 'shorty21taylor@gmail.com';
 
-// Roles that are allowed to see other people's numbers. Everyone else is a rep:
-// they see their own record and the team leaderboard, and nothing else.
-var TEAM_ROLES = { operator: true, owner: true, admin: true, manager: true };
-
 export function canSeeTeam(access) {
-  return !!(access && (access.canSeeAll || TEAM_ROLES[String(access.role || '').toLowerCase()]));
+  return !!(access && (access.canSeeAll || roleSeesTeam(access.role)));
 }
 
 export function callerEmail(req) {

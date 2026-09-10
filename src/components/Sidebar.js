@@ -61,7 +61,7 @@ var navGroups = [
     operatorOnly: true,
     items: [
       { href: '/admin/workspaces', label: 'Workspaces', icon: Building2, operatorOnly: true },
-      { href: '/admin/invites', label: 'Invite Team', icon: UserPlus, operatorOnly: true },
+      { href: '/admin/invites', label: 'Team & Permissions', icon: UserPlus, operatorOnly: true },
       { href: '/message-scheduler', label: 'Messages', icon: MessageSquare, operatorOnly: true },
     ],
   },
