@@ -54,7 +54,7 @@ export default function VerifyPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: user.email, name: user.name }),
         }).catch(function() {});
-        router.push('/');
+        router.push('/welcome');
       } else {
         setError(data.error || 'Incorrect password');
       }

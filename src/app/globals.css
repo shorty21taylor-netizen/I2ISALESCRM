@@ -15,16 +15,18 @@
     --crm-card: #161616;
     --crm-border: #1f1f1f;
     --crm-border-hover: #2a2a2a;
-    --crm-muted: #6b6b6b;
+    --crm-muted: #ffffff;
     --crm-text: #e5e5e5;
     --crm-text-bright: #fafafa;
-    --accent-rgb: 163,163,163;
-    --crm-accent: #a3a3a3;
-    --crm-accent-glow: #d4d4d4;
-    --crm-accent-muted: #525252;
-    --btn-primary-bg: linear-gradient(135deg, #e5e5e5 0%, #a3a3a3 100%);
-    --btn-primary-bg-hover: linear-gradient(135deg, #fafafa 0%, #d4d4d4 100%);
-    --btn-primary-fg: #0a0a0a;
+    /* The default accent. A workspace that picks its own overrides these at
+       runtime; this is what the sign-in page and any unbranded workspace wear. */
+    --accent-rgb: 239,68,68;
+    --crm-accent: #ef4444;
+    --crm-accent-glow: #f87171;
+    --crm-accent-muted: #7f1d1d;
+    --btn-primary-bg: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    --btn-primary-bg-hover: linear-gradient(135deg, #fca5a5 0%, #f87171 100%);
+    --btn-primary-fg: #ffffff;
     --crm-positive: #22c55e;
     --crm-positive-muted: #166534;
     --crm-negative: #ef4444;
@@ -77,16 +79,17 @@
     --crm-card: #ffffff;
     --crm-border: #e5e5e5;
     --crm-border-hover: #d4d4d4;
-    --crm-muted: #737373;
+    --crm-muted: #0f172a;
     --crm-text: #262626;
     --crm-text-bright: #0a0a0a;
-    --accent-rgb: 82,82,82;
-    --crm-accent: #525252;
-    --crm-accent-glow: #262626;
-    --crm-accent-muted: #d4d4d4;
-    --btn-primary-bg: linear-gradient(135deg, #404040 0%, #171717 100%);
-    --btn-primary-bg-hover: linear-gradient(135deg, #525252 0%, #262626 100%);
-    --btn-primary-fg: #fafafa;
+    /* Red darkened until it holds on white; same default, other ground. */
+    --accent-rgb: 185,28,28;
+    --crm-accent: #b91c1c;
+    --crm-accent-glow: #991b1b;
+    --crm-accent-muted: #fecaca;
+    --btn-primary-bg: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    --btn-primary-bg-hover: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --btn-primary-fg: #ffffff;
     --crm-positive: #16a34a;
     --crm-positive-muted: #bbf7d0;
     --crm-negative: #dc2626;
@@ -2022,3 +2025,150 @@ html.light .nav-link.active .nav-icon { filter: none; }
   font-size: 11.5px; color: var(--crm-warning); text-align: left;
 }
 .me-notyou:hover { text-decoration: underline; }
+
+/* ============================================ */
+/* SUMMIT MARK + WELCOME TRANSITION             */
+/* ============================================ */
+
+.summit-mark { overflow: visible; filter: drop-shadow(0 0 26px rgba(var(--accent-rgb),0.45)); }
+.summit-mark .summit-ridge,
+.summit-mark .summit-peak { fill: none; }
+
+/* At rest the mark is simply drawn. Only .animate performs. */
+.summit-mark.animate .summit-ridge {
+  stroke-dasharray: 170; animation: summitDraw 0.55s ease-out 0.05s both;
+}
+.summit-mark.animate .summit-peak {
+  stroke-dasharray: 300; animation: summitDraw 0.7s ease-out 0.18s both;
+}
+.summit-mark.animate .summit-ridge-face { animation: summitFade 0.5s ease-out 0.5s both; }
+.summit-mark.animate .summit-peak-face { animation: summitFade 0.5s ease-out 0.62s both; }
+.summit-mark.animate .summit-bolt {
+  animation: summitBolt 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) 0.82s both;
+  transform-origin: 62px 66px;
+}
+
+@keyframes summitDraw { from { stroke-dashoffset: 320; } to { stroke-dashoffset: 0; } }
+@keyframes summitFade { from { opacity: 0; } }
+@keyframes summitBolt {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.welcome {
+  position: relative; min-height: 100vh; display: grid; place-items: center;
+  background: var(--crm-bg); overflow: hidden;
+}
+.welcome-glow {
+  position: absolute; inset: -25% -10% auto -10%; height: 90%;
+  background: radial-gradient(48% 55% at 50% 42%, rgba(var(--accent-rgb),0.30), transparent 70%);
+  filter: blur(52px); pointer-events: none;
+  animation: welcomeBloom 1.6s ease-out both;
+}
+@keyframes welcomeBloom { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+
+.welcome-inner { position: relative; display: grid; justify-items: center; text-align: center; }
+.welcome-mark { position: relative; display: grid; place-items: center; width: 190px; height: 190px; }
+.welcome-ring {
+  position: absolute; width: 140px; height: 140px; border-radius: 50%;
+  border: 1.5px solid rgba(var(--accent-rgb),0.55); opacity: 0;
+  animation: welcomeRing 1.5s ease-out 0.85s both;
+}
+.welcome-ring.r2 { animation-delay: 1.1s; }
+@keyframes welcomeRing {
+  0% { opacity: 0.85; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+
+.welcome-word {
+  margin: 18px 0 0; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 34px;
+  letter-spacing: -0.035em; color: var(--crm-text-bright);
+  animation: welcomeRise 0.6s ease-out 1.15s both;
+}
+.welcome-word span { color: var(--crm-accent); }
+.welcome-sub {
+  margin: 6px 0 0; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--crm-muted); animation: welcomeRise 0.6s ease-out 1.35s both;
+}
+@keyframes welcomeRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.welcome-skip {
+  margin-top: 34px; padding: 7px 18px; border-radius: var(--r-pill); cursor: pointer;
+  border: 1px solid var(--btn-ghost-border); background: var(--btn-ghost-bg);
+  color: var(--crm-muted); font-size: 12px;
+  animation: welcomeRise 0.5s ease-out 1.9s both;
+}
+.welcome-skip:hover { color: var(--crm-text); border-color: var(--btn-ghost-hover-border); }
+
+@media (prefers-reduced-motion: reduce) {
+  .summit-mark.animate .summit-ridge, .summit-mark.animate .summit-peak,
+  .summit-mark.animate .summit-ridge-face, .summit-mark.animate .summit-peak-face,
+  .summit-mark.animate .summit-bolt, .welcome-glow, .welcome-word,
+  .welcome-sub, .welcome-skip { animation: none !important; opacity: 1; }
+  .welcome-ring { display: none; }
+}
+
+/* ---- sign in ---- */
+.signin {
+  position: relative; min-height: 100vh; display: grid; place-items: center;
+  padding: 32px 16px; background: var(--crm-bg); overflow: hidden;
+}
+.signin-glow {
+  position: absolute; inset: -30% -20% auto -20%; height: 80%; pointer-events: none;
+  background: radial-gradient(46% 52% at 50% 40%, rgba(var(--accent-rgb),0.20), transparent 70%);
+  filter: blur(60px);
+}
+.signin-inner { position: relative; width: 100%; max-width: 400px; }
+.signin-head { display: grid; justify-items: center; text-align: center; margin-bottom: 26px; }
+.signin-word {
+  margin: 14px 0 0; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 27px;
+  letter-spacing: -0.035em; color: var(--crm-text-bright);
+}
+.signin-word span { color: var(--crm-accent); }
+.signin-sub {
+  margin: 5px 0 0; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--crm-muted);
+}
+.signin-card { padding: 26px 24px 24px; }
+.signin-title {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700;
+  color: var(--crm-text-bright); text-align: center; letter-spacing: -0.02em;
+}
+.signin-lede { margin: 5px 0 20px; font-size: 12.5px; color: var(--crm-muted); text-align: center; }
+.signin-field { display: block; margin-bottom: 14px; }
+.signin-field span {
+  display: block; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--crm-muted); margin-bottom: 6px; font-weight: 600;
+}
+.signin-note {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  padding: 9px 12px; border-radius: var(--r-control); font-size: 12px;
+  background: rgba(34,197,94,0.10); border: 1px solid rgba(34,197,94,0.24); color: var(--crm-positive);
+}
+.signin-foot { margin: 20px 0 0; font-size: 11px; color: var(--crm-muted); text-align: center; }
+
+
+/* ============================================ */
+/* SECONDARY TEXT                               */
+/* ============================================ */
+/* Labels, captions and column headers were a mid grey at every size, which read
+   as switched-off next to the figures they describe. They are white and carry
+   weight now. Structural greys — borders, rules, chart gridlines — are untouched;
+   only text moved. */
+.an-hero-l, .an-card-n, .an-line-s, .an-fn-c, .an-th, .an-quality-n, .an-quick-l,
+.an-empty, .an-modal-s, .an-field span, .an-seg-i,
+.me-stat-l, .me-stat-s, .me-headline-l, .me-headline-s, .me-sub, .me-rec-s,
+.me-award-detail, .me-award-count, .me-next, .me-goal-l, .me-goal-proj,
+.me-goal-foot, .me-goal-empty, .me-call-tag, .me-call-setter, .me-expect,
+.me-empty-s, .me-setup-s, .me-comm-sub, .me-comm-split span, .me-tagline,
+.nav-group-head, .stat-card-sub, .stat-card-grid span, .stat-card-foot,
+.signin-sub, .signin-lede, .signin-field span, .signin-foot, .welcome-sub {
+  color: var(--crm-muted);
+  font-weight: 600;
+}
+/* The figure still has to out-rank its own label, so labels sit a shade back. */
+.an-hero-l, .an-th, .me-stat-l, .me-headline-l, .me-comm-split span,
+.stat-card-grid span, .signin-field span, .an-field span, .nav-group-head {
+  opacity: 0.72;
+}

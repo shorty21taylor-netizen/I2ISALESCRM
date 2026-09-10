@@ -1988,7 +1988,9 @@ export function getWorkspace(id) {
 // monochrome. Workspaces now choose the accent the whole platform wears, so a
 // stored colour wins and these are only the fallback for one that has not picked.
 // (Also returns a copy: the old version rewrote the stored record on every read.)
-var NEUTRAL_BRAND = { primaryColor: '#a3a3a3', secondaryColor: '#525252' };
+// A workspace that has not picked a colour wears red. Any workspace can override
+// it in Settings; this is only what they start as.
+var NEUTRAL_BRAND = { primaryColor: '#a3a3a3', secondaryColor: '#525252', accentColor: '#EF4444' };
 
 function normalizeBranding(ws) {
   if (!ws) return ws;
