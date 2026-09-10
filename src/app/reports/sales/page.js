@@ -6,6 +6,7 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { isLoggedIn } from '@/lib/auth';
 import { GROUP_LABELS } from '@/lib/rep-groups';
 import { readableOn, isValidHex } from '@/lib/brand-theme';
+import { SummitGlyph } from '@/components/SummitMark';
 
 // The printed Summit Closing Group report. It lives outside the dashboard shell
 // so the paper is the whole page: what you see here is what lands in the PDF.
@@ -199,11 +200,7 @@ function ReportBody() {
               ? <img className="rpt-logo" src={report.brand.logoUrl} alt={report.brand.name} />
               : (
                 <div className="rpt-mark" aria-hidden="true">
-                  <svg viewBox="0 0 120 120" width="34" height="34">
-                    <path d="M60 14 L110 88 L10 88 Z" fill="none"
-                      stroke="currentColor" strokeWidth="7.5" strokeLinejoin="miter" />
-                    <path d="M36 83.5 L53 50 L64 74 L70 62 L84 83.5 Z" fill="currentColor" />
-                  </svg>
+                  <SummitGlyph height={26} name={report.brand.name} />
                 </div>
               )}
             <div>

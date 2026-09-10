@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { isLoggedIn } from '@/lib/auth';
 import { apiFetch } from '@/lib/workspace-client';
 import SummitMark from '@/components/SummitMark';
+import useBrand from '@/lib/use-brand';
 
 // The three seconds between signing in and the app. It is also the moment the
 // first request goes out, so the wait is doing something rather than just being
@@ -16,6 +17,7 @@ var REDUCED_MS = 400;
 export default function WelcomePage() {
   var router = useRouter();
   var [destination, setDestination] = useState('/');
+  var brand = useBrand();
 
   useEffect(function() {
     if (!isLoggedIn()) { router.replace('/login'); return; }
@@ -51,7 +53,8 @@ export default function WelcomePage() {
         <div className="welcome-mark">
           <span className="welcome-ring" />
           <span className="welcome-ring r2" />
-          <SummitMark size={150} animate wordmark />
+          <SummitMark size={150} animate wordmark pending={!brand.ready}
+            src={brand.logoUrl} name={brand.name} />
         </div>
         <button className="welcome-skip" onClick={function() { router.replace(destination); }}>
           Skip

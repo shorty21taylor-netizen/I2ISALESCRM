@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Check } from 'lucide-react';
 import { saveUser, isLoggedIn } from '@/lib/auth';
 import SummitMark from '@/components/SummitMark';
+import useBrand from '@/lib/use-brand';
 
 function SignIn() {
   var router = useRouter();
@@ -11,6 +12,7 @@ function SignIn() {
   var s1 = useState(''), name = s1[0], setName = s1[1];
   var s2 = useState(''), email = s2[0], setEmail = s2[1];
   var s3 = useState(''), inviteMsg = s3[0], setInviteMsg = s3[1];
+  var brand = useBrand();
 
   useEffect(function() {
     if (isLoggedIn()) { router.replace('/'); return; }
@@ -40,7 +42,8 @@ function SignIn() {
       <div className="signin-glow" />
       <div className="signin-inner">
         <div className="signin-head">
-          <SummitMark size={78} wordmark />
+          <SummitMark size={78} wordmark pending={!brand.ready}
+            src={brand.logoUrl} name={brand.name} />
         </div>
 
         <div className="glass-card signin-card">
