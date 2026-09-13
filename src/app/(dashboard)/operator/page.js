@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Building2, DollarSign, Wallet, Percent, Layers, RefreshCw } from 'lucide-react';
-import { apiFetch } from '@/lib/workspace-client';
+import { apiFetch, useAccess } from '@/lib/workspace-client';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
 
@@ -40,6 +40,7 @@ export default function OperatorPage() {
   var s3 = useState(null), enabled = s3[0], setEnabled = s3[1];
   var s4 = useState(false), loading = s4[0], setLoading = s4[1];
   var s5 = useState(null), error = s5[0], setError = s5[1];
+  var access = useAccess();
 
   var load = useCallback(function() {
     var p = rangeParams(range);
@@ -113,6 +114,21 @@ export default function OperatorPage() {
 
   var maxRevenue = included.reduce(function(m, o) { return Math.max(m, o.revenue); }, 0);
 
+  // The API already refuses everyone else. This is so the refusal reads as a
+  // closed door rather than a broken page.
+  if (access && !access.isOwner) {
+    return (
+      <div className="px-4 md:px-6 py-10 max-w-[640px] mx-auto text-center">
+        <Building2 className="w-6 h-6 mx-auto mb-3 text-crm-muted" />
+        <h1 className="font-display text-lg font-bold text-crm-text-bright">Operator View</h1>
+        <p className="text-sm text-crm-muted mt-2">
+          This one is the operator account&apos;s own — it spans every workspace at once,
+          so it is not part of any of them. Your dashboard has your numbers.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
 
@@ -121,7 +137,10 @@ export default function OperatorPage() {
           <h1 className="font-display text-xl md:text-2xl font-bold text-crm-text-bright flex items-center gap-2">
             <Building2 className="w-5 h-5 text-crm-accent" /> Operator View
           </h1>
-          <p className="text-xs md:text-sm text-crm-muted mt-1">Every offer you manage, across every workspace</p>
+          <p className="text-xs md:text-sm text-crm-muted mt-1">
+            Every offer you manage, across every workspace — this view sits above them, so the
+            workspace picker does not apply here.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {RANGES.map(function(r) {

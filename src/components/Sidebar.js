@@ -53,6 +53,16 @@ var navGroups = [
       { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
       { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
       { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
+    ],
+  },
+  {
+    // Above the workspaces rather than inside one: this is the operator's own
+    // view of every offer they run, and it belongs to the account, not to a
+    // client. Flat, so it never reads as a child of the section before it.
+    id: 'operator',
+    flat: true,
+    operatorOnly: true,
+    items: [
       { href: '/operator', label: 'Operator View', icon: Building2, operatorOnly: true },
     ],
   },
@@ -111,6 +121,9 @@ export default function Sidebar() {
   var canSeeTeam = access ? (!!access.canSeeTeam || isOwner) : true;
   // A member belongs to exactly one workspace, so there is nothing to switch between.
   var canSwitch = access ? !!access.canSwitch : false;
+  // Pages that sit above the workspaces rather than inside one. A picker here
+  // would offer to narrow a view that is deliberately company-wide.
+  var accountLevel = pathname === '/operator';
 
   function handleSignOut() {
     logout();
@@ -130,7 +143,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      {canSwitch && <WorkspaceSwitcher collapsed={collapsed} />}
+      {canSwitch && !accountLevel && <WorkspaceSwitcher collapsed={collapsed} />}
 
       <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 overflow-y-auto">
         {navGroups.map(function(group) {
@@ -147,11 +160,11 @@ export default function Sidebar() {
           var holdsCurrentPage = items.some(function(item) { return pathname === item.href; });
           // A collapsed rail has no room for section headers, so it shows every
           // link flat; the page you are on always stays reachable.
-          var open = collapsed || holdsCurrentPage || (openGroups ? openGroups[group.id] !== false : true);
+          var open = collapsed || group.flat || holdsCurrentPage || (openGroups ? openGroups[group.id] !== false : true);
 
           return (
-            <div key={group.id} className="nav-group">
-              {!collapsed && (
+            <div key={group.id} className={'nav-group' + (group.flat ? ' nav-group-flat' : '')}>
+              {!collapsed && !group.flat && (
                 <button
                   type="button"
                   className={'nav-group-head' + (open ? ' open' : '') + (holdsCurrentPage ? ' current' : '')}

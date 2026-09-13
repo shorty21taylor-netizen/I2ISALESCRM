@@ -1624,6 +1624,14 @@ html.light .nav-link.active .nav-icon { filter: none; }
   padding: 0 30px 26px;
 }
 
+/* A section with no header: one link that belongs to the account rather than to
+   any of the groups around it, set apart by a rule instead of a title. */
+.nav-group-flat {
+  margin-top: 6px; padding-top: 8px;
+  border-top: 1px solid var(--glass-card-border);
+}
+.nav-group-flat .nav-group-items { padding-left: 0; border-left: none; margin-left: 0; }
+
 /* ---- a rep's face, wherever they are listed ---- */
 .rep-av {
   position: relative; flex: none; display: inline-grid; place-items: center;
