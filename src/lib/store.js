@@ -1519,9 +1519,12 @@ export function registerCloser(email, name) {
     // archived — a late EOD from someone who has left should not put them back on the
     // roster; the operator restores them deliberately.
     store.closerProfiles[key].lastLogin = new Date().toISOString();
-    if (cleanName && (!store.closerProfiles[key].name || store.closerProfiles[key].name === key)) {
-      store.closerProfiles[key].name = cleanName;
-    }
+    // Only ever fills a blank. A form carrying somebody else's name with this
+    // email — a manager filing on a rep's behalf — must not rename the profile,
+    // and a name the person or an admin set is never overwritten by a submission.
+    var held = store.closerProfiles[key];
+    var unnamed = !held.name || held.name === key;
+    if (cleanName && unnamed && !held.displayName) held.name = cleanName;
   } else {
     store.closerProfiles[key] = {
       name: cleanName || key,

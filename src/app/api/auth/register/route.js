@@ -9,6 +9,10 @@ export async function POST(req) {
     if (!body.email || !body.name) {
       return NextResponse.json({ error: 'email and name required' }, { status: 400 });
     }
+    // Sign-in no longer calls this — the account is the authority on someone's
+    // name, and this used to take whatever they typed into the login box and
+    // stamp it on their profile. It stays for form ingest, where a name is all
+    // a submission carries, and registerCloser now only fills a blank.
     var profile = registerCloser(body.email, body.name);
     console.log('[Register]', body.name, '-', body.email);
     return NextResponse.json({ success: true, profile: profile });
