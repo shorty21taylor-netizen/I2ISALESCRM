@@ -10,12 +10,23 @@
 
 import { getWorkspace } from '@/lib/store';
 import { getUser } from '@/lib/users';
+import { progressFor } from '@/lib/onboarding-plan';
 import { roleSeesTeam } from '@/lib/roles';
 
 export var ALL_WORKSPACES = '__all__';
 
 // The account that owns every workspace and sees the combined Operator View.
 export var OWNER_EMAIL = 'shorty21taylor@gmail.com';
+
+// Whether a rep still owes the company their onboarding.
+//
+// Managers and the operator are exempt: the gate exists to make sure a new
+// closer has actually been handed their seats and walked through comp, and
+// nobody who can already see the whole team is in that position.
+export function onboardingOwed(access, steps) {
+  if (!access || access.canSeeTeam) return false;
+  return !progressFor(steps || {}).complete;
+}
 
 export function canSeeTeam(access) {
   return !!(access && (access.canSeeAll || roleSeesTeam(access.role)));

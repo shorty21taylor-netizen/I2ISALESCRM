@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays, ChevronDown, ImagePlus } from 'lucide-react';
-import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
 import { formatCurrency } from '@/lib/utils';
@@ -189,6 +189,7 @@ export default function MyDashboardPage() {
   var params = useSearchParams();
   var router = useRouter();
   var viewingRep = params.get('rep') || '';
+  var access = useAccess();
   var fileRef = useRef(null);
   var bannerRef = useRef(null);
   var [data, setData] = useState(null);
@@ -285,6 +286,7 @@ export default function MyDashboardPage() {
   var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
   var today = data.today;
   var brand = data.brand || { name: '', logoUrl: '' };
+  var onboarding = access && access.onboarding;
   var status = p.status || { id: 'available', label: 'Available', tone: 'good', detail: '', note: '', until: '' };
   var expect = today ? today.expect : null;
   var longDay = today ? new Date(today.date + 'T12:00:00').toLocaleDateString('en-US',
@@ -318,6 +320,22 @@ export default function MyDashboardPage() {
             <span>You are looking at {p.name}. You can set their monthly target; their photo and bio are theirs.</span>
             <button className="an-chip" style={{ marginLeft: 'auto' }} onClick={function() { router.push('/me'); }}>
               Back to mine
+            </button>
+          </div>
+        ) : null}
+
+        {onboarding && !onboarding.complete && !data.viewingSomeoneElse ? (
+          <div className="me-setup mb-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="me-setup-t">Finish your onboarding</h3>
+              <p className="me-setup-s">
+                {onboarding.done} of {onboarding.total} checkpoints done. The team leaderboard opens
+                when this is finished — everything else here is already yours.
+              </p>
+              <div className="ob-bar" style={{ maxWidth: 420 }}><i style={{ width: onboarding.percent + '%' }} /></div>
+            </div>
+            <button className="an-btn" onClick={function() { router.push('/onboarding'); }}>
+              Pick up where you left off
             </button>
           </div>
         ) : null}

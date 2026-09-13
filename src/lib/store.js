@@ -1586,12 +1586,73 @@ export function updateCloserProfile(email, patch) {
   var profile = store.closerProfiles[key];
   [
     'avatarUrl', 'bannerUrl', 'tagline', 'bio', 'displayName', 'monthlyGoal', 'onboardedAt',
-    'status', 'statusNote', 'statusSetAt', 'statusUntil',
+    'status', 'statusNote', 'statusSetAt', 'statusUntil', 'onboardingSteps',
   ].forEach(function(field) {
     if (Object.prototype.hasOwnProperty.call(patch || {}, field)) profile[field] = patch[field];
   });
   saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Profile error:', e.message); });
   return { profile: profile };
+}
+
+// ---- onboarding ----
+//
+// Progress lives on the closer profile, keyed by step id, so it travels with the
+// person rather than with a workspace they might be moved between. The shapes
+// are deliberately small: who did what, and when.
+export function setOnboardingStep(email, stepId, patch) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !stepId) return { error: 'Missing rep or step' };
+  var profile = store.closerProfiles[key];
+  if (!profile) {
+    profile = store.closerProfiles[key] = {
+      name: key, email: key,
+      registeredAt: new Date().toISOString(), lastLogin: new Date().toISOString(),
+    };
+  }
+  if (!profile.onboardingSteps) profile.onboardingSteps = {};
+  var current = profile.onboardingSteps[stepId] || {};
+  profile.onboardingSteps[stepId] = Object.assign({}, current, patch);
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Onboarding:', e.message); });
+  return { profile: profile };
+}
+
+export function getOnboardingSteps(email) {
+  var profile = getCloserProfile(email);
+  return (profile && profile.onboardingSteps) || {};
+}
+
+// The workspace's own attachments: a Loom per step, a login per slot. Stored on
+// the workspace because they describe the offer, not the person.
+export function getOnboardingResources(workspaceId) {
+  var ws = getWorkspace(workspaceId) || getWorkspaces()[0];
+  return (ws && ws.onboardingResources) || { looms: {}, logins: {} };
+}
+
+export async function setOnboardingResources(workspaceId, resources) {
+  var ws = getWorkspace(workspaceId) || getWorkspaces()[0];
+  if (!ws) return { error: 'No workspace' };
+  ws.onboardingResources = resources;
+  ws.updatedAt = new Date().toISOString();
+  await saveWorkspace(ws).catch(function(e) { console.error('[DB]', e.message); });
+  return { resources: resources };
+}
+
+export function getCredentialReveals(workspaceId) {
+  var ws = getWorkspace(workspaceId) || getWorkspaces()[0];
+  return (ws && ws.credentialReveals) || [];
+}
+
+// Who looked at which login, and when. Append-only: the value of this record is
+// that nobody can quietly remove their own row from it.
+export async function noteCredentialReveal(workspaceId, slot, email) {
+  var ws = getWorkspace(workspaceId) || getWorkspaces()[0];
+  if (!ws) return;
+  if (!ws.credentialReveals) ws.credentialReveals = [];
+  ws.credentialReveals.push({ slot: slot, email: (email || '').toLowerCase(), at: new Date().toISOString() });
+  // Keep the tail rather than the whole history; the recent past is what anyone
+  // actually reviews, and this rides along inside the workspace record.
+  if (ws.credentialReveals.length > 500) ws.credentialReveals = ws.credentialReveals.slice(-500);
+  await saveWorkspace(ws).catch(function(e) { console.error('[DB]', e.message); });
 }
 
 // Take a wrong name off a profile.

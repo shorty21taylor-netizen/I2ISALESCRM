@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { initStore, getWorkspaces } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
+import { getOnboardingSteps } from '@/lib/store';
+import { progressFor } from '@/lib/onboarding-plan';
 
 export var dynamic = 'force-dynamic';
 
@@ -28,6 +30,9 @@ export async function GET(req) {
       workspaceIds: access.workspaceIds,
       workspaceId: access.canSeeAll ? null : access.workspaceIds[0],
       workspaces: visible,
+      // The nav needs this on every page, so it rides along with the access
+      // check rather than costing a second request everywhere.
+      onboarding: progressFor(getOnboardingSteps(access.email)),
     });
   } catch (e) {
     console.error('[Auth Me]', e);

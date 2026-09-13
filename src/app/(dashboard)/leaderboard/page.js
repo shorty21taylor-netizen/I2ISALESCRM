@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Trophy, DollarSign, TrendingUp, Users, Handshake, Crown, Medal, PhoneCall, Layers, AlertTriangle } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
@@ -36,6 +37,8 @@ function ordinal(n) {
 
 export default function LeaderboardPage() {
   var roster = useRoster();
+  var router = useRouter();
+  var s0 = useState(false), locked = s0[0], setLocked = s0[1];
   var workspaceId = useWorkspace();
   var s1 = useState(null), data = s1[0], setData = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
@@ -89,7 +92,8 @@ export default function LeaderboardPage() {
     apiFetch(withWorkspace(path, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d.success) setData(d);
+        if (d.success) { setData(d); setLocked(false); }
+        else if (d.onboardingRequired) setLocked(true);
         setLoading(false);
       })
       .catch(function(e) {
@@ -127,6 +131,26 @@ export default function LeaderboardPage() {
 
   var params = getDateParams();
   var dateDisplay = params.start ? (params.start === params.end ? params.start : params.start + ' → ' + params.end) : 'All time';
+
+  // The board is the thing a new rep is told they unlock, so when it is shut it
+  // should say so plainly and point at the way through — not render as empty.
+  if (locked) {
+    return (
+      <div className="px-4 md:px-8 py-16 max-w-[560px] mx-auto text-center">
+        <Trophy className="w-7 h-7 mx-auto mb-3" style={{ color: 'var(--crm-accent)' }} />
+        <h1 className="font-display text-xl font-bold" style={{ color: 'var(--crm-text-bright)' }}>
+          The board opens when your onboarding does
+        </h1>
+        <p className="text-sm mt-2" style={{ color: 'var(--crm-muted)' }}>
+          Your own dashboard and the submit forms are open the whole time. This one waits until
+          you have been handed your seats and walked through the comp plan.
+        </p>
+        <button className="an-btn mt-4" onClick={function() { router.push('/onboarding'); }}>
+          Go to my onboarding
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto bg-orbs relative">

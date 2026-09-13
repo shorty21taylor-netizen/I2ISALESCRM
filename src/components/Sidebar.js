@@ -18,9 +18,10 @@ var navGroups = [
     label: 'My Work',
     icon: UserCircle,
     items: [
+      { href: '/onboarding', label: 'Onboarding', icon: GraduationCap, onboardingOnly: true },
       { href: '/me', label: 'My Dashboard', icon: UserCircle },
       { href: '/submit', label: 'Submit a Form', icon: ClipboardList },
-      { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+      { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, needsOnboarding: true },
     ],
   },
   {
@@ -124,6 +125,11 @@ export default function Sidebar() {
   // Pages that sit above the workspaces rather than inside one. A picker here
   // would offer to narrow a view that is deliberately company-wide.
   var accountLevel = pathname === '/operator';
+  // What a rep still owes. Permissive while /auth/me is in flight, like every
+  // other check here — the APIs are the enforcement point, this only decides
+  // what is worth showing.
+  var ob = access && access.onboarding;
+  var onboardingOwed = !!(ob && !ob.complete && access && !access.canSeeTeam);
 
   function handleSignOut() {
     logout();
@@ -153,6 +159,9 @@ export default function Sidebar() {
           var items = group.items.filter(function(item) {
             if (item.operatorOnly && !isOwner) return false;
             if (item.teamOnly && !canSeeTeam) return false;
+            // Shown only while it is owed, and hidden the moment it is not.
+            if (item.onboardingOnly && !onboardingOwed) return false;
+            if (item.needsOnboarding && onboardingOwed) return false;
             return true;
           });
           if (!items.length) return null;
@@ -184,6 +193,8 @@ export default function Sidebar() {
                       <Link key={item.href} href={item.href} className={'nav-link ' + (isActive ? 'active' : '')}>
                         <item.icon className="w-5 h-5 flex-shrink-0 nav-icon" />
                         {!collapsed && <span>{item.label}</span>}
+                        {!collapsed && item.onboardingOnly && ob
+                          ? <span className="nav-ob-pill">{ob.percent}%</span> : null}
                       </Link>
                     );
                   })}

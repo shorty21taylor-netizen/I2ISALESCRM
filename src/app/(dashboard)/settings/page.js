@@ -7,6 +7,7 @@ import { getTheme, setTheme } from '@/lib/theme';
 import TeamPasswordCard from '@/components/TeamPasswordCard';
 import FormsIntegrationCard from '@/components/FormsIntegrationCard';
 import ReportBrandingCard from '@/components/ReportBrandingCard';
+import OnboardingResourcesCard from '@/components/OnboardingResourcesCard';
 
 export default function SettingsPage() {
   var s1 = useState(null), copiedText = s1[0], setCopiedText = s1[1];
@@ -249,6 +250,7 @@ export default function SettingsPage() {
         <TeamPasswordCard />
         {/* ===== REPORT BRANDING ===== */}
         <ReportBrandingCard />
+        <OnboardingResourcesCard />
         {/* ===== THEME TOGGLE ===== */}
         <div className="glass-card overflow-hidden stagger-1">
           <div className="section-header">
