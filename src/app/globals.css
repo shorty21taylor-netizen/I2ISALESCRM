@@ -2816,3 +2816,234 @@ html.light {
 /* The report's own mark inherits the brand ink so it sits with the headings. */
 .rpt-mark { background: none; border: 0; color: #111827; width: 42px; height: 42px; }
 .rpt-branded .rpt-mark { color: var(--rpt-brand); }
+
+/* ===== SUMMIT AIOS ===== */
+/* A chat that has to sit inside a fixed dashboard frame: the rail and the thread
+   each scroll on their own, and the page itself never does. */
+.aios-page {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 16px;
+  padding: 24px;
+  height: 100vh;
+  min-height: 520px;
+}
+
+.aios-rail {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow: hidden;
+}
+.aios-rail:hover { transform: none; }
+
+.aios-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-card-border);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--crm-accent);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 0.18s ease;
+}
+.aios-new:hover { background: rgba(var(--accent-rgb), 0.18); }
+
+.aios-list { margin-top: 10px; overflow-y: auto; flex: 1; min-height: 0; }
+.aios-empty-rail {
+  margin: 10px 4px;
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crm-muted);
+}
+
+.aios-conv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+.aios-conv:hover { background: var(--glass-card-highlight); }
+.aios-conv.active { background: rgba(var(--accent-rgb), 0.14); }
+.aios-conv-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--crm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aios-conv.active .aios-conv-t { color: var(--crm-accent); }
+.aios-conv-x { color: var(--crm-muted); opacity: 0; transition: opacity 0.16s ease; }
+.aios-conv:hover .aios-conv-x { opacity: 1; }
+.aios-conv-x:hover { color: var(--crm-negative); }
+
+.aios-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.aios-main:hover { transform: none; }
+
+.aios-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--glass-card-border);
+}
+.aios-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--crm-text-bright);
+  margin: 0;
+}
+.aios-sub { margin: 2px 0 0; font-size: 11.5px; color: var(--crm-muted); }
+.aios-quota {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crm-muted);
+  white-space: nowrap;
+}
+
+.aios-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aios-row { display: flex; }
+.aios-row.mine { justify-content: flex-end; }
+.aios-row.theirs { justify-content: flex-start; }
+
+.aios-bubble {
+  max-width: min(680px, 82%);
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.aios-bubble.mine {
+  background: rgba(var(--accent-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  color: var(--crm-text-bright);
+  border-bottom-right-radius: 5px;
+}
+.aios-bubble.theirs {
+  background: var(--glass-card-highlight);
+  border: 1px solid var(--glass-card-border);
+  color: var(--crm-text);
+  border-bottom-left-radius: 5px;
+}
+.aios-line { margin: 0; }
+.aios-line + .aios-line { margin-top: 3px; }
+.aios-gap { margin: 0; height: 8px; }
+
+.aios-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-card-border);
+  font-size: 10.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crm-muted);
+}
+
+.aios-thinking { display: flex; align-items: center; gap: 8px; color: var(--crm-muted); }
+
+.aios-welcome { margin: auto 0; text-align: center; padding: 8px 12px; }
+.aios-welcome-t {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--crm-text-bright);
+  margin: 0;
+}
+.aios-welcome-s {
+  margin: 8px auto 0;
+  max-width: 480px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--crm-muted);
+}
+.aios-starters {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.aios-starter {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-card-border);
+  background: var(--glass-card-highlight);
+  font-size: 12px;
+  color: var(--crm-text);
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+.aios-starter:hover { border-color: var(--crm-accent); color: var(--crm-accent); }
+
+.aios-error {
+  margin: 0 18px 8px;
+  font-size: 12px;
+  color: var(--crm-negative);
+}
+
+.aios-composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--glass-card-border);
+}
+.aios-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--glass-card-border);
+  background: var(--glass-card-highlight);
+  color: var(--crm-text-bright);
+  font-size: 13px;
+}
+.aios-input:focus { outline: none; border-color: var(--crm-accent); }
+.aios-input::placeholder { color: var(--crm-muted); }
+
+.aios-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  border-radius: 11px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--crm-accent);
+  transition: background 0.16s ease, opacity 0.16s ease;
+}
+.aios-send:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.26); }
+.aios-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 860px) {
+  .aios-page { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .aios-page { padding: 16px; height: auto; }
+  .aios-rail { max-height: 180px; }
+  .aios-main { height: calc(100vh - 260px); min-height: 420px; }
+  .aios-bubble { max-width: 92%; }
+}

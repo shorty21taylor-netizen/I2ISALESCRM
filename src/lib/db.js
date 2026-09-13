@@ -82,6 +82,16 @@ export async function initDatabase() {
     await p.query("CREATE TABLE IF NOT EXISTS rep_awards (id TEXT PRIMARY KEY, email TEXT NOT NULL, award_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_rep_awards_email ON rep_awards (email)').catch(function() {});
 
+    // Summit AIOS: the chat history, and the per-day question counter behind the
+    // rate limit. New tables only — nothing here touches a record table, and the
+    // AIOS read path never queries Postgres at all.
+    await p.query("CREATE TABLE IF NOT EXISTS aios_conversations (id TEXT PRIMARY KEY, email TEXT NOT NULL, workspace_id TEXT DEFAULT 'default', data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), deleted_at TIMESTAMP)").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_aios_conv_email ON aios_conversations (email, updated_at DESC)').catch(function() {});
+    await p.query("CREATE TABLE IF NOT EXISTS aios_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), deleted_at TIMESTAMP)").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_aios_msg_conv ON aios_messages (conversation_id, created_at)').catch(function() {});
+    await p.query("CREATE TABLE IF NOT EXISTS aios_usage (id TEXT PRIMARY KEY, email TEXT NOT NULL, day TEXT NOT NULL, asked INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_aios_usage_day ON aios_usage (day)').catch(function() {});
+
     // Per-user accounts: credentials (scrypt hash + salt) and workspace membership.
     await p.query("CREATE TABLE IF NOT EXISTS app_users (email TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
@@ -139,6 +149,11 @@ export async function loadFromDatabase() {
     var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
     var sk = await p.query('SELECT data, workspace_id FROM skool_leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1000').catch(function() { return { rows: [] }; });
     var ra = await p.query('SELECT email, award_id, data FROM rep_awards').catch(function() { return { rows: [] }; });
+    // A rolling window of AIOS chats. History is a convenience, not a record of
+    // account, so it loads bounded rather than whole.
+    var ac2 = await p.query('SELECT id, email, workspace_id, data FROM aios_conversations WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
+    var am = await p.query('SELECT conversation_id, data FROM aios_messages WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 5000').catch(function() { return { rows: [] }; });
+    var au = await p.query("SELECT email, day, asked FROM aios_usage WHERE day >= $1", [new Date(Date.now() - 86400000 * 3).toISOString().slice(0, 10)]).catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -162,6 +177,22 @@ export async function loadFromDatabase() {
         var key = (r.email || '').toLowerCase();
         a[key] = a[key] || {};
         a[key][r.award_id] = r.data || {};
+        return a;
+      }, {}),
+      aiosConversations: ((ac2 && ac2.rows) ? ac2.rows : []).map(function(r) {
+        var d = r.data || {};
+        d.id = r.id;
+        d.email = r.email;
+        d.workspaceId = r.workspace_id || 'default';
+        d.messages = [];
+        return d;
+      }),
+      aiosMessages: ((am && am.rows) ? am.rows : []).reduce(function(a, r) {
+        (a[r.conversation_id] = a[r.conversation_id] || []).push(r.data || {});
+        return a;
+      }, {}),
+      aiosUsage: ((au && au.rows) ? au.rows : []).reduce(function(a, r) {
+        a[(r.email || '').toLowerCase() + '|' + r.day] = r.asked || 0;
         return a;
       }, {}),
     };
@@ -193,6 +224,38 @@ export async function saveRepAward(email, awardId, data) {
     'INSERT INTO rep_awards (id, email, award_id, data) VALUES ($1, $2, $3, $4) '
     + 'ON CONFLICT (id) DO UPDATE SET data = $4',
     [key, String(email || '').toLowerCase(), awardId, JSON.stringify(data)]
+  );
+}
+
+export async function saveAiosConversation(conv) {
+  return query(
+    'INSERT INTO aios_conversations (id, email, workspace_id, data) VALUES ($1, $2, $3, $4) '
+    + 'ON CONFLICT (id) DO UPDATE SET data = $4, updated_at = NOW()',
+    [conv.id, String(conv.email || '').toLowerCase(), conv.workspaceId || 'default', JSON.stringify(conv)]
+  );
+}
+
+export async function saveAiosMessage(conversationId, message) {
+  return query(
+    'INSERT INTO aios_messages (id, conversation_id, data) VALUES ($1, $2, $3) '
+    + 'ON CONFLICT (id) DO UPDATE SET data = $3',
+    [message.id, conversationId, JSON.stringify(message)]
+  );
+}
+
+// Deletes are soft, here as everywhere: the rows stay and a timestamp is stamped,
+// so a chat deleted by mistake is one UPDATE away from coming back.
+export async function softDeleteAiosConversation(id) {
+  await query('UPDATE aios_conversations SET deleted_at = NOW() WHERE id = $1', [id]);
+  return query('UPDATE aios_messages SET deleted_at = NOW() WHERE conversation_id = $1', [id]);
+}
+
+export async function saveAiosUsage(email, day, asked) {
+  var key = String(email || '').toLowerCase() + '|' + day;
+  return query(
+    'INSERT INTO aios_usage (id, email, day, asked) VALUES ($1, $2, $3, $4) '
+    + 'ON CONFLICT (id) DO UPDATE SET asked = $4, updated_at = NOW()',
+    [key, String(email || '').toLowerCase(), day, asked]
   );
 }
 

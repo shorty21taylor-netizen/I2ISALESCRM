@@ -5,7 +5,9 @@
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord } from '@/lib/db';
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord,
+  saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
+} from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 import { saveRepAward } from '@/lib/db';
 
@@ -32,6 +34,8 @@ var store = {
   closerProfiles: {},
   workspaces: [Object.assign({}, DEFAULT_WORKSPACE)],
   workspaceUsers: [],
+  aiosConversations: [],
+  aiosUsage: {},
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -90,6 +94,11 @@ export async function initStore() {
         store.closerProfiles = data.closerProfiles || {};
         store.repAwards = data.repAwards || {};
         store.commissionRates = data.commissionRates || {};
+        store.aiosConversations = (data.aiosConversations || []).map(function(c) {
+          c.messages = (data.aiosMessages || {})[c.id] || [];
+          return c;
+        });
+        store.aiosUsage = data.aiosUsage || {};
         console.log('[Store] Loaded from DB:',
           store.bookedCalls.length, 'booked,',
           store.closedDeals.length, 'deals,',
@@ -2226,4 +2235,104 @@ export async function getWorkspaceUserList(workspaceId) {
   var fromDb = await loadWorkspaceUsers(workspaceId).catch(function() { return null; });
   if (fromDb && fromDb.length) return fromDb;
   return (store.workspaceUsers || []).filter(function(u) { return u.workspaceId === workspaceId; });
+}
+
+// ============================================
+// SUMMIT AIOS — chat history and the daily counter
+// ============================================
+//
+// Conversations are a convenience, not a record of account: they hold what was
+// asked and what was answered, never the underlying records. Deletes are soft,
+// like every other delete here.
+
+function aiosKey(email) { return String(email || '').toLowerCase().trim(); }
+
+export function listAiosConversations(email, workspaceId) {
+  var key = aiosKey(email);
+  return (store.aiosConversations || [])
+    .filter(function(c) {
+      if (c.deletedAt) return false;
+      if (aiosKey(c.email) !== key) return false;
+      // A chat belongs to the workspace it was asked in, so switching offers
+      // does not drag last week's questions about another client along.
+      if (workspaceId && workspaceId !== ALL_WORKSPACES && (c.workspaceId || 'default') !== workspaceId) return false;
+      return true;
+    })
+    .sort(function(a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
+}
+
+export function getAiosConversation(id, email) {
+  var key = aiosKey(email);
+  var all = store.aiosConversations || [];
+  for (var i = 0; i < all.length; i++) {
+    // Ownership is checked here rather than by the caller, so there is one place
+    // that decides whose chat this is.
+    if (all[i].id === id && !all[i].deletedAt && aiosKey(all[i].email) === key) return all[i];
+  }
+  return null;
+}
+
+export function createAiosConversation(email, workspaceId, title) {
+  var now = new Date().toISOString();
+  var conv = {
+    id: 'aios_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    email: aiosKey(email),
+    workspaceId: workspaceId && workspaceId !== ALL_WORKSPACES ? workspaceId : 'default',
+    title: String(title || 'New conversation').slice(0, 120),
+    createdAt: now,
+    updatedAt: now,
+    messages: [],
+  };
+  if (!store.aiosConversations) store.aiosConversations = [];
+  store.aiosConversations.unshift(conv);
+  saveAiosConversation(conv).catch(function(e) { console.error('[DB] AIOS conversation:', e.message); });
+  return conv;
+}
+
+export function addAiosMessage(conversationId, email, message) {
+  var conv = getAiosConversation(conversationId, email);
+  if (!conv) return null;
+  var row = Object.assign({
+    id: 'aiosm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    at: new Date().toISOString(),
+  }, message);
+  conv.messages.push(row);
+  conv.updatedAt = row.at;
+  // The first thing anyone asks is the best name the chat will ever have.
+  if (row.role === 'user' && conv.messages.length === 1) {
+    conv.title = String(row.text || conv.title).slice(0, 80);
+  }
+  saveAiosMessage(conversationId, row).catch(function(e) { console.error('[DB] AIOS message:', e.message); });
+  saveAiosConversation(conv).catch(function(e) { console.error('[DB] AIOS conversation:', e.message); });
+  return row;
+}
+
+export function deleteAiosConversation(id, email) {
+  var conv = getAiosConversation(id, email);
+  if (!conv) return false;
+  conv.deletedAt = new Date().toISOString();
+  saveAiosConversation(conv).catch(function(e) { console.error('[DB] AIOS delete:', e.message); });
+  softDeleteAiosConversation(id).catch(function(e) { console.error('[DB] AIOS delete:', e.message); });
+  return true;
+}
+
+// The daily question counter behind the rate limit. Counted per rep and, by
+// summing the day's rows, per org — so one enthusiastic afternoon cannot spend
+// the whole company's budget.
+export function aiosAskedToday(email, day) {
+  var usage = store.aiosUsage || {};
+  var mine = usage[aiosKey(email) + '|' + day] || 0;
+  var org = 0;
+  Object.keys(usage).forEach(function(k) {
+    if (k.slice(k.lastIndexOf('|') + 1) === day) org += usage[k];
+  });
+  return { rep: mine, org: org };
+}
+
+export function noteAiosAsk(email, day) {
+  if (!store.aiosUsage) store.aiosUsage = {};
+  var k = aiosKey(email) + '|' + day;
+  store.aiosUsage[k] = (store.aiosUsage[k] || 0) + 1;
+  saveAiosUsage(email, day, store.aiosUsage[k]).catch(function(e) { console.error('[DB] AIOS usage:', e.message); });
+  return store.aiosUsage[k];
 }

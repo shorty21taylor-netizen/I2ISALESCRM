@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap } from 'lucide-react';
+import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap, Sparkles } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
@@ -22,6 +22,7 @@ var navGroups = [
       { href: '/me', label: 'My Dashboard', icon: UserCircle },
       { href: '/submit', label: 'Submit a Form', icon: ClipboardList },
       { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, needsOnboarding: true },
+      { href: '/aios', label: 'Summit AIOS', icon: Sparkles, needsOnboarding: true },
     ],
   },
   {
