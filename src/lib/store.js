@@ -7,6 +7,7 @@ import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
+import { saveRepAward } from '@/lib/db';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
 // database is present, and kept here as well so the switcher still works in
@@ -87,6 +88,7 @@ export async function initStore() {
         store.skoolLeads = data.skoolLeads || [];
         store.messageLog = data.messageLog || [];
         store.closerProfiles = data.closerProfiles || {};
+        store.repAwards = data.repAwards || {};
         store.commissionRates = data.commissionRates || {};
         console.log('[Store] Loaded from DB:',
           store.bookedCalls.length, 'booked,',
@@ -1595,6 +1597,56 @@ export function updateCloserProfile(email, patch) {
   });
   saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Profile error:', e.message); });
   return { profile: profile };
+}
+
+// ---- awards ----
+//
+// Grants only. The twenty definitions live in lib/awards/definitions.js; nothing
+// about what an award IS is stored here, so the list can be edited without a
+// migration and a grant can never point at a definition that moved.
+export function getRepAwards(email) {
+  var key = (email || '').toLowerCase().trim();
+  return (store.repAwards && store.repAwards[key]) || {};
+}
+
+export function getAllRepAwards() {
+  return store.repAwards || {};
+}
+
+// No clawbacks, ever: a grant is written once and a later metric regression
+// never removes it. A refund should not take a medal off someone's wall.
+export function grantAward(email, awardId, record) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !awardId) return null;
+  if (!store.repAwards) store.repAwards = {};
+  if (!store.repAwards[key]) store.repAwards[key] = {};
+  if (store.repAwards[key][awardId]) return null; // already held
+
+  var row = {
+    awardId: awardId,
+    awardedAt: (record && record.awardedAt) || new Date().toISOString(),
+    seenAt: (record && record.seenAt) || null,
+    progress: (record && record.progress) || 0,
+  };
+  store.repAwards[key][awardId] = row;
+  saveRepAward(key, awardId, row).catch(function(e) { console.error('[DB] Award:', e.message); });
+  return row;
+}
+
+// Marking an unlock as watched. Idempotent on purpose: the client fires this the
+// moment the animation starts, and React can render that twice.
+export function markAwardsSeen(email, awardIds) {
+  var key = (email || '').toLowerCase().trim();
+  var held = (store.repAwards && store.repAwards[key]) || {};
+  var changed = [];
+  (awardIds || []).forEach(function(id) {
+    var row = held[id];
+    if (!row || row.seenAt) return;
+    row.seenAt = new Date().toISOString();
+    changed.push(id);
+    saveRepAward(key, id, row).catch(function(e) { console.error('[DB] Award seen:', e.message); });
+  });
+  return changed;
 }
 
 // ---- onboarding ----

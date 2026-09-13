@@ -7,6 +7,8 @@ import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, Calen
 import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
+import AwardsPanel from '@/components/awards/AwardsPanel';
+import AwardUnlock from '@/components/awards/AwardUnlock';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { STATUSES, DURATIONS, DEFAULT_STATUS } from '@/lib/rep-status';
@@ -196,7 +198,7 @@ export default function MyDashboardPage() {
   var [loading, setLoading] = useState(true);
   var [error, setError] = useState('');
   var [range, setRange] = useState('30');
-  var [showAll, setShowAll] = useState(false);
+  var [awardData, setAwardData] = useState(null);
   var [saving, setSaving] = useState('');
   var [editing, setEditing] = useState(false);
   var [form, setForm] = useState({ displayName: '', tagline: '', bio: '', monthlyGoal: '' });
@@ -232,6 +234,24 @@ export default function MyDashboardPage() {
   }
 
   useEffect(load, [workspaceId, range, start, end, viewingRep]);
+
+  // Awards load on their own, after the numbers. The evaluation happens server
+  // side on this call — one pass per dashboard load, never one per record — so
+  // anything newly earned is already granted by the time the panel paints.
+  useEffect(function() {
+    apiFetch('/api/awards' + (viewingRep ? '?rep=' + encodeURIComponent(viewingRep) : ''))
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.success) setAwardData(d); })
+      .catch(function() {});
+  }, [workspaceId, viewingRep]);
+
+  function markSeen(ids) {
+    apiFetch('/api/awards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ awardIds: ids }),
+    }).catch(function() {});
+  }
 
   // Photo and banner differ only in the shape they are cropped to and the field
   // they land in, so one handler covers both.
@@ -279,7 +299,6 @@ export default function MyDashboardPage() {
   var stand = data.standing;
   var comm = data.commissions.summary || {};
   var initials = (p.name || '?').split(' ').map(function(w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
-  var awards = showAll ? s.awards : s.awards.filter(function(a) { return a.earned; }).concat(s.nextUp);
   var daily = (per.daily || []).map(function(d) { return Object.assign({}, d, { label: shortDay(d.date) }); });
   var goal = data.goal;
   var canEdit = data.canEdit;
@@ -294,6 +313,11 @@ export default function MyDashboardPage() {
 
   return (
     <div className="min-h-screen">
+      {/* Only ever the viewer's own unlocks, and never over someone else's page. */}
+      {awardData && !data.viewingSomeoneElse ? (
+        <AwardUnlock unseen={awardData.unseen} onSeen={markSeen} blocked={editing} />
+      ) : null}
+
       <header className="page-header py-4 md:py-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
@@ -659,27 +683,7 @@ export default function MyDashboardPage() {
         </div>
 
         {/* ---- awards ---- */}
-        <div className="an-card">
-          <div className="an-card-h">
-            <h3 className="an-card-t">Awards</h3>
-            <span className="an-card-n">{s.earnedCount} of {s.totalAwards} earned</span>
-            <button className="an-tab on" style={{ marginLeft: 'auto' }}
-              onClick={function() { setShowAll(!showAll); }}>
-              {showAll ? 'Show earned + next up' : 'Show every award'}
-            </button>
-          </div>
-          <div className="p-4">
-            <div className="me-awards">
-              {awards.map(function(a) { return <Award key={a.id} a={a} />; })}
-            </div>
-            {!showAll && s.nextUp.length ? (
-              <p className="me-next">
-                <Flame size={13} style={{ color: 'var(--crm-warning)' }} />
-                Closest to earning: {s.nextUp.map(function(a) { return a.name; }).join(', ')}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <AwardsPanel data={awardData} />
 
         {s.monthly.length > 1 ? (
           <div className="an-card mt-4">

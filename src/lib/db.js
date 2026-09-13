@@ -74,6 +74,14 @@ export async function initDatabase() {
     // redeploy, which silently stopped all WhatsApp sending until it was re-entered.
     await p.query("CREATE TABLE IF NOT EXISTS app_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
+    // Award grants. One row per rep per award, keyed by email + award id so the
+    // grant is unique by construction — the same guarantee the spec's
+    // UNIQUE (rep_id, award_id) was after, expressed the way this schema works.
+    // Definitions are not stored: they live in lib/awards/definitions.js, so
+    // there is nothing here to drift out of step with the app.
+    await p.query("CREATE TABLE IF NOT EXISTS rep_awards (id TEXT PRIMARY KEY, email TEXT NOT NULL, award_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_rep_awards_email ON rep_awards (email)').catch(function() {});
+
     // Per-user accounts: credentials (scrypt hash + salt) and workspace membership.
     await p.query("CREATE TABLE IF NOT EXISTS app_users (email TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
@@ -130,6 +138,7 @@ export async function loadFromDatabase() {
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
     var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
     var sk = await p.query('SELECT data, workspace_id FROM skool_leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1000').catch(function() { return { rows: [] }; });
+    var ra = await p.query('SELECT email, award_id, data FROM rep_awards').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -149,6 +158,12 @@ export async function loadFromDatabase() {
       messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
       afterCallReports: (ac && ac.rows ? ac.rows : []).map(withWs),
       skoolLeads: (sk && sk.rows ? sk.rows : []).map(withWs),
+      repAwards: ((ra && ra.rows) ? ra.rows : []).reduce(function(a, r) {
+        var key = (r.email || '').toLowerCase();
+        a[key] = a[key] || {};
+        a[key][r.award_id] = r.data || {};
+        return a;
+      }, {}),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -170,6 +185,15 @@ export async function saveEODReport(entry) {
 
 export async function saveCloserProfile(email, data) {
   return query('INSERT INTO closer_profiles (email, data) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET data = $2, updated_at = NOW()', [email.toLowerCase(), JSON.stringify(data)]);
+}
+
+export async function saveRepAward(email, awardId, data) {
+  var key = String(email || '').toLowerCase() + '|' + awardId;
+  return query(
+    'INSERT INTO rep_awards (id, email, award_id, data) VALUES ($1, $2, $3, $4) '
+    + 'ON CONFLICT (id) DO UPDATE SET data = $4',
+    [key, String(email || '').toLowerCase(), awardId, JSON.stringify(data)]
+  );
 }
 
 export async function saveCommissionRate(email, data) {

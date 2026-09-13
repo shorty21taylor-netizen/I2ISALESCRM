@@ -1642,6 +1642,170 @@ html.light .nav-link.active .nav-icon { filter: none; }
 .signin-help:hover { text-decoration: underline; }
 
 /* ============================================ */
+/* AWARDS                                       */
+/* ============================================ */
+
+/* The metals. Light values by default, dark-theme values swapped at the token
+   level so a card never has to know which theme it is in. */
+.aw-card[data-rarity="bronze"] { --metal: #A2612C; }
+.aw-card[data-rarity="silver"] { --metal: #787E85; }
+.aw-card[data-rarity="gold"]   { --metal: #A8821F; }
+html.dark .aw-card[data-rarity="bronze"], :root:not(.light) .aw-card[data-rarity="bronze"] { --metal: #D08A4A; }
+html.dark .aw-card[data-rarity="silver"], :root:not(.light) .aw-card[data-rarity="silver"] { --metal: #A7AEB6; }
+html.dark .aw-card[data-rarity="gold"],   :root:not(.light) .aw-card[data-rarity="gold"]   { --metal: #E0B84A; }
+
+.aw-h { text-transform: uppercase; letter-spacing: 0.1em; }
+.aw-next { font-size: 11.5px; color: var(--crm-muted); }
+.aw-next b { color: var(--crm-text-bright); font-weight: 600; }
+
+.aw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; }
+
+.aw-card {
+  position: relative; display: grid; gap: 7px; padding: 15px 16px 14px;
+  border-radius: var(--r-card); border: 1px solid var(--glass-card-border);
+  background: var(--glass-surface-bg);
+  transition: border-color 0.25s ease, transform 0.25s var(--spring);
+}
+.aw-card.earned { background: var(--lift), var(--glass-card-bg); }
+.aw-card.earned:hover { transform: translateY(-2px); }
+
+.aw-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.aw-medal { color: var(--metal); flex: none; transition: filter 0.4s ease; }
+/* Locked medals are drained, not hidden — you can see exactly what you are
+   chasing, just not in colour yet. */
+.aw-card:not(.earned) .aw-medal { filter: grayscale(1) contrast(0.82) opacity(0.55); }
+.aw-card.earned .aw-medal { filter: none; }
+
+.aw-rarity {
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--metal); opacity: 0.9;
+}
+.aw-card:not(.earned) .aw-rarity { color: var(--crm-muted); opacity: 0.6; }
+
+.aw-name {
+  margin: 2px 0 0; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--crm-text-bright); letter-spacing: -0.01em;
+}
+.aw-card:not(.earned) .aw-name { color: var(--crm-muted); }
+.aw-desc { margin: 0; font-size: 12px; line-height: 1.5; color: var(--crm-muted); }
+.aw-crit {
+  margin: 0; display: flex; align-items: center; gap: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--crm-muted); opacity: 0.85;
+}
+.aw-stamp {
+  margin: 2px 0 0; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--metal);
+}
+.aw-stamp.muted { color: var(--crm-muted); opacity: 0.6; }
+.aw-bar {
+  height: 3px; border-radius: var(--r-pill); margin-top: 4px;
+  background: rgba(255,255,255,0.07); overflow: hidden;
+}
+.aw-bar i { display: block; height: 100%; background: var(--crm-accent); border-radius: var(--r-pill); }
+
+/* ---- the 3000ms unlock ---- */
+.aw-unlock {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(10,9,7,0.72);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  animation: awBackdrop 180ms ease-out both;
+}
+.aw-unlock.leaving { animation: awLeave 350ms ease-in both; }
+.aw-unlock-inner { display: grid; justify-items: center; text-align: center; padding: 24px; }
+
+.aw-unlock-stage { position: relative; display: grid; place-items: center; width: 220px; height: 220px; }
+
+.aw-unlock-medal {
+  position: relative; display: grid; place-items: center; color: var(--metal);
+  animation:
+    awPop 520ms cubic-bezier(.22, 1.3, .36, 1) 100ms both,
+    awDrain 650ms ease-out 250ms both;
+}
+
+/* The metal blooms out from behind the medal. */
+.aw-bloom {
+  position: absolute; width: 240px; height: 240px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--metal), transparent 70%);
+  filter: blur(14px); opacity: 0;
+  animation: awBloom 1500ms ease-out 400ms both;
+}
+
+/* A specular bar travelling across the medal face. */
+.aw-sweep {
+  position: absolute; inset: 0; border-radius: 50%; overflow: hidden; pointer-events: none;
+}
+.aw-sweep::before {
+  content: ''; position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.75), transparent);
+  transform: rotate(18deg); opacity: 0;
+  animation: awSweep 650ms ease-in-out 500ms both;
+}
+
+/* Twelve spokes, gold only. */
+.aw-rays { position: absolute; width: 220px; height: 220px; pointer-events: none; }
+.aw-rays i {
+  position: absolute; left: 50%; top: 50%; width: 2px; height: 92px; margin-left: -1px;
+  transform-origin: 50% 0;
+  background: linear-gradient(180deg, var(--metal), transparent);
+  opacity: 0;
+  animation: awRay 900ms ease-out 700ms both;
+}
+
+.aw-unlock-eyebrow {
+  margin: 18px 0 0; font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--metal);
+  animation: awRise 320ms ease-out 850ms both;
+}
+.aw-unlock-name {
+  margin: 8px 0 0; font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 700;
+  letter-spacing: -0.03em; color: #fff;
+  animation: awRise 320ms ease-out 850ms both;
+}
+.aw-unlock-desc {
+  margin: 9px 0 0; max-width: 42ch; font-size: 13.5px; line-height: 1.6;
+  color: rgba(255,255,255,0.72);
+  animation: awFade 400ms ease-out 1050ms both;
+}
+
+@keyframes awBackdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes awLeave { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.96); } }
+@keyframes awPop {
+  0%   { transform: scale(0.6) rotate(-9deg); }
+  70%  { transform: scale(1.07) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes awDrain {
+  0%   { filter: grayscale(1) contrast(0.8); }
+  70%  { filter: grayscale(0) saturate(1.65) brightness(1.12); }
+  100% { filter: grayscale(0) saturate(1) brightness(1); }
+}
+@keyframes awBloom {
+  0%   { opacity: 0; transform: scale(0.2); }
+  45%  { opacity: 0.75; }
+  100% { opacity: 0.28; transform: scale(1.25); }
+}
+@keyframes awSweep {
+  0%   { opacity: 0; left: -60%; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; left: 120%; }
+}
+@keyframes awRay {
+  0%   { opacity: 0; transform: rotate(var(--r, 0deg)) scaleY(0.3); }
+  35%  { opacity: 0.85; }
+  100% { opacity: 0; transform: rotate(var(--r, 0deg)) scaleY(1.5); }
+}
+@keyframes awRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes awFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* No scale, no sweep, no rays: colour arrives on its own and holds. */
+@media (prefers-reduced-motion: reduce) {
+  .aw-unlock-medal { animation: awDrainSlow 400ms ease-out both; }
+  .aw-sweep, .aw-rays, .aw-bloom { display: none; }
+  .aw-unlock-eyebrow, .aw-unlock-name { animation: awFade 300ms ease-out 150ms both; }
+  .aw-unlock-desc { animation: awFade 300ms ease-out 250ms both; }
+  @keyframes awDrainSlow { from { filter: grayscale(1) contrast(0.8); } to { filter: none; } }
+}
+
+/* ============================================ */
 /* ONBOARDING                                   */
 /* ============================================ */
 
