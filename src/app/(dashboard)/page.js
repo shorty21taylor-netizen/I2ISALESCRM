@@ -8,6 +8,40 @@ import { toReportDay } from '@/lib/report-date';
 import RepAvatar from '@/components/RepAvatar';
 import useRoster from '@/lib/use-roster';
 
+// A block of plain numbers. No sparklines, no toggles — this page is read at a
+// glance before a call, and anything that needs interpreting does not belong.
+function num(v) { return (v === null || v === undefined) ? '\u2014' : Number(v).toLocaleString('en-US'); }
+function money(v) { return (v === null || v === undefined) ? '\u2014' : formatCurrency(v); }
+function pct(v) { return (v === null || v === undefined) ? '\u2014' : v + '%'; }
+
+function MetricSection({ title, note, tiles, missing }) {
+  return (
+    <div className="td-section relative z-10">
+      <div className="td-section-h">
+        <h3 className="td-section-t">{title}</h3>
+        {note ? <span className="section-tag">{note}</span> : null}
+      </div>
+      <div className="td-grid">
+        {tiles.map(function(t) {
+          return (
+            <div key={t.label} className="td-tile">
+              <p className="td-tile-l">{t.label}</p>
+              <p className={'td-tile-v' + (t.tone ? ' ' + t.tone : '')}>{t.value}</p>
+              {t.sub ? <p className="td-tile-s">{t.sub}</p> : null}
+            </div>
+          );
+        })}
+      </div>
+      {missing && missing.length ? (
+        <p className="td-missing">
+          Not shown: {missing.join(', ')} — no form captures it yet, and a zero here
+          would read as &ldquo;nobody was&rdquo; rather than &ldquo;we do not ask&rdquo;.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   var roster = useRoster();
   var workspaceId = useWorkspace();
@@ -16,7 +50,6 @@ export default function DashboardPage() {
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
   var s5 = useState(''), customEnd = s5[0], setCustomEnd = s5[1];
   var s6 = useState(''), lastFetch = s6[0], setLastFetch = s6[1];
-  var s7 = useState([]), allEODs = s7[0], setAllEODs = s7[1];
 
   function getDateParams() {
     var today = new Date();
@@ -30,20 +63,28 @@ export default function DashboardPage() {
       y.setDate(y.getDate() - 1);
       return { start: toReportDay(y), end: toReportDay(y) };
     }
-    if (dateRange === '7d') {
-      var d7 = new Date(today);
-      d7.setDate(d7.getDate() - 6);
-      return { start: toReportDay(d7), end: todayStr };
+    // This week means the week you are standing in, Monday to today — not the
+    // last seven days. A sales week is a thing people plan against.
+    if (dateRange === 'week') {
+      var w = new Date(today);
+      var dow = (w.getDay() + 6) % 7; // Monday = 0
+      w.setDate(w.getDate() - dow);
+      return { start: toReportDay(w), end: todayStr };
     }
-    if (dateRange === '30d') {
-      var d30 = new Date(today);
-      d30.setDate(d30.getDate() - 29);
-      return { start: toReportDay(d30), end: todayStr };
+    if (dateRange === 'month') {
+      var m = new Date(today);
+      m.setDate(m.getDate() - 29);
+      return { start: toReportDay(m), end: todayStr };
     }
-    if (dateRange === '365d') {
-      var d365 = new Date(today);
-      d365.setDate(d365.getDate() - 364);
-      return { start: toReportDay(d365), end: todayStr };
+    if (dateRange === 'quarter') {
+      var q = new Date(today);
+      q.setDate(q.getDate() - 89);
+      return { start: toReportDay(q), end: todayStr };
+    }
+    if (dateRange === 'year') {
+      var y365 = new Date(today);
+      y365.setDate(y365.getDate() - 364);
+      return { start: toReportDay(y365), end: todayStr };
     }
     if (dateRange === 'custom' && customStart && customEnd) {
       return { start: customStart, end: customEnd };
@@ -69,12 +110,6 @@ export default function DashboardPage() {
       })
       .catch(function(e) { console.error('Dashboard fetch error:', e); });
 
-    apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId))
-      .then(function(r) { return r.json(); })
-      .then(function(eodsData) {
-        setAllEODs((eodsData.data || []).filter(Boolean));
-      })
-      .catch(function(e) { console.error('EOD fetch error:', e); });
   }, [dateRange, customStart, customEnd, workspaceId]);
 
   useEffect(function() {
@@ -98,20 +133,17 @@ export default function DashboardPage() {
   var yesterdayStr = toReportDay(yesterday);
 
   // Filter EODs to yesterday
-  var yesterdayEODs = (allEODs || []).filter(function(e) {
-    return e.date === yesterdayStr;
-  }).sort(function(a, b) {
-    var cashA = (parseFloat(a.cashCollectedMYFM) || 0) + (parseFloat(a.cashCollectedI2I) || 0);
-    var cashB = (parseFloat(b.cashCollectedMYFM) || 0) + (parseFloat(b.cashCollectedI2I) || 0);
-    return cashB - cashA;
-  });
+  var m = (liveData && liveData.metrics) || null;
+  var c = (m && m.closers) || {};
+  var st = (m && m.setters) || {};
 
   var rangeLabel = (function() {
     if (dateRange === 'today') return 'Today';
     if (dateRange === 'yesterday') return 'Yesterday';
-    if (dateRange === '7d') return '7 Days';
-    if (dateRange === '30d') return '30 Days';
-    if (dateRange === '365d') return 'Year';
+    if (dateRange === 'week') return 'This week';
+    if (dateRange === 'month') return 'Past month';
+    if (dateRange === 'quarter') return 'Past quarter';
+    if (dateRange === 'year') return 'Past year';
     return 'Custom';
   })();
 
@@ -153,9 +185,10 @@ export default function DashboardPage() {
           {[
             { id: 'today', label: 'Today' },
             { id: 'yesterday', label: 'Yesterday' },
-            { id: '7d', label: '7 Days' },
-            { id: '30d', label: '30 Days' },
-            { id: '365d', label: 'Year' },
+            { id: 'week', label: 'This Week' },
+            { id: 'month', label: 'Past Month' },
+            { id: 'quarter', label: 'Past Quarter' },
+            { id: 'year', label: 'Past Year' },
             { id: 'custom', label: 'Custom' },
           ].map(function(opt) {
             return (
@@ -283,151 +316,39 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Offer Breakdown */}
-      {t.offerBreakdown && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 stagger-2">
-          {[
-            { key: 'myfm', label: 'MYFM', subtitle: 'Coaching', color: '#fafafa', emoji: '🚀' },
-            { key: 'i2i-skool', label: 'Skool Sales', subtitle: 'I2I', color: '#d4d4d4', emoji: '🎓' },
-            { key: 'i2i-funding', label: 'Funding Program', subtitle: 'I2I', color: '#a3a3a3', emoji: '💰' },
-            { key: 'i2i-digital', label: 'Digital Program', subtitle: 'I2I', color: '#a3a3a3', emoji: '💻' },
-            { key: 'i2i-inner-circle', label: 'Inner Circle', subtitle: 'I2I', color: '#a3a3a3', emoji: '⭐' },
-            { key: 'partner', label: 'Partner', subtitle: 'External', color: '#22c55e', emoji: '🤝' },
-          ].map(function(offer) {
-            var data = t.offerBreakdown[offer.key] || { booked: 0, closes: 0, revenue: 0 };
-            return (
-              <div key={offer.key} className="glass-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{offer.emoji}</span>
-                    <div>
-                      <p className="text-sm font-display font-bold text-crm-text-bright">{offer.label}</p>
-                      <p className="text-xs font-mono text-crm-muted">{offer.subtitle}</p>
-                    </div>
-                  </div>
-                  <div className="w-3 h-3 rounded-full" style={{ background: offer.color, boxShadow: '0 0 8px ' + offer.color + '40' }} />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.booked}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">BOOKED</p>
-                  </div>
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold text-crm-text-bright">{data.closes}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">CLOSES</p>
-                  </div>
-                  <div className="glass-surface p-3 rounded-lg text-center">
-                    <p className="text-lg font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{formatCurrency(data.revenue)}</p>
-                    <p className="text-[10px] font-mono text-crm-muted">REVENUE</p>
-                  </div>
-                </div>
-                {t.totalRevenue > 0 && (
-                  <div className="mt-3">
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{
-                        width: Math.round((data.revenue / t.totalRevenue) * 100) + '%',
-                        background: offer.color,
-                        boxShadow: '0 0 8px ' + offer.color + '40',
-                      }} />
-                    </div>
-                    <p className="text-[10px] font-mono text-crm-muted mt-1">
-                      {Math.round((data.revenue / t.totalRevenue) * 100)}% of total revenue
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* ===== CLOSER METRICS ===== */}
+      <MetricSection
+        title="Closer metrics"
+        note={m ? m.daysReported + ' reporting ' + (m.daysReported === 1 ? 'day' : 'days') : ''}
+        tiles={[
+          { label: 'Live calls taken', value: num(c.taken), sub: num(c.onCalendar) + ' on the calendar' },
+          { label: 'Total calls booked', value: num(c.sets) },
+          { label: 'No shows', value: num(c.noShowed), sub: pct(c.showRate) + ' show rate', tone: 'warn' },
+          { label: 'Calls pitched', value: num(c.pitched), sub: num(c.offeredNoClose) + ' offered, no close' },
+          { label: 'Deals closed', value: num(c.closes), sub: pct(c.closeRate) + ' of offers' },
+          { label: 'Cash collected', value: money(c.cashCollected), tone: 'good' },
+          { label: 'Revenue', value: money(c.revenue), sub: 'reported on the day' },
+          { label: 'Cash per call', value: money(c.cashPerCall), sub: money(c.cashPerOffer) + ' per offer' },
+        ]}
+        missing={m && m.missing}
+      />
 
-      {/* Yesterday's EODs — morning review */}
-      <div className="glass-card overflow-hidden mt-6 relative z-10 stagger-5">
-        <div className="section-header">
-          <h3 className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>Yesterday's EODs</h3>
-          <span className="section-tag">{yesterdayEODs.length} {yesterdayEODs.length === 1 ? 'report' : 'reports'}</span>
-        </div>
-
-        {yesterdayEODs.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-sm" style={{ color: 'var(--crm-text-muted)' }}>No EOD reports from yesterday</p>
-          </div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: 'var(--crm-divider)' }}>
-            {yesterdayEODs.map(function(eod) {
-              var rep = eod.salesRep || eod.closerName || 'Unknown';
-              var dials = parseInt(eod.outboundDials) || 0;
-              var taken = parseInt(eod.callsTaken) || 0;
-              var pitched = parseInt(eod.callsTakenAndPitched) || 0;
-              var closes = parseInt(eod.closes) || 0;
-              var booked = parseInt(eod.netNewCallsBooked) || 0;
-              var noShows = parseInt(eod.callsNoShowed) || 0;
-              var cashM = parseFloat(eod.cashCollectedMYFM) || 0;
-              var cashI = parseFloat(eod.cashCollectedI2I) || 0;
-              var totalCash = cashM + cashI;
-              var closeRate = pitched > 0 ? Math.min(Math.round((closes / pitched) * 100), 100) : 0;
-
-              return (
-                <div key={eod.id} className="p-4 md:p-5">
-                  <div className="flex items-center gap-3 mb-3">
-<RepAvatar
-                      rep={roster.find(rep)}
-                      name={rep}
-                      size={36}
-                      showStatus
-                      style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)', borderColor: 'rgba(var(--accent-rgb),0.3)' }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-display font-bold truncate" style={{ color: 'var(--crm-text-bright)' }}>{rep}</p>
-                      <p className="text-[10px] font-mono" style={{ color: 'var(--crm-text-muted)' }}>
-                        {eod.date || 'Yesterday'}
-                      </p>
-                    </div>
-                    {totalCash > 0 && (
-                      <span className="text-sm font-display font-bold" style={{ color: '#22c55e' }}>
-                        ${totalCash.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{dials}</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Dials</p>
-                    </div>
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{booked}</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Booked</p>
-                    </div>
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>{taken}</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Taken</p>
-                    </div>
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: noShows > 0 ? '#ef4444' : 'var(--crm-text-bright)' }}>{noShows}</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>No Shows</p>
-                    </div>
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: closes > 0 ? '#22c55e' : 'var(--crm-text-bright)' }}>{closes}</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Closes</p>
-                    </div>
-                    <div className="glass-surface rounded-lg p-2 text-center">
-                      <p className="text-sm font-display font-bold" style={{ color: closeRate >= 30 ? '#22c55e' : closeRate >= 15 ? '#f59e0b' : 'var(--crm-text-bright)' }}>{closeRate}%</p>
-                      <p className="text-[9px] font-mono uppercase" style={{ color: 'var(--crm-text-muted)' }}>Close %</p>
-                    </div>
-                  </div>
-
-                  {eod.improvementPlan && (
-                    <p className="text-xs font-mono mt-3" style={{ color: 'var(--crm-text-muted)' }}>
-                      Tomorrow: {eod.improvementPlan}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* ===== SETTER METRICS ===== */}
+      <MetricSection
+        title="Setter metrics"
+        note={m ? m.repsReporting + ' ' + (m.repsReporting === 1 ? 'rep' : 'reps') + ' reporting' : ''}
+        tiles={[
+          { label: 'Outbound dials', value: num(st.dials) },
+          { label: 'Conversations', value: num(st.conversations), sub: pct(st.dialToConversation) + ' of dials' },
+          { label: 'Live calls', value: num(st.liveCalls) },
+          { label: 'Total sets', value: num(st.sets), sub: pct(st.conversationToSet) + ' of conversations' },
+          { label: 'Sets that showed', value: num(st.shows) },
+          { label: 'No showed', value: num(st.noShowed), tone: 'warn' },
+          { label: 'Sets closed', value: num(st.closed), sub: pct(st.setToClose) + ' of sets' },
+          { label: 'Cash from sets', value: money(st.cash), tone: 'good' },
+          { label: 'Follow-ups booked', value: num(st.followUps) },
+        ]}
+      />
 
       {/* Footer */}
       <hr className="divider" />

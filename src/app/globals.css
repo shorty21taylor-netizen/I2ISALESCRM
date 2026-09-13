@@ -1642,6 +1642,40 @@ html.light .nav-link.active .nav-icon { filter: none; }
 .signin-help:hover { text-decoration: underline; }
 
 /* ============================================ */
+/* TEAM DASHBOARD SECTIONS                      */
+/* ============================================ */
+
+.td-section { margin-top: 22px; }
+.td-section-h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.td-section-t {
+  margin: 0; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--crm-text-bright);
+}
+.td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 12px; }
+.td-tile {
+  padding: 15px 16px; border-radius: var(--r-card);
+  border: 1px solid var(--glass-card-border);
+  background: var(--lift), var(--glass-card-bg);
+  box-shadow: var(--sheen), var(--ring), var(--e2);
+}
+.td-tile-l {
+  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--crm-muted);
+}
+.td-tile-v {
+  margin: 7px 0 0; font-family: 'Outfit', sans-serif; font-size: 27px; font-weight: 700;
+  letter-spacing: -0.035em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.td-tile-v.good { color: var(--crm-positive); }
+.td-tile-v.warn { color: var(--crm-warning); }
+.td-tile-s { margin: 4px 0 0; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--crm-muted); }
+.td-missing {
+  margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--crm-muted);
+  max-width: 78ch;
+}
+
+/* ============================================ */
 /* AWARDS                                       */
 /* ============================================ */
 
