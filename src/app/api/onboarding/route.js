@@ -15,7 +15,7 @@ export var dynamic = 'force-dynamic';
 export async function GET(req) {
   await initStore();
   try {
-    var viewer = callerEmail(req);
+    var viewer = await callerEmail(req);
     if (!viewer) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
 
     var url = new URL(req.url);
@@ -70,7 +70,7 @@ export async function GET(req) {
 export async function POST(req) {
   await initStore();
   try {
-    var viewer = callerEmail(req);
+    var viewer = await callerEmail(req);
     if (!viewer) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
 
     var body = await req.json();

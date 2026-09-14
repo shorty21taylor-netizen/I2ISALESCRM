@@ -17,7 +17,7 @@ export var dynamic = 'force-dynamic';
 export async function GET(req) {
   await initStore();
   try {
-    if (!callerEmail(req)) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+    if (!(await callerEmail(req))) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
 
     var accounts = await listUsers().catch(function() { return []; });
     var byEmail = {};

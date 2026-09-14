@@ -4,7 +4,6 @@ import { Copy, Check, Users, Bot, MessageSquare, Save, Activity, Send, CheckCirc
 import { getInitials } from '@/lib/utils';
 import { getFormConfig, saveFormConfig, getPartners, addPartner, removePartner } from '@/lib/form-config';
 import { getTheme, setTheme } from '@/lib/theme';
-import TeamPasswordCard from '@/components/TeamPasswordCard';
 import FormsIntegrationCard from '@/components/FormsIntegrationCard';
 import ReportBrandingCard from '@/components/ReportBrandingCard';
 import OnboardingResourcesCard from '@/components/OnboardingResourcesCard';
@@ -247,7 +246,6 @@ export default function SettingsPage() {
 
 
         {/* ===== TEAM PASSWORD ===== */}
-        <TeamPasswordCard />
         {/* ===== REPORT BRANDING ===== */}
         <ReportBrandingCard />
         <OnboardingResourcesCard />

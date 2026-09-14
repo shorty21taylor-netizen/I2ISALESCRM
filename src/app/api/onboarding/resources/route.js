@@ -27,7 +27,7 @@ function safeUrl(v) {
 export async function GET(req) {
   await initStore();
   try {
-    if (!callerEmail(req)) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+    if (!(await callerEmail(req))) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
     var access = await resolveAccess(req);
     if (!access.canSeeTeam) return NextResponse.json({ error: 'Manager access required' }, { status: 403 });
 
@@ -64,7 +64,7 @@ export async function GET(req) {
 export async function POST(req) {
   await initStore();
   try {
-    var viewer = callerEmail(req);
+    var viewer = await callerEmail(req);
     if (!viewer) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
 
     var body = await req.json();

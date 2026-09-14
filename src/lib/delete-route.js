@@ -13,7 +13,7 @@ export function makeDeleteHandler(kind) {
   return async function DELETE(req, ctx) {
     await initStore();
     try {
-      if (callerEmail(req) !== OWNER_EMAIL) {
+      if ((await callerEmail(req)) !== OWNER_EMAIL) {
         return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
       }
 

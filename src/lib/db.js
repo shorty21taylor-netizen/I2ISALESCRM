@@ -82,6 +82,13 @@ export async function initDatabase() {
     await p.query("CREATE TABLE IF NOT EXISTS rep_awards (id TEXT PRIMARY KEY, email TEXT NOT NULL, award_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_rep_awards_email ON rep_awards (email)').catch(function() {});
 
+    // Every sign-in attempt, good or bad. With a shared team password this is the
+    // only forensic trail there is, so it is a real table rather than a log line.
+    await p.query("CREATE TABLE IF NOT EXISTS auth_attempts (id TEXT PRIMARY KEY, email TEXT, ip TEXT NOT NULL, user_agent TEXT, success BOOLEAN NOT NULL, workspace_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_auth_attempts_ip ON auth_attempts (ip, created_at DESC)').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_auth_attempts_mail ON auth_attempts (lower(email), created_at DESC)').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_auth_attempts_ws ON auth_attempts (workspace_id, created_at DESC)').catch(function() {});
+
     // Summit AIOS: the chat history, and the per-day question counter behind the
     // rate limit. New tables only — nothing here touches a record table, and the
     // AIOS read path never queries Postgres at all.
@@ -225,6 +232,54 @@ export async function saveRepAward(email, awardId, data) {
     + 'ON CONFLICT (id) DO UPDATE SET data = $4',
     [key, String(email || '').toLowerCase(), awardId, JSON.stringify(data)]
   );
+}
+
+// One sign-in attempt. Written on every try, successful or not.
+export async function saveAuthAttempt(row) {
+  return query(
+    'INSERT INTO auth_attempts (id, email, ip, user_agent, success, workspace_id, created_at) '
+    + 'VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+    [row.id, row.email || null, row.ip || 'unknown', row.userAgent || null,
+      !!row.success, row.workspaceId || null, row.at]
+  );
+}
+
+// Recent attempts, newest first — the rate limiter's memory across a redeploy and
+// the admin page's sign-in trail, from one query.
+export async function loadAuthAttempts(limit) {
+  var r = await query(
+    'SELECT id, email, ip, user_agent, success, workspace_id, created_at FROM auth_attempts '
+    + 'ORDER BY created_at DESC LIMIT $1',
+    [Math.min(limit || 500, 2000)]
+  );
+  if (!r || !r.rows) return [];
+  return r.rows.map(function(x) {
+    return {
+      id: x.id, email: x.email, ip: x.ip, userAgent: x.user_agent,
+      success: x.success, workspaceId: x.workspace_id,
+      at: x.created_at instanceof Date ? x.created_at.toISOString() : String(x.created_at),
+    };
+  });
+}
+
+// Two accounts whose emails differ only in case would break a unique index on
+// lower(email) — and, more to the point, are already two records for one person.
+// Report them rather than discovering it halfway through a migration.
+export async function findDuplicateCaseEmails() {
+  var r = await query(
+    'SELECT lower(email) AS key, array_agg(email) AS variants FROM app_users '
+    + 'GROUP BY lower(email) HAVING COUNT(*) > 1'
+  );
+  if (!r || !r.rows) return [];
+  return r.rows.map(function(x) { return { key: x.key, variants: x.variants }; });
+}
+
+// Only created once the check above comes back clean.
+export async function ensureLowerEmailIndex() {
+  var dupes = await findDuplicateCaseEmails();
+  if (dupes.length) return { created: false, duplicates: dupes };
+  await query('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON app_users (lower(email))');
+  return { created: true, duplicates: [] };
 }
 
 export async function saveAiosConversation(conv) {

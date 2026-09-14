@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Building2, Check, ChevronDown, Layers } from 'lucide-react';
-import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace, useAccess } from '@/lib/workspace-client';
+import { ALL_WORKSPACES, useWorkspace, switchWorkspace, useAccess } from '@/lib/workspace-client';
 
 export default function WorkspaceSwitcher({ collapsed }) {
   var activeId = useWorkspace();
@@ -25,9 +25,16 @@ export default function WorkspaceSwitcher({ collapsed }) {
     };
   }, [open]);
 
+  var s2 = useState(''), switchError = s2[0], setSwitchError = s2[1];
+
   function choose(id) {
-    setActiveWorkspace(id);
-    setOpen(false);
+    setSwitchError('');
+    switchWorkspace(id).then(function(d) {
+      if (d && d.error) { setSwitchError(d.error); return; }
+      setOpen(false);
+      // Every mounted page refetches against the workspace the session now names.
+      if (typeof window !== 'undefined') window.location.reload();
+    });
   }
 
   var active = null;
@@ -120,6 +127,10 @@ export default function WorkspaceSwitcher({ collapsed }) {
           {workspaces.length === 0 && (
             <div className="px-3 py-3 text-xs text-crm-muted">No workspaces yet</div>
           )}
+
+          {switchError ? (
+            <div className="px-3 py-2.5 text-[11px]" style={{ color: 'var(--crm-negative)' }}>{switchError}</div>
+          ) : null}
         </div>
       )}
     </div>

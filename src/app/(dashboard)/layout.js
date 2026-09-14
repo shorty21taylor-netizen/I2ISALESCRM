@@ -1,18 +1,16 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BrandTheme from '@/components/BrandTheme';
-import { isLoggedIn } from '@/lib/auth';
 import { getFormConfig } from '@/lib/form-config';
 
+// No door of its own. AuthGate wraps every non-public path and asks the server
+// whether the session is still good; this used to re-check localStorage on top of
+// it, which is a weaker test of a different thing — it bounced anyone holding a
+// valid session cookie but an empty tab, which is exactly what a rep choosing
+// between two workspaces has.
 export default function DashboardLayout({ children }) {
-  var router = useRouter();
-  var s = useState(false), ready = s[0], setReady = s[1];
   useEffect(function() {
-    if (!isLoggedIn()) { router.replace('/login'); return; }
-    setReady(true);
-
     // Push WhatsApp config from localStorage to server-side store + scheduler
     var config = getFormConfig();
     if (config.assistroApiUrl || config.bookedCallGroupId || config.closedDealGroupId || config.eodReportGroupId || config.whatsappGroupId) {
@@ -22,8 +20,7 @@ export default function DashboardLayout({ children }) {
         body: JSON.stringify(config),
       }).catch(function() {});
     }
-  }, [router]);
-  if (!ready) return <div className="flex items-center justify-center min-h-screen bg-crm-bg"><div className="w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full animate-spin" /></div>;
+  }, []);
   return (
     <div className="flex min-h-screen">
       <BrandTheme />

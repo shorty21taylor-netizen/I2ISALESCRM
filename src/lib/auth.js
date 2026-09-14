@@ -27,6 +27,11 @@ export function isLoggedIn() {
 
 export function logout() {
   if (typeof window === 'undefined') return;
+  // The cookie is the session, so dropping it server-side is what actually signs
+  // somebody out; clearing localStorage only tidies this tab.
+  try {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(function() {});
+  } catch (e) { /* nothing more to do */ }
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(VERIFIED_KEY);
 }

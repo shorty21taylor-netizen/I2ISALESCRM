@@ -4,13 +4,28 @@
 // records and nothing else. Ownership is decided by the same identity rules the
 // rep dashboard uses, so a rep's Closed Deals list and their My Dashboard totals
 // can never disagree about which deals are theirs.
-import { repOnlyFilter } from '@/lib/access';
+import { repOnlyFilter, resolveAccess } from '@/lib/access';
 import { getCloserProfile } from '@/lib/store';
 import { getUser } from '@/lib/users';
 import { repIdentity } from '@/lib/rep-stats';
 
 // Returns null when the caller may see everything in their workspace.
 export async function repScope(req) {
+  var access = await resolveAccess(req);
+
+  // No session at all. This used to fall through as an empty rep filter, which
+  // every caller read as "senior — show them everything". A missing credential
+  // is not a privileged one: it owns nothing and sees nothing.
+  if (!access.email) {
+    return {
+      anonymous: true,
+      email: '',
+      name: '',
+      owns: function() { return false; },
+      filter: function() { return []; },
+    };
+  }
+
   var email = await repOnlyFilter(req);
   if (!email) return null;
   var account = await getUser(email).catch(function() { return null; });

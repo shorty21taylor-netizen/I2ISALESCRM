@@ -1,22 +1,23 @@
-// Server-side workspace access control.
+// Server-side identity and workspace access control.
 //
-// Identity arrives as the x-user-email header, set by the client from the signed-in
-// user. Every API asks this module which workspaces that caller may read and write.
-//
-// CAVEAT: the header is supplied by the client. Accounts now have real per-user
-// passwords (see lib/users.js), but there is still no signed session token, so a
-// technical user could send another person's email. This module is the single seam
-// where a real session check should go.
+// Identity is the session cookie, and nothing else. It used to be the x-user-email
+// header, which meant anyone could be anyone by typing a different address; with a
+// shared team password that would have made the password decorative, since the
+// header alone already opened the door. The cookie is signed, so it cannot be
+// forged, and it is re-checked against live facts on every request rather than
+// trusted until it expires.
 
-import { getWorkspace } from '@/lib/store';
+import { getWorkspace, getWorkspaces, sessionsValidFrom } from '@/lib/store';
 import { getUser } from '@/lib/users';
 import { progressFor } from '@/lib/onboarding-plan';
 import { roleSeesTeam } from '@/lib/roles';
+import { readSession, sessionTokenFrom } from '@/lib/session';
+import { activeMemberships, workspaceStamp } from '@/lib/workspace-auth';
+import { OWNER_EMAIL } from '@/lib/owner';
 
 export var ALL_WORKSPACES = '__all__';
 
-// The account that owns every workspace and sees the combined Operator View.
-export var OWNER_EMAIL = 'shorty21taylor@gmail.com';
+export { OWNER_EMAIL };
 
 // Whether a rep still owes the company their onboarding.
 //
@@ -32,51 +33,82 @@ export function canSeeTeam(access) {
   return !!(access && (access.canSeeAll || roleSeesTeam(access.role)));
 }
 
-export function callerEmail(req) {
-  try {
-    return (req.headers.get('x-user-email') || '').trim().toLowerCase();
-  } catch (e) {
-    return '';
+var ANONYMOUS = {
+  email: '', isOperator: false, isOwner: false, role: '',
+  workspaceIds: [], canSeeAll: false, canSeeTeam: false, signedIn: false,
+};
+
+// Is this signed cookie still good? Four ways it stops being, all checked on
+// every request so revocation lands on the next click rather than at expiry.
+export async function sessionState(req) {
+  var token = sessionTokenFrom(req);
+  if (!token) return { ok: false, reason: 'none' };
+
+  var body = await readSession(token);
+  if (!body) return { ok: false, reason: 'invalid' };
+
+  var email = String(body.email || '').toLowerCase();
+
+  // 1. An admin killed this rep's sessions, or deactivating them did.
+  var validFrom = sessionsValidFrom(email);
+  if (validFrom && body.iat < Date.parse(validFrom)) return { ok: false, reason: 'revoked' };
+
+  // 2. The account was switched off.
+  var account = await getUser(email).catch(function() { return null; });
+  if (account && account.active === false) return { ok: false, reason: 'inactive' };
+
+  // 3. The roster row was deactivated, or the workspace went away.
+  var memberships = await activeMemberships(email);
+  var mine = null;
+  for (var i = 0; i < memberships.length; i++) {
+    if (memberships[i].workspaceId === body.workspaceId) { mine = memberships[i]; break; }
   }
+  if (!mine) return { ok: false, reason: 'no-membership' };
+
+  // 4. The team password was rotated after this session was minted.
+  var ws = getWorkspace(body.workspaceId);
+  if (ws && workspaceStamp(ws) !== (body.wsStamp || '')) return { ok: false, reason: 'rotated' };
+
+  return { ok: true, session: body, membership: mine, memberships: memberships, account: account };
 }
 
 // Which workspaces may this caller act in?
 //   operator -> every workspace, plus the combined view
-//   member   -> the workspaces assigned to their account (one or many)
-//   unknown  -> 'default', so the pre-existing team keeps working unchanged
+//   member   -> the one workspace their session is pinned to
+//   no session -> nobody, and every API answers accordingly
 export async function resolveAccess(req) {
-  var email = callerEmail(req);
-  var isOperator = !!email && email === OWNER_EMAIL;
+  var state = await sessionState(req);
+  if (!state.ok) return Object.assign({}, ANONYMOUS, { sessionReason: state.reason });
 
-  if (isOperator) {
-    return { email: email, isOperator: true, isOwner: true, role: 'operator', workspaceIds: [], canSeeAll: true, canSeeTeam: true };
+  var email = state.session.email;
+  if (email === OWNER_EMAIL) {
+    return {
+      email: email, isOperator: true, isOwner: true, role: 'operator',
+      workspaceIds: [], canSeeAll: true, canSeeTeam: true, signedIn: true,
+      memberships: state.memberships,
+    };
   }
 
-  var account = null;
-  if (email) {
-    try {
-      account = await getUser(email);
-    } catch (e) {
-      console.error('[Access] user lookup failed:', e.message);
-    }
-  }
-
-  var ids = (account && Array.isArray(account.workspaceIds)) ? account.workspaceIds.slice() : [];
-  // Drop assignments to workspaces that have since been deleted.
-  ids = ids.filter(function(id) { return id === 'default' || !!getWorkspace(id); });
-  if (ids.length === 0) ids = ['default'];
-
-  var role = (account && account.role) || 'closer';
+  var role = state.membership.role || (state.account && state.account.role) || 'closer';
   var access = {
     email: email,
     isOperator: false,
     isOwner: false,
     role: role,
-    workspaceIds: ids,
+    workspaceIds: [state.membership.workspaceId],
     canSeeAll: false,
+    signedIn: true,
+    memberships: state.memberships,
   };
   access.canSeeTeam = canSeeTeam(access);
   return access;
+}
+
+// The signed-in caller's address, or '' when there is no valid session. Async now
+// that it reads a cookie rather than a header — every call site awaits it.
+export async function callerEmail(req) {
+  var access = await resolveAccess(req);
+  return access.email || '';
 }
 
 // A rep sees their own records; everyone senior sees the workspace. Returns the
@@ -87,18 +119,13 @@ export async function repOnlyFilter(req) {
   return access.email || '';
 }
 
-// What a request should actually read.
-// Operators get what they asked for. A member gets the requested workspace only if
-// it is one of theirs; otherwise they get their own set — which for someone in
-// several workspaces is a combined view across just those.
+// What a request should actually read. A member's session is pinned to one
+// workspace, so a query string asking for another is ignored rather than obeyed.
 export async function effectiveReadWorkspace(req, requested) {
   var access = await resolveAccess(req);
   if (access.canSeeAll) return requested || ALL_WORKSPACES;
-
-  if (requested && requested !== ALL_WORKSPACES && access.workspaceIds.indexOf(requested) !== -1) {
-    return requested;
-  }
-  return access.workspaceIds.length === 1 ? access.workspaceIds[0] : access.workspaceIds;
+  if (!access.workspaceIds.length) return ALL_WORKSPACES;
+  return access.workspaceIds[0];
 }
 
 // The workspace a new record must be written into. Never the combined view.
@@ -108,8 +135,7 @@ export async function effectiveWriteWorkspace(req, requested) {
     if (!requested || requested === ALL_WORKSPACES) return 'default';
     return requested;
   }
-  if (requested && access.workspaceIds.indexOf(requested) !== -1) return requested;
-  return access.workspaceIds[0];
+  return access.workspaceIds[0] || 'default';
 }
 
 // Does a record fall inside the resolved filter? The filter is a single workspace
@@ -119,4 +145,15 @@ export function matchesWorkspace(record, filter) {
   var id = (record && record.workspaceId) || 'default';
   if (Array.isArray(filter)) return filter.indexOf(id) !== -1;
   return id === filter;
+}
+
+// Every workspace the caller could switch into, for the picker and the nav.
+export async function visibleWorkspaces(access) {
+  var all = getWorkspaces();
+  if (access.canSeeAll) return all.map(function(w) { return { id: w.id, name: w.name, role: 'operator' }; });
+  var byId = {};
+  all.forEach(function(w) { byId[w.id] = w; });
+  return (access.memberships || [])
+    .filter(function(m) { return !!byId[m.workspaceId]; })
+    .map(function(m) { return { id: m.workspaceId, name: byId[m.workspaceId].name, role: m.role }; });
 }

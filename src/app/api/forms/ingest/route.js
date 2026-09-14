@@ -174,7 +174,7 @@ export async function GET(req) {
     howToAuth: 'Send header  x-api-key: <FORM_INGEST_KEY>',
   };
 
-  if (callerEmail(req) === OWNER_EMAIL) {
+  if ((await callerEmail(req)) === OWNER_EMAIL) {
     var attempts = getIngestAttempts();
     body.recentAttempts = attempts;
     body.attemptSummary = {

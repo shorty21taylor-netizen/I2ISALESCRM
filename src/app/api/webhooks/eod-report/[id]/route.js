@@ -12,7 +12,7 @@ export var DELETE = makeDeleteHandler('eod-report');
 export async function PATCH(req, ctx) {
   await initStore();
   try {
-    var caller = callerEmail(req);
+    var caller = await callerEmail(req);
     if (caller !== OWNER_EMAIL) {
       return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
     }

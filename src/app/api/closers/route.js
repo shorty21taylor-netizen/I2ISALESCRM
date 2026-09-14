@@ -7,7 +7,7 @@ import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 export async function POST(req) {
   await initStore();
   try {
-    if (callerEmail(req) !== OWNER_EMAIL) {
+    if ((await callerEmail(req)) !== OWNER_EMAIL) {
       return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
     }
     var body = await req.json();

@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
-import { isLoggedIn } from '@/lib/auth';
 import { GROUP_LABELS } from '@/lib/rep-groups';
 import { readableOn, isValidHex } from '@/lib/brand-theme';
 import { SummitGlyph } from '@/components/SummitMark';
@@ -142,7 +141,8 @@ function ReportBody() {
   var start = params.get('start') || '';
   var end = params.get('end') || '';
 
-  useEffect(function() { if (!isLoggedIn()) router.replace('/login'); }, [router]);
+  // AuthGate already asks the server whether this session is good; a second,
+  // weaker check against localStorage only bounces people it should not.
 
   useEffect(function() {
     if (!workspaceId) return;

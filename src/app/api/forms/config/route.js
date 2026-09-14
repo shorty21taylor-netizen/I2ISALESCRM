@@ -20,8 +20,8 @@ var DEFAULT_FORMS = {
   'after-call': { label: 'After-Call Report', url: 'https://summitsales.app.n8n.cloud/form/after-call-report' },
 };
 
-function isOwner(req) {
-  return callerEmail(req) === OWNER_EMAIL;
+async function isOwner(req) {
+  return (await callerEmail(req)) === OWNER_EMAIL;
 }
 
 function maskKey(key) {
@@ -64,7 +64,7 @@ export async function GET(req) {
   try {
     var cfg = (await loadAppConfig('forms')) || {};
     var key = await getIngestKey();
-    var owner = isOwner(req);
+    var owner = await isOwner(req);
     return NextResponse.json({
       success: true,
       forms: mergedForms(cfg.forms),
@@ -84,7 +84,7 @@ export async function GET(req) {
 export async function POST(req) {
   await initStore();
   try {
-    if (!isOwner(req)) {
+    if (!(await isOwner(req))) {
       return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
     }
     var body = await req.json();

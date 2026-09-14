@@ -7,6 +7,7 @@ import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord,
   saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
+  saveAuthAttempt, loadAuthAttempts,
 } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 import { saveRepAward } from '@/lib/db';
@@ -36,6 +37,7 @@ var store = {
   workspaceUsers: [],
   aiosConversations: [],
   aiosUsage: {},
+  authAttempts: [],
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -122,6 +124,13 @@ export async function initStore() {
             'booked:', !!savedWa.bookedCallGroupId, 'deal:', !!savedWa.closedDealGroupId, 'eod:', !!savedWa.eodReportGroupId);
         }
       } catch (e) { console.error('[Store] WA config load:', e.message); }
+
+      try {
+        // The rate limiter's memory. Loading it means a redeploy does not hand an
+        // attacker a fresh fifteen-minute window.
+        var attempts = await loadAuthAttempts(500);
+        if (attempts && attempts.length) store.authAttempts = attempts;
+      } catch (e) { console.error('[Store] Auth attempts load:', e.message); }
 
       try {
         var ws = await loadWorkspaces();
@@ -2155,7 +2164,11 @@ export async function createWorkspace(data) {
     name: data.companyName || 'New Workspace',
     slug: (data.companyName || 'workspace').toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 30),
     ownerEmail: (data.ownerEmail || '').toLowerCase(),
-    teamPassword: data.teamPassword || '',
+    // Hashed, never stored in the clear. A workspace record sitting in Postgres
+    // with a readable password is the same leak as a plaintext user table.
+    teamPasswordSalt: null,
+    teamPasswordHash: null,
+    passwordRotatedAt: new Date().toISOString(),
     branding: {
       primaryColor: data.primaryColor || '#a3a3a3',
       secondaryColor: data.secondaryColor || '#22c55e',
@@ -2190,21 +2203,10 @@ export async function updateWorkspace(id, updates) {
   return ws;
 }
 
+// Kept as the name the rest of the app already calls. It no longer moves anyone:
+// a rep can work two offers, which is exactly what the workspace picker is for.
 export async function addUserToWorkspace(workspaceId, email, name, role) {
-  var key = email.toLowerCase();
-  var user = {
-    id: 'wu-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    workspaceId: workspaceId,
-    email: key,
-    name: name || email,
-    role: role || 'closer',
-    joinedAt: new Date().toISOString(),
-  };
-  // One workspace per person: re-adding them moves them rather than duplicating.
-  store.workspaceUsers = (store.workspaceUsers || []).filter(function(u) { return u.email !== key; });
-  store.workspaceUsers.push(user);
-  await saveWorkspaceUser(user).catch(function(e) { console.error('[DB]', e.message); });
-  return user;
+  return addWorkspaceMember(workspaceId, email, name, role);
 }
 
 export async function getUserWorkspace(email) {
@@ -2335,4 +2337,177 @@ export function noteAiosAsk(email, day) {
   store.aiosUsage[k] = (store.aiosUsage[k] || 0) + 1;
   saveAiosUsage(email, day, store.aiosUsage[k]).catch(function(e) { console.error('[DB] AIOS usage:', e.message); });
   return store.aiosUsage[k];
+}
+
+// ============================================
+// SIGN-IN ATTEMPTS AND ROSTER MEMBERSHIP
+// ============================================
+//
+// With a shared team password, the attempt log is the only forensic trail there
+// is: it says which roster email got in, from where, and when. It is kept in
+// memory for the rate limiter and mirrored to Postgres for the admin page.
+
+var ATTEMPT_MEMORY = 500;
+
+export function saveAuthAttemptRow(fields) {
+  var row = {
+    id: 'att_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    email: (fields.email || '').toLowerCase(),
+    ip: fields.ip || 'unknown',
+    userAgent: fields.userAgent || '',
+    success: !!fields.success,
+    workspaceId: fields.workspaceId || null,
+    at: new Date().toISOString(),
+  };
+  if (!store.authAttempts) store.authAttempts = [];
+  store.authAttempts.unshift(row);
+  if (store.authAttempts.length > ATTEMPT_MEMORY) store.authAttempts.length = ATTEMPT_MEMORY;
+  saveAuthAttempt(row).catch(function(e) { console.error('[DB] Auth attempt:', e.message); });
+  return row;
+}
+
+export function getAuthAttempts() {
+  return store.authAttempts || [];
+}
+
+export function getWorkspaceAttempts(workspaceId, limit) {
+  var rows = (store.authAttempts || []);
+  // A failed attempt never resolved to a workspace, so it carries none. The
+  // workspace's own list would be missing exactly the rows it exists to show, so
+  // unattributed failures are included.
+  var mine = rows.filter(function(r) {
+    return !r.workspaceId || r.workspaceId === workspaceId;
+  });
+  return mine.slice(0, limit || 50);
+}
+
+// ---- roster membership ----
+//
+// One row per person per workspace. Somebody can hold several, which is what
+// makes a rep who works two offers possible.
+export async function addWorkspaceMember(workspaceId, email, name, role) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key || !workspaceId) return null;
+  store.workspaceUsers = store.workspaceUsers || [];
+
+  var existing = null;
+  for (var i = 0; i < store.workspaceUsers.length; i++) {
+    var u = store.workspaceUsers[i];
+    if ((u.email || '').toLowerCase() === key && u.workspaceId === workspaceId) { existing = u; break; }
+  }
+
+  if (existing) {
+    // Re-adding somebody who was deactivated is how they come back, rather than
+    // a second row that leaves two answers to "are they on the roster".
+    existing.role = role || existing.role || 'closer';
+    if (name) existing.name = name;
+    existing.active = true;
+    existing.deactivatedAt = null;
+    await saveWorkspaceUser(existing).catch(function(e) { console.error('[DB]', e.message); });
+    return existing;
+  }
+
+  var row = {
+    id: 'wu-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    workspaceId: workspaceId,
+    email: key,
+    name: name || key,
+    role: role || 'closer',
+    active: true,
+    deactivatedAt: null,
+    joinedAt: new Date().toISOString(),
+  };
+  store.workspaceUsers.push(row);
+  await saveWorkspaceUser(row).catch(function(e) { console.error('[DB]', e.message); });
+  return row;
+}
+
+// Offboarding. Their email stops authenticating on the next request; nobody
+// else's password changes.
+export async function setMemberActive(workspaceId, email, active) {
+  var key = (email || '').toLowerCase().trim();
+  var changed = null;
+  var rows = store.workspaceUsers || [];
+  for (var i = 0; i < rows.length; i++) {
+    var u = rows[i];
+    if ((u.email || '').toLowerCase() !== key || u.workspaceId !== workspaceId) continue;
+    u.active = !!active;
+    u.deactivatedAt = active ? null : new Date().toISOString();
+    changed = u;
+    await saveWorkspaceUser(u).catch(function(e) { console.error('[DB]', e.message); });
+  }
+  return changed;
+}
+
+// ---- session revocation ----
+//
+// Sessions are signed cookies with no server-side row, so revocation is a
+// timestamp: anything minted before this instant is dead. Deactivating somebody
+// bumps it, and so does an admin killing their sessions by hand.
+export function sessionsValidFrom(email) {
+  var profile = getCloserProfile(email);
+  return (profile && profile.sessionsValidFrom) || null;
+}
+
+export function revokeSessions(email) {
+  var key = (email || '').toLowerCase().trim();
+  if (!key) return null;
+  var profile = store.closerProfiles[key];
+  if (!profile) {
+    profile = store.closerProfiles[key] = {
+      name: key, email: key,
+      registeredAt: new Date().toISOString(), lastLogin: new Date().toISOString(),
+    };
+  }
+  profile.sessionsValidFrom = new Date().toISOString();
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Revoke:', e.message); });
+  return profile.sessionsValidFrom;
+}
+
+// The name a rep confirmed for themselves on first sign-in. Until they have,
+// /welcome asks — it is what their closes and EODs get filed under.
+export function getDisplayNameState(email) {
+  var profile = getCloserProfile(email);
+  var key = (email || '').toLowerCase().trim();
+  var held = (profile && profile.displayName) || (profile && profile.name) || '';
+  // registerCloser fills a blank profile with the email when a form carries no
+  // name. That is a placeholder, not a name — reporting it as one is how a board
+  // ends up with a row called "brandnew@i2i.com".
+  if (held.toLowerCase() === key || held.indexOf('@') !== -1) held = '';
+  return {
+    displayName: held,
+    confirmedAt: (profile && profile.displayNameConfirmedAt) || null,
+  };
+}
+
+export function confirmDisplayName(email, name) {
+  var key = (email || '').toLowerCase().trim();
+  var clean = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!key || !clean) return null;
+  var profile = store.closerProfiles[key];
+  if (!profile) {
+    profile = store.closerProfiles[key] = {
+      name: clean, email: key,
+      registeredAt: new Date().toISOString(), lastLogin: new Date().toISOString(),
+    };
+  }
+  profile.displayName = clean;
+  profile.name = clean;
+  profile.displayNameConfirmedAt = new Date().toISOString();
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Display name:', e.message); });
+  return profile;
+}
+
+export function setLastWorkspace(email, workspaceId) {
+  var key = (email || '').toLowerCase().trim();
+  var profile = store.closerProfiles[key];
+  if (!profile || !workspaceId) return null;
+  profile.lastWorkspaceId = workspaceId;
+  saveCloserProfile(key, profile).catch(function(e) { console.error('[DB] Last workspace:', e.message); });
+  return workspaceId;
+}
+
+export function getLastWorkspace(email) {
+  var profile = getCloserProfile(email);
+  return (profile && profile.lastWorkspaceId) || null;
 }

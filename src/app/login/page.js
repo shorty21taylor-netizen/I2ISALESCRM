@@ -1,11 +1,15 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Check, KeyRound } from 'lucide-react';
-import { saveUser, setVerified, isLoggedIn } from '@/lib/auth';
+import { ArrowRight, Check } from 'lucide-react';
+import { saveUser, setVerified } from '@/lib/auth';
+import { setActiveWorkspace } from '@/lib/workspace-client';
 import SummitMark from '@/components/SummitMark';
 import useBrand from '@/lib/use-brand';
 
+// Email and the team password. That is the whole screen — no password to create,
+// nothing to reset, no sign-up. The roster is the access control: an address
+// nobody put on it does not get in, whatever password it arrives with.
 function SignIn() {
   var router = useRouter();
   var searchParams = useSearchParams();
@@ -14,32 +18,27 @@ function SignIn() {
   var s3 = useState(''), inviteMsg = s3[0], setInviteMsg = s3[1];
   var s4 = useState(''), error = s4[0], setError = s4[1];
   var s5 = useState(false), busy = s5[0], setBusy = s5[1];
-  // Set when the shared team password got them in but they have no password of
-  // their own yet. That is the only route to this panel.
-  var s6 = useState(null), claim = s6[0], setClaim = s6[1];
-  var s7 = useState(''), newPassword = s7[0], setNewPassword = s7[1];
-  var s8 = useState(''), confirm = s8[0], setConfirm = s8[1];
-  var s9 = useState(''), name = s9[0], setName = s9[1];
-  var s10 = useState(false), showHelp = s10[0], setShowHelp = s10[1];
+  // Set only when one sign-in opened more than one workspace.
+  var s6 = useState(null), choice = s6[0], setChoice = s6[1];
   var brand = useBrand();
 
   useEffect(function() {
-    if (isLoggedIn()) { router.replace('/'); return; }
     var invite = searchParams.get('invite');
-    if (invite) setInviteMsg('Invite accepted — sign in to finish setting up.');
-  }, [router, searchParams]);
+    if (invite) setInviteMsg('Invite accepted — sign in to get started.');
+  }, [searchParams]);
 
-  // The name is never typed here once an account exists. It comes back from the
-  // server and is written as given, because one person spelling themselves two
-  // ways at sign-in is how the same rep used to end up on the board twice.
-  function land(user) {
+  // The name is never typed on this screen. It comes back from the server, and
+  // a rep confirms their own spelling once on /welcome — one person spelling
+  // themselves two ways at sign-in is how the board used to grow duplicates.
+  function land(user, workspaceId) {
     saveUser({
-      name: user.name,
+      name: user.name || '',
       email: user.email,
       role: user.role || 'closer',
       joinedAt: new Date().toISOString(),
     });
     setVerified(true);
+    if (workspaceId) setActiveWorkspace(workspaceId);
     router.push('/welcome');
   }
 
@@ -55,45 +54,33 @@ function SignIn() {
       .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
       .then(function(res) {
         setBusy(false);
-        if (!res.ok || !res.d.success) { setError(res.d.error || 'Incorrect email or password'); return; }
-        if (res.d.via === 'account') { land(res.d.user); return; }
-        // Got in on the shared password. They finish by choosing their own, and
-        // the shared one stops working for them from then on.
-        //
-        // The server echoes the email back as a name when there is no account
-        // yet. Prefilling that would create a profile called
-        // "brandnew@i2i.com" — the exact kind of badly named record this whole
-        // change exists to stop — so only a real name is carried over.
-        var given = (res.d.user && res.d.user.name) || '';
-        var known = given && given.toLowerCase() !== email.trim().toLowerCase() ? given : '';
-        setClaim({ teamPassword: password });
-        setName(known);
+        if (!res.ok || !res.d.success) {
+          setError(res.d.error || "That email and team password don't match an active account.");
+          return;
+        }
         setPassword('');
+        var spaces = res.d.workspaces || [];
+        // One workspace and there is nothing to choose, so nobody is asked.
+        if (spaces.length > 1) { setChoice({ user: res.d.user, workspaces: spaces }); return; }
+        land(res.d.user, res.d.workspaceId);
       })
-      .catch(function() { setBusy(false); setError('Could not reach the server'); });
+      .catch(function() { setBusy(false); setError('Could not reach the server.'); });
   }
 
-  function handleClaim(e) {
-    e.preventDefault();
-    if (newPassword !== confirm) { setError('Those two passwords do not match'); return; }
+  function pick(workspaceId) {
     setBusy(true); setError('');
-    fetch('/api/auth/set-password', {
+    fetch('/api/auth/switch-workspace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        name: name.trim(),
-        teamPassword: claim.teamPassword,
-        newPassword: newPassword,
-      }),
+      body: JSON.stringify({ workspaceId: workspaceId }),
     })
       .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
       .then(function(res) {
         setBusy(false);
-        if (!res.ok || !res.d.success) { setError(res.d.error || 'Could not set that password'); return; }
-        land(res.d.user);
+        if (!res.ok || !res.d.success) { setError(res.d.error || 'Could not open that workspace.'); return; }
+        land(choice.user, workspaceId);
       })
-      .catch(function() { setBusy(false); setError('Could not reach the server'); });
+      .catch(function() { setBusy(false); setError('Could not reach the server.'); });
   }
 
   return (
@@ -106,53 +93,31 @@ function SignIn() {
         </div>
 
         <div className="glass-card signin-card">
-          {claim ? (
+          {choice ? (
             <>
-              <h1 className="signin-title">Set your password</h1>
-              <p className="signin-lede">
-                You are in. Choose a password of your own — from now on it is the only one
-                that signs you in, and the team password will not.
-              </p>
+              <h1 className="signin-title">Choose a workspace</h1>
+              <p className="signin-lede">You work more than one offer. Pick the one you are in today.</p>
 
-              <form onSubmit={handleClaim}>
-                <label className="signin-field">
-                  <span>Full name</span>
-                  <input type="text" value={name} className="input-field" autoComplete="name" required
-                    placeholder="Anthony Taylor"
-                    onChange={function(e) { setName(e.target.value); }} />
-                </label>
-                <label className="signin-field">
-                  <span>New password</span>
-                  <input type="password" value={newPassword} className="input-field"
-                    autoComplete="new-password" required minLength={8}
-                    placeholder="At least 8 characters"
-                    onChange={function(e) { setNewPassword(e.target.value); }} />
-                </label>
-                <label className="signin-field">
-                  <span>Confirm password</span>
-                  <input type="password" value={confirm} className="input-field"
-                    autoComplete="new-password" required
-                    onChange={function(e) { setConfirm(e.target.value); }} />
-                </label>
+              <div className="ws-pick">
+                {choice.workspaces.map(function(w) {
+                  return (
+                    <button key={w.id} type="button" className="ws-pick-card" disabled={busy}
+                      onClick={function() { pick(w.id); }}>
+                      <span className="ws-pick-name">{w.name}</span>
+                      <span className="ws-pick-role">{w.role}</span>
+                      <ArrowRight className="w-4 h-4 ws-pick-go" />
+                    </button>
+                  );
+                })}
+              </div>
 
-                {error ? <p className="signin-err">{error}</p> : null}
-
-                <button type="submit" disabled={busy}
-                  className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-                  {busy ? 'Saving…' : 'Save and continue'}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
-
-              <p className="signin-foot">
-                Spell your name the way it should appear on the board. It is what your closes
-                and EODs get filed under, and only an admin can change it later.
-              </p>
+              {error ? <p className="signin-err">{error}</p> : null}
+              <p className="signin-foot">You can switch between them from the nav at any time.</p>
             </>
           ) : (
             <>
               <h1 className="signin-title">Sign in</h1>
-              <p className="signin-lede">Your email and your own password.</p>
+              <p className="signin-lede">Your email and the team password.</p>
 
               {inviteMsg ? (
                 <div className="signin-note"><Check size={14} />{inviteMsg}</div>
@@ -161,12 +126,12 @@ function SignIn() {
               <form onSubmit={handleSubmit}>
                 <label className="signin-field">
                   <span>Email</span>
-                  <input type="email" value={email} className="input-field" autoComplete="email" required
+                  <input type="email" value={email} className="input-field" autoComplete="username" required
                     placeholder="anthony@influence2impact.com"
                     onChange={function(e) { setEmail(e.target.value); }} />
                 </label>
                 <label className="signin-field">
-                  <span>Password</span>
+                  <span>Team password</span>
                   <input type="password" value={password} className="input-field"
                     autoComplete="current-password" required
                     onChange={function(e) { setPassword(e.target.value); }} />
@@ -176,20 +141,10 @@ function SignIn() {
 
                 <button type="submit" disabled={busy}
                   className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-                  {busy ? 'Checking…' : 'Continue'}
+                  {busy ? 'Checking…' : 'Sign in'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-
-              <button type="button" className="signin-help" onClick={function() { setShowHelp(!showHelp); }}>
-                <KeyRound size={12} /> First time signing in?
-              </button>
-              {showHelp ? (
-                <p className="signin-foot">
-                  Put in the team password your manager gave you. It gets you in once, and then
-                  you choose a password of your own on the next screen.
-                </p>
-              ) : null}
             </>
           )}
         </div>
