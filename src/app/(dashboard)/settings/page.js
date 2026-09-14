@@ -6,6 +6,7 @@ import { getFormConfig, saveFormConfig, getPartners, addPartner, removePartner }
 import { getTheme, setTheme } from '@/lib/theme';
 import FormsIntegrationCard from '@/components/FormsIntegrationCard';
 import ReportBrandingCard from '@/components/ReportBrandingCard';
+import AiKeyCard from '@/components/AiKeyCard';
 import OnboardingResourcesCard from '@/components/OnboardingResourcesCard';
 
 export default function SettingsPage() {
@@ -247,6 +248,7 @@ export default function SettingsPage() {
 
         {/* ===== TEAM PASSWORD ===== */}
         {/* ===== REPORT BRANDING ===== */}
+        <AiKeyCard />
         <ReportBrandingCard />
         <OnboardingResourcesCard />
         {/* ===== THEME TOGGLE ===== */}

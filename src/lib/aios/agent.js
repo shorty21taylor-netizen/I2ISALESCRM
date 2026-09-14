@@ -10,6 +10,7 @@ import { TOOLS, validateCall } from '@/lib/aios/tools';
 import { runTool } from '@/lib/aios/handlers';
 import { RANGE_LABELS } from '@/lib/aios/range';
 import { todayInReportTimezone, REPORT_TIMEZONE } from '@/lib/report-date';
+import { getApiKey } from '@/lib/ai-key';
 
 export var MAX_TOOL_CALLS = 8;
 
@@ -80,15 +81,18 @@ function inputOf(block) {
 // `deps.client` exists so the loop itself can be exercised without buying tokens;
 // in every real call it is absent and the SDK client below is used.
 export async function askAios(ctx, question, history, deps) {
-  if (!(deps && deps.client) && !process.env.ANTHROPIC_API_KEY) {
+  var apiKey = (deps && deps.client) ? '' : await getApiKey();
+  if (!(deps && deps.client) && !apiKey) {
     return {
-      error: 'Summit AIOS needs an ANTHROPIC_API_KEY to answer. Set it in the deployment’s variables '
-        + 'and the tab will start working — nothing else needs to change.',
+      error: ctx.canSeeTeam
+        ? 'Summit AIOS needs an Anthropic API key before it can answer. Add one in '
+          + 'Settings → Summit AIOS and this tab starts working immediately.'
+        : 'Summit AIOS is not switched on yet. Ask your operator to add an Anthropic key in Settings.',
       status: 503,
     };
   }
 
-  var client = (deps && deps.client) || new Anthropic();
+  var client = (deps && deps.client) || new Anthropic({ apiKey: apiKey });
   var messages = [];
   (history || []).slice(-10).forEach(function(m) {
     if (!m || !m.text) return;

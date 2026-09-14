@@ -3,6 +3,7 @@
 // by Claude from the same numbers the report shows; without a key the CRM writes
 // it from rules, so the report is never blank and never waits on a network call.
 import Anthropic from '@anthropic-ai/sdk';
+import { getApiKey } from '@/lib/ai-key';
 
 function pctText(v) {
   return v === null || v === undefined ? 'not measurable' : v + '%';
@@ -223,12 +224,15 @@ var SYSTEM = [
 
 export async function generateNarrative(metrics) {
   var fallback = deterministicNarrative(metrics);
-  if (!process.env.ANTHROPIC_API_KEY) {
+  // Same key as the AIOS tab, from the same place, so switching one on switches
+  // on the other rather than leaving half the product waiting on a second setting.
+  var apiKey = await getApiKey();
+  if (!apiKey) {
     return { text: fallback, source: 'computed' };
   }
 
   try {
-    var client = new Anthropic();
+    var client = new Anthropic({ apiKey: apiKey });
     var response = await client.beta.messages.create({
       model: 'claude-opus-5',
       max_tokens: 4000,
