@@ -26,7 +26,7 @@ export default function WorkspacesPage() {
   var [avgDealSize, setAvgDealSize] = useState('');
   var [monthlyAdSpend, setMonthlyAdSpend] = useState('');
   var [funnels, setFunnels] = useState([]);
-  var [primaryColor, setPrimaryColor] = useState('#a3a3a3');
+  var [primaryColor, setPrimaryColor] = useState('#EF4444');
   var [secondaryColor, setSecondaryColor] = useState('#22c55e');
 
   var [teamFor, setTeamFor] = useState(null);
@@ -88,7 +88,7 @@ export default function WorkspacesPage() {
   function resetForm() {
     setCompanyName(''); setOwnerName(''); setOwnerEmail(''); setTeamPassword('');
     setIndustry(''); setTeamSize(''); setAvgDealSize(''); setMonthlyAdSpend('');
-    setFunnels([]); setPrimaryColor('#a3a3a3'); setSecondaryColor('#22c55e');
+    setFunnels([]); setPrimaryColor('#EF4444'); setSecondaryColor('#22c55e');
     setStep(1); setShowCreate(false);
   }
 
@@ -451,21 +451,18 @@ export default function WorkspacesPage() {
                 <div className="space-y-4">
                   <h3 className="text-sm font-display font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--crm-accent)' }}>Branding</h3>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="form-label">Primary Color</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={primaryColor} onChange={function(e) { setPrimaryColor(e.target.value); }} className="w-12 h-12 rounded-lg border-0 cursor-pointer" style={{ background: 'transparent' }} />
-                        <input value={primaryColor} onChange={function(e) { setPrimaryColor(e.target.value); }} className="input-field flex-1 font-mono text-sm" />
-                      </div>
+                  {/* One colour, and it is the one the platform wears. There used to be
+                      a Primary and a Secondary here and neither was rendered anywhere —
+                      you could pick blue and the whole CRM still came up red. */}
+                  <div>
+                    <label className="form-label">Brand colour</label>
+                    <div className="flex items-center gap-3">
+                      <input type="color" value={primaryColor} onChange={function(e) { setPrimaryColor(e.target.value); }} className="w-12 h-12 rounded-lg border-0 cursor-pointer" style={{ background: 'transparent' }} />
+                      <input value={primaryColor} onChange={function(e) { setPrimaryColor(e.target.value); }} className="input-field flex-1 font-mono text-sm" />
                     </div>
-                    <div>
-                      <label className="form-label">Secondary Color</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={secondaryColor} onChange={function(e) { setSecondaryColor(e.target.value); }} className="w-12 h-12 rounded-lg border-0 cursor-pointer" style={{ background: 'transparent' }} />
-                        <input value={secondaryColor} onChange={function(e) { setSecondaryColor(e.target.value); }} className="input-field flex-1 font-mono text-sm" />
-                      </div>
-                    </div>
+                    <p className="text-[11px] font-mono mt-1.5" style={{ color: 'var(--crm-text-muted)' }}>
+                      The accent this workspace wears across the platform. Changeable later in Settings.
+                    </p>
                   </div>
 
                   {/* Preview */}
@@ -473,8 +470,7 @@ export default function WorkspacesPage() {
                     <p className="text-sm font-display font-bold" style={{ color: primaryColor }}>{companyName || 'Company Name'}</p>
                     <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>{ownerEmail || 'owner@email.com'} · {teamSize || '?'} reps · {industry || 'Industry'}</p>
                     <div className="flex gap-2 mt-2">
-                      <div className="px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ background: primaryColor }}>Primary</div>
-                      <div className="px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ background: secondaryColor }}>Secondary</div>
+                      <div className="px-3 py-1 rounded-lg text-xs font-bold text-white" style={{ background: primaryColor }}>Brand colour</div>
                     </div>
                   </div>
                 </div>

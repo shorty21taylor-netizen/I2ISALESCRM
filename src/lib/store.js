@@ -2395,9 +2395,42 @@ export function getWorkspace(id) {
 // it in Settings; this is only what they start as.
 var NEUTRAL_BRAND = { primaryColor: '#a3a3a3', secondaryColor: '#525252', accentColor: '#EF4444' };
 
+// The grey every workspace carried before anyone could choose a colour. It is a
+// leftover default, not somebody's brand, so it never becomes an accent.
+var LEGACY_PLACEHOLDER = '#a3a3a3';
+
+// A colour somebody actually chose, as opposed to a blank field or a typo. Both
+// reach this function: clearing the colour in Settings saves an empty string, and
+// the wizard will happily post whatever was typed into its hex box.
+function chosenColour(value) {
+  var hex = String(value || '').trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '';
+  if (hex.toLowerCase() === LEGACY_PLACEHOLDER) return '';
+  return hex;
+}
+
 function normalizeBranding(ws) {
   if (!ws) return ws;
-  return Object.assign({}, ws, { branding: Object.assign({}, NEUTRAL_BRAND, ws.branding) });
+  var stored = (ws && ws.branding) || {};
+  var branding = Object.assign({}, NEUTRAL_BRAND, stored);
+
+  // Which colour this workspace wears, in order of how deliberate it is:
+  //   1. accentColor  — set in Settings, the explicit answer
+  //   2. primaryColor — picked in the New Workspace wizard, which used to be
+  //      stored and then never rendered: the platform paints accentColor, so a
+  //      client who chose blue on the way in came up red with nothing to explain
+  //      it. Workspaces created before that was fixed heal here instead of their
+  //      owner having to go and set the same colour a second time.
+  //   3. the red default
+  //
+  // An empty or malformed value at either step falls through rather than being
+  // painted — an accentColor of '' would otherwise override the default and leave
+  // the workspace with no accent at all.
+  branding.accentColor = chosenColour(stored.accentColor)
+    || chosenColour(stored.primaryColor)
+    || NEUTRAL_BRAND.accentColor;
+
+  return Object.assign({}, ws, { branding: branding });
 }
 
 export async function createWorkspace(data) {
@@ -2416,6 +2449,12 @@ export async function createWorkspace(data) {
       primaryColor: data.primaryColor || '#a3a3a3',
       secondaryColor: data.secondaryColor || '#22c55e',
       companyName: data.companyName || '',
+      // The colour the platform actually wears. Taken from what was picked on the
+      // way in, so a new client is in their own colour before anyone signs in —
+      // this used to be left unset, and every new workspace came up red whatever
+      // was chosen. A blank or malformed value is left off entirely: writing the
+      // key as '' would override the default and leave the workspace accentless.
+      accentColor: chosenColour(data.accentColor) || chosenColour(data.primaryColor) || undefined,
     },
     onboarding: {
       companyName: data.companyName || '',
