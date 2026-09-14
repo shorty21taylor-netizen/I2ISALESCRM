@@ -137,6 +137,26 @@ export default function DashboardPage() {
   var c = (m && m.closers) || {};
   var st = (m && m.setters) || {};
 
+  // Where the set count came from. Calls booked land as forms during the day and as
+  // an EOD self-report at the end of it, and the tile takes whichever is higher — so
+  // when the two disagree it says so, rather than showing a number with no account
+  // of itself. A setter looking at "0 sets" after booking four calls this morning was
+  // the bug this line exists to make impossible to have silently.
+  function setsSource(s) {
+    var forms = s.setsFromForms;
+    var reported = s.setsReported;
+    if (forms === undefined || reported === undefined) {
+      return pct(s.conversationToSet) + ' of conversations';
+    }
+    if (forms !== reported) {
+      return num(forms) + ' on forms \u00b7 ' + num(reported) + ' on EODs';
+    }
+    if (s.conversationToSet === null || s.conversationToSet === undefined) {
+      return forms ? 'from booked-call forms' : 'nothing booked yet';
+    }
+    return pct(s.conversationToSet) + ' of conversations';
+  }
+
   var rangeLabel = (function() {
     if (dateRange === 'today') return 'Today';
     if (dateRange === 'yesterday') return 'Yesterday';
@@ -341,7 +361,7 @@ export default function DashboardPage() {
           { label: 'Outbound dials', value: num(st.dials) },
           { label: 'Conversations', value: num(st.conversations), sub: pct(st.dialToConversation) + ' of dials' },
           { label: 'Live calls', value: num(st.liveCalls) },
-          { label: 'Total sets', value: num(st.sets), sub: pct(st.conversationToSet) + ' of conversations' },
+          { label: 'Total sets', value: num(st.sets), sub: setsSource(st) },
           { label: 'Sets that showed', value: num(st.shows) },
           { label: 'No showed', value: num(st.noShowed), tone: 'warn' },
           { label: 'Sets closed', value: num(st.closed), sub: pct(st.setToClose) + ' of sets' },

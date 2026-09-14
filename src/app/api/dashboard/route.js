@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, ALL_WORKSPACES } from '@/lib/store';
+import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, getSetterExclusions, ALL_WORKSPACES } from '@/lib/store';
 import { initScheduler } from '@/lib/scheduler';
 import { effectiveReadWorkspace, matchesWorkspace, ALL_WORKSPACES as ACCESS_ALL } from '@/lib/access';
 import { repScope } from '@/lib/rep-scope';
 import { computeSalesReport } from '@/lib/sales-report';
-import { computeSetterBoard } from '@/lib/dedupe-deals';
+import { computeSetterBoard, dedupeDeals } from '@/lib/dedupe-deals';
+import { toReportDay } from '@/lib/report-date';
 
 export var dynamic = 'force-dynamic';
 
@@ -56,10 +57,26 @@ export async function GET(req) {
       end: end || null,
     });
 
-    var setterBoard = computeSetterBoard(
-      store.closedDeals.filter(function(r) { return matchesWorkspace(r, workspaceId); }),
-      store.bookedCalls.filter(function(r) { return matchesWorkspace(r, workspaceId); })
-    );
+    // The setter board, over the SAME range as everything else on the page.
+    //
+    // This used to be handed the entire store: every deal and every booking since
+    // the install, with no date filter at all. "Sets closed 9 / Cash from sets
+    // $32,047" then sat underneath a header that said Today, next to a Total sets
+    // of 0 — the two halves of one row describing different periods. It also
+    // skipped the dedupe and the setter exclusions the leaderboard applies, so a
+    // deal filed twice counted twice here and nowhere else.
+    function inDashboardRange(record) {
+      if (!matchesWorkspace(record, workspaceId)) return false;
+      var day = toReportDay(record.submittedAt);
+      if (!day) return false;
+      if (start && day < start) return false;
+      if (end && day > end) return false;
+      return true;
+    }
+
+    var rangedDeals = dedupeDeals(store.closedDeals.filter(inDashboardRange)).deals;
+    var rangedCalls = store.bookedCalls.filter(inDashboardRange);
+    var setterBoard = computeSetterBoard(rangedDeals, rangedCalls, getSetterExclusions());
     var setterTotals = (setterBoard || []).reduce(function(acc, row) {
       acc.booked += row.booked || 0;
       acc.closed += row.closes || 0;
@@ -86,6 +103,10 @@ export async function GET(req) {
     var v = report.volume;
     var r = report.rates;
     var c = report.cash;
+    // Booked-call forms filed in the range. Already range-filtered by the report
+    // engine, so it describes the same period as every other figure here.
+    var bookedFormsFiled = (report.reporting && report.reporting.bookedForms
+      && report.reporting.bookedForms.filed) || 0;
 
     return NextResponse.json({
       success: true,
@@ -111,7 +132,18 @@ export async function GET(req) {
           dials: v.dials,
           conversations: v.conversations,
           liveCalls: v.liveCalls,
-          sets: v.sets,
+          // What "total sets" means, in order of how much we trust it.
+          //
+          // `sets` was the EOD self-report alone, which is filed at the END of the
+          // day — so a setter who booked four calls this morning showed as 0 until
+          // they wrote their EOD that evening. The booked-call forms are already in
+          // hand by then. Both numbers are sent so the tile can say which it used;
+          // the headline takes whichever is higher rather than adding them, because
+          // a rep who both files an EOD and submits the forms would otherwise have
+          // every set counted twice — the same rule bookedOn() and cashOn() use.
+          sets: Math.max(v.sets, bookedFormsFiled),
+          setsReported: v.sets,
+          setsFromForms: bookedFormsFiled,
           followUps: v.followUps,
           booked: setterTotals.booked,
           closed: setterTotals.closed,
@@ -120,7 +152,12 @@ export async function GET(req) {
           noShowed: v.noShowed,
           dialToConversation: r.dialToConversation,
           conversationToSet: r.conversationToSet,
-          setToClose: v.sets ? Math.round((setterTotals.closed / v.sets) * 1000) / 10 : null,
+          // Divided by the combined set count above, not the EOD-only one — the
+          // numerator is the ranged board, so the denominator has to be the same
+          // period or the rate is two different weeks divided by each other.
+          setToClose: Math.max(v.sets, bookedFormsFiled)
+            ? Math.round((setterTotals.closed / Math.max(v.sets, bookedFormsFiled)) * 1000) / 10
+            : null,
         },
         // Asked for, but nothing captures it: no form has a disqualification
         // field, so there is no honest number to print. Reporting 0 would read
