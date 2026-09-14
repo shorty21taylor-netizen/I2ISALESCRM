@@ -2383,8 +2383,23 @@ export function setWhatsappConfig(config) {
 
 export function getWorkspaces() { return (store.workspaces || []).map(normalizeBranding); }
 
+// The live record. Callers that write to a workspace — updateWorkspace, the team
+// password rotation — mutate what this returns, so it must stay the stored object
+// and not a normalised copy.
 export function getWorkspace(id) {
   return store.workspaces.find(function(w) { return w.id === id; }) || null;
+}
+
+// The same workspace with its branding resolved: a read-only copy, for anything
+// that renders the workspace rather than editing it.
+//
+// getWorkspaces() has always normalised and getWorkspace() never has, which is how
+// the Settings screen came to disagree with the rest of the platform: the sidebar
+// read the list and saw the workspace's colour, while the branding card read the
+// single workspace, got accentColor undefined, and showed an empty field — so a
+// workspace already wearing a colour looked like it had never chosen one.
+export function getWorkspaceBranded(id) {
+  return normalizeBranding(getWorkspace(id));
 }
 
 // Brand colours used to be flattened to a neutral here, because the UI was

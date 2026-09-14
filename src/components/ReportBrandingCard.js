@@ -18,6 +18,13 @@ var SWATCHES = [
   '#F59E0B', '#EF4444', '#EC4899', '#14B8A6',
 ];
 
+// What a workspace wears when it has not chosen. The empty field used to preview
+// the first swatch instead — a blue square and a "#3D7BFF" placeholder — which
+// reads as "blue is selected". Someone picked nothing, pressed Save, and got red,
+// with the screen still showing them blue. An unset field now previews what you
+// will actually get.
+var NEUTRAL_ACCENT = '#EF4444';
+
 export default function ReportBrandingCard() {
   var workspaceId = useWorkspace();
   var fileRef = useRef(null);
@@ -124,14 +131,14 @@ export default function ReportBrandingCard() {
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <input
                   type="color"
-                  value={isValidHex(accent) ? accent : '#3d7bff'}
+                  value={isValidHex(accent) ? accent : NEUTRAL_ACCENT}
                   onChange={function(e) { setAccent(e.target.value.toUpperCase()); setSaved(false); }}
                   className="w-11 h-9 rounded-lg bg-transparent border border-crm-border cursor-pointer p-1"
                   aria-label="Brand colour"
                 />
                 <input
                   value={accent}
-                  placeholder="#3D7BFF"
+                  placeholder={NEUTRAL_ACCENT}
                   onChange={function(e) { setAccent(e.target.value.toUpperCase()); setSaved(false); }}
                   className="w-32 h-9 px-3 rounded-lg text-sm font-mono bg-crm-bg border border-crm-border text-crm-text"
                 />
@@ -157,6 +164,14 @@ export default function ReportBrandingCard() {
                   </button>
                 ) : null}
               </div>
+
+              {!accent ? (
+                <p className="text-xs text-crm-muted mt-3">
+                  No colour chosen — this workspace wears the default
+                  <span className="font-mono"> {NEUTRAL_ACCENT}</span>. Pick a swatch or type a hex,
+                  then Save branding.
+                </p>
+              ) : null}
 
               {preview ? (
                 <div className="flex flex-wrap items-center gap-3 mt-3">

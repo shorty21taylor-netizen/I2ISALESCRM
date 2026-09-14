@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getWorkspace, updateWorkspace, getWorkspaceUserList, initStore } from '@/lib/store';
+import { getWorkspace, getWorkspaceBranded, updateWorkspace, getWorkspaceUserList, initStore } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
 
 export var dynamic = 'force-dynamic';
@@ -7,7 +7,9 @@ export var dynamic = 'force-dynamic';
 export async function GET(req, { params }) {
   await initStore();
   var p = await params;
-  var ws = getWorkspace(p.id);
+  // Branded: the Settings card renders this, so it must see the colour the
+  // workspace is actually wearing rather than a blank field.
+  var ws = getWorkspaceBranded(p.id);
   if (!ws) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   var users = await getWorkspaceUserList(p.id);
   return NextResponse.json({ success: true, workspace: ws, users: users });
@@ -29,5 +31,5 @@ export async function POST(req, { params }) {
   var body = await req.json();
   var ws = await updateWorkspace(p.id, body);
   if (!ws) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ success: true, workspace: ws });
+  return NextResponse.json({ success: true, workspace: getWorkspaceBranded(p.id) });
 }
