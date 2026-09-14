@@ -30,7 +30,7 @@ export default function EODLogsPage() {
   useEffect(function() {
     Promise.all([
       apiFetch(withWorkspace('/api/webhooks/eod-report', workspaceId)).then(function(r) { return r.json(); }),
-      apiFetch('/api/closers?includeArchived=1').then(function(r) { return r.json(); }),
+      apiFetch(withWorkspace('/api/closers?includeArchived=1', workspaceId)).then(function(r) { return r.json(); }),
     ]).then(function(results) {
       setEods((results[0].data || []).filter(Boolean));
       setClosers((results[1].closers || []).filter(Boolean));

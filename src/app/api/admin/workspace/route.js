@@ -25,8 +25,11 @@ async function gate(req) {
   }
   var url = new URL(req.url);
   var requested = url.searchParams.get('workspace');
+  // Whatever was asked for; failing that, the workspace this session is actually
+  // standing in. Defaulting to 'default' meant an operator who had switched into
+  // a new client was still shown the original client's roster and destinations.
   var workspaceId = access.canSeeAll
-    ? (requested || 'default')
+    ? (requested || access.activeWorkspaceId || 'default')
     : access.workspaceIds[0];
   var ws = getWorkspace(workspaceId);
   if (!ws) return { denied: NextResponse.json({ error: 'No such workspace' }, { status: 404 }) };

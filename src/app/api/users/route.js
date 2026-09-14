@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initStore, getWorkspaces } from '@/lib/store';
-import { resolveAccess } from '@/lib/access';
+import { resolveAccess, effectiveReadWorkspace, ALL_WORKSPACES } from '@/lib/access';
+import { membershipRows } from '@/lib/workspace-auth';
 import { listUsers, createUser, updateUser, deleteUser } from '@/lib/users';
 import { grantableRoles, roleGrants, roleLabel } from '@/lib/roles';
 import { OWNER_EMAIL } from '@/lib/access';
@@ -40,9 +41,28 @@ export async function GET(req) {
   var gate = await requireGranter(req);
   if (gate.denied) return gate.denied;
   try {
+    // Accounts belong to workspaces, and this screen belongs to the one the
+    // caller is standing in. Unscoped, an operator who had switched to a new
+    // client was shown every account on the platform, each one labelled with
+    // somebody else's company.
+    var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
+    var everyone = await listUsers();
+    var users = (workspaceId === ALL_WORKSPACES)
+      ? everyone
+      : everyone.filter(function(u) {
+          if ((u.workspaceIds || []).indexOf(workspaceId) !== -1) return true;
+          // A roster row counts too — it is the thing an admin actually created,
+          // and an account added through Access & Sign-ins has one before its
+          // workspaceIds are ever touched.
+          return membershipRows(u.email).some(function(m) {
+            return m.workspaceId === workspaceId && m.active !== false;
+          });
+        });
+
     return NextResponse.json({
       success: true,
-      users: await listUsers(),
+      users: users,
+      workspaceId: workspaceId,
       workspaces: getWorkspaces(),
       // What this particular caller is allowed to hand out, so the screen offers
       // exactly those and nothing it would be refused for.

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { UserPlus, Users, Trash2, Save, Key, Check, AlertCircle, X, Building2 } from 'lucide-react';
-import { apiFetch } from '@/lib/workspace-client';
+import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
 import { ROLES, roleById, roleLabel } from '@/lib/roles';
 
 function emptyForm() {
@@ -9,6 +9,7 @@ function emptyForm() {
 }
 
 export default function TeamPage() {
+  var workspaceId = useWorkspace();
   var s1 = useState([]), users = s1[0], setUsers = s1[1];
   var s2 = useState([]), workspaces = s2[0], setWorkspaces = s2[1];
   // The server decides which roles this caller may hand out; the screen offers
@@ -21,8 +22,10 @@ export default function TeamPage() {
   var s7 = useState(null), confirmDelete = s7[0], setConfirmDelete = s7[1];
   var s8 = useState(false), denied = s8[0], setDenied = s8[1];
 
+  // Scoped to the workspace on screen, and refetched when you switch, so this
+  // list is always the accounts of the client you are looking at.
   var load = useCallback(function() {
-    apiFetch('/api/users')
+    apiFetch(withWorkspace('/api/users', workspaceId))
       .then(function(r) {
         if (r.status === 403) { setDenied(true); return null; }
         return r.json();
@@ -37,7 +40,7 @@ export default function TeamPage() {
       })
       .catch(function() {})
       .then(function() { setLoading(false); });
-  }, []);
+  }, [workspaceId]);
 
   useEffect(function() { load(); }, [load]);
 

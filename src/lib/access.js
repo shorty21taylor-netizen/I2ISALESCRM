@@ -86,6 +86,10 @@ export async function resolveAccess(req) {
       email: email, isOperator: true, isOwner: true, role: 'operator',
       workspaceIds: [], canSeeAll: true, canSeeTeam: true, signedIn: true,
       memberships: state.memberships,
+      // Which workspace the operator is actually looking at. switch-workspace
+      // re-mints the session with it, so the server knows without being told —
+      // which matters for the handful of callers that forget to say.
+      activeWorkspaceId: state.session.workspaceId || null,
     };
   }
 
@@ -123,7 +127,19 @@ export async function repOnlyFilter(req) {
 // workspace, so a query string asking for another is ignored rather than obeyed.
 export async function effectiveReadWorkspace(req, requested) {
   var access = await resolveAccess(req);
-  if (access.canSeeAll) return requested || ALL_WORKSPACES;
+
+  if (access.canSeeAll) {
+    // Asked for explicitly — including the combined view, which the client now
+    // names rather than implying by omission.
+    if (requested) return requested;
+    // Not asked for at all. This used to mean "every workspace", which is how a
+    // caller that simply forgot to pass one — the EOD tracker's roster, among
+    // others — showed the operator one client's whole floor while they were
+    // standing in another client's workspace. Silence now means the workspace
+    // they are actually in.
+    return access.activeWorkspaceId || ALL_WORKSPACES;
+  }
+
   if (!access.workspaceIds.length) return ALL_WORKSPACES;
   return access.workspaceIds[0];
 }

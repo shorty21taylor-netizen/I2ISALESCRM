@@ -22,7 +22,10 @@ async function gate(req) {
   }
   var requested = new URL(req.url).searchParams.get('workspace');
   // A manager is pinned to their own workspace whatever the query string says.
-  var workspaceId = access.canSeeAll ? (requested || 'default') : access.workspaceIds[0];
+  // Whatever was asked for; failing that, the workspace this session is actually
+  // standing in. Defaulting to 'default' meant an operator who had switched into
+  // a new client was still shown the original client's forms and destinations.
+  var workspaceId = access.canSeeAll ? (requested || access.activeWorkspaceId || 'default') : access.workspaceIds[0];
   var ws = getWorkspace(workspaceId);
   if (!ws) return { denied: NextResponse.json({ error: 'No such workspace' }, { status: 404 }) };
   return { access: access, workspaceId: workspaceId, ws: ws };

@@ -49,7 +49,10 @@ export function switchWorkspace(id) {
 // unscoped behaviour is preserved exactly.
 export function withWorkspace(path, workspaceId) {
   var id = workspaceId || getActiveWorkspace();
-  if (!id || id === ALL_WORKSPACES) return path;
+  // The combined view is now said out loud rather than implied by leaving the
+  // parameter off. Omission used to mean both "show me everything" and "I forgot
+  // to ask", and the server had no way to tell the two apart.
+  if (!id) return path;
   return path + (path.indexOf('?') === -1 ? '?' : '&') + 'workspace=' + encodeURIComponent(id);
 }
 

@@ -7,11 +7,12 @@ import { formatCurrency } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { getUser } from '@/lib/auth';
-import { apiFetch } from '@/lib/workspace-client';
+import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
 import useRoster from '@/lib/use-roster';
 
 export default function ClosersPage() {
   var roster = useRoster();
+  var workspaceId = useWorkspace();
   var s1 = useState([]), closers = s1[0], setClosers = s1[1];
   var s2 = useState(true), loading = s2[0], setLoading = s2[1];
   var s3 = useState(''), search = s3[0], setSearch = s3[1];
@@ -35,7 +36,7 @@ export default function ClosersPage() {
 
   function fetchClosers() {
     // Removed reps are fetched too when the toggle is on, so they can be restored.
-    apiFetch('/api/closers' + (showArchived ? '?includeArchived=1' : ''))
+    apiFetch(withWorkspace('/api/closers' + (showArchived ? '?includeArchived=1' : ''), workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {

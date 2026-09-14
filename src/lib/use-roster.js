@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/workspace-client';
+import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
 
 function norm(v) {
   return String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -24,11 +24,14 @@ export function initialsOf(name) {
 // cannot find falls back to initials, which is what every one of these lists
 // showed before.
 export default function useRoster() {
+  var workspaceId = useWorkspace();
   var [state, setState] = useState({ ready: false, byName: {}, byEmail: {}, reps: [] });
 
   useEffect(function() {
     var cancelled = false;
-    apiFetch('/api/roster')
+    // Faces belong to a workspace, and the lookup refetches when you switch —
+    // otherwise the names and photos of the offer you just left stay on screen.
+    apiFetch(withWorkspace('/api/roster', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (cancelled || !d || !d.success) { if (!cancelled) setState(function(s) { return Object.assign({}, s, { ready: true }); }); return; }
@@ -64,7 +67,7 @@ export default function useRoster() {
         if (!cancelled) setState(function(s) { return Object.assign({}, s, { ready: true }); });
       });
     return function() { cancelled = true; };
-  }, []);
+  }, [workspaceId]);
 
   return {
     ready: state.ready,
