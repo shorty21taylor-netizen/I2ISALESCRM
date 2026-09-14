@@ -5,7 +5,7 @@ import {
   listForms, listIntegrations, listRoutes, formsMissingRoutes,
   upsertForm, removeForm, upsertIntegration, removeIntegration,
   upsertRoute, removeRoute, copySetupFrom,
-  ICONS, AUDIENCES, CHANNELS, suggestedTargets,
+  ICONS, AUDIENCES, CHANNELS, suggestedTargets, knownGroupIds,
 } from '@/lib/workspace-config';
 import { ensureLegacyForms, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
 
@@ -40,6 +40,11 @@ export async function GET(req) {
   await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
   var missing = await formsMissingRoutes(g.workspaceId);
   var wc = getWhatsappConfig() || {};
+  var allWorkspaces = getWorkspaces();
+  var allRoutes = {};
+  for (var wi = 0; wi < allWorkspaces.length; wi++) {
+    allRoutes[allWorkspaces[wi].id] = await listRoutes(allWorkspaces[wi].id);
+  }
 
   return NextResponse.json({
     success: true,
@@ -61,6 +66,21 @@ export async function GET(req) {
         if (r && r.source === 'n8n' && r.status === 'external') out[r.kind] = true;
       });
       return Object.keys(out);
+    })(),
+    // Every group id the CRM holds anywhere, so the operator can recognise the
+    // one they want by what it has been used for rather than by its digits.
+    knownGroups: (function() {
+      var routes = [];
+      getWorkspaces().forEach(function(w) {
+        (allRoutes[w.id] || []).forEach(function(r) {
+          routes.push({ target: r.target, formKey: r.formKey, workspaceName: w.name });
+        });
+      });
+      return knownGroupIds({
+        whatsappConfig: getWhatsappConfig() || {},
+        routes: routes,
+        messageLog: getMessageLog(null) || [],
+      });
     })(),
     suggestions: (function() {
       var log = getMessageLog(g.workspaceId) || [];

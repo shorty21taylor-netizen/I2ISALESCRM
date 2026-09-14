@@ -351,3 +351,45 @@ export function suggestedTargets(messageLog, workspaceId, formKey) {
   // Most recently used first — if a group was ever changed, the current one wins.
   return out.sort(function(a, b) { return String(b.lastSeen).localeCompare(String(a.lastSeen)); }).slice(0, 3);
 }
+
+// Every WhatsApp group id this install knows about, wherever it is held.
+//
+// A group id cannot be read off a screen — WhatsApp shows a group's name and
+// never its address — so the only way to answer "which one is the after-call
+// group?" from inside the product is to show what has already been recorded.
+// Three places hold one: the global config that predates per-workspace routing,
+// the routes already configured on any workspace, and the destination stamped on
+// every message the CRM has sent.
+export function knownGroupIds(opts) {
+  var seen = {};
+  var out = [];
+
+  function note(id, label, source) {
+    var target = String(id || '').trim();
+    if (!target || target === 'none' || target.indexOf('@') === -1) return;
+    if (seen[target]) {
+      if (label && seen[target].labels.indexOf(label) === -1) seen[target].labels.push(label);
+      return;
+    }
+    seen[target] = { id: target, labels: label ? [label] : [], source: source };
+    out.push(seen[target]);
+  }
+
+  var wc = (opts && opts.whatsappConfig) || {};
+  note(wc.bookedCallGroupId, 'Booked calls', 'the original WhatsApp settings');
+  note(wc.closedDealGroupId, 'Closed deals', 'the original WhatsApp settings');
+  note(wc.eodReportGroupId, 'EOD reports', 'the original WhatsApp settings');
+  note(wc.afterCallGroupId, 'After-call reports', 'the original WhatsApp settings');
+  note(wc.whatsappGroupId, 'Everything (legacy single group)', 'the original WhatsApp settings');
+
+  ((opts && opts.routes) || []).forEach(function(r) {
+    note(r.target, r.formKey, 'a route on ' + (r.workspaceName || 'another workspace'));
+  });
+
+  ((opts && opts.messageLog) || []).forEach(function(r) {
+    if (!r) return;
+    note(r.destination, r.kind, 'a message the CRM sent');
+  });
+
+  return out;
+}

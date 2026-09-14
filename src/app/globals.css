@@ -3758,3 +3758,32 @@ html, body { overflow-x: clip; }
   white-space: nowrap;
 }
 .wf-hint:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.2); }
+
+/* Every group id the CRM holds, so one can be recognised by what it was used
+   for — the digits alone tell nobody anything. */
+.wf-known {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 2px;
+  border-top: 1px solid var(--glass-card-border);
+  font-size: 12px;
+}
+.wf-known-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--crm-text-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  user-select: all;
+}
+.wf-known-use { color: var(--crm-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-known-src {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crm-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 860px) {
+  .wf-known { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+}

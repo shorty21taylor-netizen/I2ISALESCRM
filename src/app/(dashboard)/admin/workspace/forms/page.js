@@ -256,6 +256,33 @@ export default function WorkspaceFormsPage() {
         })}
       </section>
 
+      {/* ===== GROUPS THE CRM KNOWS ===== */}
+      {(data.knownGroups || []).length ? (
+        <section className="glass-card wsa-card">
+          <div className="wsa-head">
+            <h2 className="wsa-title">WhatsApp groups this CRM knows</h2>
+            <span className="section-tag">{data.knownGroups.length}</span>
+          </div>
+          <p className="wsa-sub">
+            WhatsApp never shows a group&rsquo;s address, so these are every id recorded
+            anywhere in Summit OS &mdash; what each has been used for is how you recognise it.
+            A group the CRM has never sent to will not be here; that one lives in the n8n
+            workflow that posts to it.
+          </p>
+          <div className="wsa-list">
+            {data.knownGroups.map(function(g) {
+              return (
+                <div key={g.id} className="wf-known">
+                  <code className="wf-known-id">{g.id}</code>
+                  <span className="wf-known-use">{g.labels.join(' · ') || '—'}</span>
+                  <span className="wf-known-src">from {g.source}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       {/* ===== INTEGRATIONS ===== */}
       <section className="glass-card wsa-card">
         <div className="wsa-head">
