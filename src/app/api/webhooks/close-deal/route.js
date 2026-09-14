@@ -4,6 +4,7 @@ import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } fro
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
 import { requireRoute } from '@/lib/submit-guard';
+import { syncClosedDeal } from '@/lib/pipeline-sync';
 
 export async function POST(req) {
   await initStore();
@@ -26,6 +27,10 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
     }
     console.log('[Close Deal]', entry.closer, '->', entry.leadsName, '$' + entry.cashCollected);
+
+    // Move the card the setter booked to `won` and hang the money on it, so the
+    // board and the dashboard can never disagree about the month's cash.
+    syncClosedDeal(entry, { name: entry.closer || 'Closed deal form', type: 'system' });
 
     // WhatsApp — routed through the shared sender so the send is logged
     // alongside the ones that come in from the n8n forms.

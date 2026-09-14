@@ -499,6 +499,99 @@
   .skool-stack::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
   .skool-stack::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
+  /* ---- setter / closer pipelines ---- */
+
+  /* A card somebody else owns the outcome of. Visible in full, with its grip and
+     its stage select gone, so "read-only" reads as a state rather than a failure. */
+  .pipe-card-locked { cursor: default; opacity: 0.82; }
+  .pipe-card-locked:hover { transform: none; }
+
+  /* The stale flag. Colour alone never carries it — every dot has the reason as its
+     title and aria-label, and the reason is printed on the card as well. */
+  .pipe-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.7);
+  }
+
+  .pipe-attention {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono), monospace; font-size: 11px;
+    padding: 5px 10px; border-radius: 999px;
+    border: 1px solid rgba(245,158,11,0.35); color: #f59e0b;
+    background: rgba(245,158,11,0.08);
+    transition: background .15s ease;
+  }
+  .pipe-attention:hover { background: rgba(245,158,11,0.16); }
+  .pipe-attention.active { background: rgba(245,158,11,0.22); border-color: rgba(245,158,11,0.6); }
+
+  .pipe-toggle {
+    display: inline-flex; border: 1px solid var(--crm-divider); border-radius: 999px; overflow: hidden;
+  }
+  .pipe-toggle button {
+    font-family: var(--font-mono), monospace; font-size: 11px;
+    padding: 6px 14px; color: var(--crm-text-muted);
+    transition: background .15s ease, color .15s ease;
+  }
+  .pipe-toggle button.active { background: rgba(var(--accent-rgb),0.16); color: var(--crm-text-bright); }
+
+  .pipe-group { border: 0.5px solid var(--crm-divider); border-radius: var(--r-card); overflow: hidden; }
+  .pipe-group-head {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 12px 14px;
+    font-family: var(--font-mono), monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--crm-text-bright);
+    /* Sticky so the stage a rep is scrolling through stays named. */
+    position: sticky; top: 0; z-index: 2;
+    background: var(--crm-surface, rgba(20,20,22,0.92));
+    backdrop-filter: blur(12px);
+  }
+
+  /* The detail drawer. A side sheet on a desktop, a full-height sheet on a phone —
+     the same markup either way. */
+  .pipe-drawer-scrim {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
+    display: flex; justify-content: flex-end;
+  }
+  .pipe-drawer {
+    width: min(460px, 100%); max-height: 100dvh;
+    display: flex; flex-direction: column;
+    background: var(--crm-bg-elevated, #111113);
+    border-left: 0.5px solid var(--crm-divider);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pipe-drawer-body { overflow-y: auto; flex: 1; min-height: 0; }
+
+  .pipe-event { display: flex; gap: 8px; align-items: flex-start; }
+  .pipe-event-dot {
+    width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+    background: var(--crm-accent); box-shadow: 0 0 6px rgba(var(--accent-rgb),0.6);
+  }
+
+  /* The mobile stage picker. Drag-and-drop does not exist on a touch screen, so a
+     stage change on a phone is a tap and a sheet. */
+  .pipe-sheet-scrim {
+    position: fixed; inset: 0; z-index: 95;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: flex-end;
+  }
+  .pipe-sheet {
+    width: 100%;
+    background: var(--crm-bg-elevated, #111113);
+    border-top-left-radius: 18px; border-top-right-radius: 18px;
+    border-top: 0.5px solid var(--crm-divider);
+    max-height: 80dvh; overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pipe-sheet-row {
+    display: block; width: 100%; text-align: left;
+    padding: 14px 18px; font-size: 14px;
+    color: var(--crm-text-bright);
+    border-top: 0.5px solid var(--crm-divider);
+  }
+  .pipe-sheet-row.current { color: var(--crm-accent); }
+  .pipe-sheet-row.cancel { text-align: center; color: var(--crm-text-muted); }
+
   .stage-rail { height: 2px; border-radius: 2px; }
   .stage-rail-accent { background: var(--crm-accent); box-shadow: 0 0 10px rgba(var(--accent-rgb),0.5); }
   .stage-rail-green  { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.55); }

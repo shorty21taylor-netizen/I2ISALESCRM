@@ -177,6 +177,33 @@ export async function getIntegration(workspaceId, provider, configKey) {
   return '';
 }
 
+// Which workspace owns this integration value? The reverse lookup, for inbound
+// webhooks that arrive carrying a provider's own id and nothing else.
+//
+// Returns '' when nothing matches — and the callers treat that as "do nothing",
+// never as "use the first workspace". Guessing here would file one client's
+// appointments into another client's books.
+export async function workspaceForIntegrationValue(provider, configKey, configValue) {
+  var value = String(configValue == null ? '' : configValue).trim();
+  if (!value) return '';
+  var all = await load();
+  var hits = all.integrations.filter(function(r) {
+    return r.provider === provider
+      && r.config_key === configKey
+      && String(r.config_value || '').trim() === value;
+  });
+  // Two workspaces claiming the same location id is a configuration mistake, and
+  // picking one of them at random is exactly the leak this lookup exists to avoid.
+  if (hits.length !== 1) {
+    if (hits.length > 1) {
+      console.error('[Workspace config] ' + provider + '/' + configKey + ' "' + value
+        + '" is claimed by ' + hits.length + ' workspaces — refusing to guess');
+    }
+    return '';
+  }
+  return hits[0].workspace_id || '';
+}
+
 export async function upsertIntegration(workspaceId, provider, configKey, configValue) {
   var p = String(provider || '').trim();
   var k = String(configKey || '').trim();

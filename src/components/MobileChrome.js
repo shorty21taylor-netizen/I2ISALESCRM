@@ -27,7 +27,7 @@ var TABS = [
 var TITLES = {
   '/': 'Dashboard', '/me': 'My Dashboard', '/submit': 'Submit reports',
   '/aios': 'Summit AIOS', '/leaderboard': 'Leaderboard', '/onboarding': 'Onboarding',
-  '/booked-calls': 'Booked Calls', '/closed-deals': 'Closed Deals', '/skool': 'Skool',
+  '/booked-calls': 'Booked Calls', '/closed-deals': 'Closed Deals', '/skool': 'Skool', '/pipeline': 'Pipeline',
   '/eod-logs': 'EOD Logs', '/after-call': 'After-Call', '/analytics': 'Analytics',
   '/commissions': 'Commissions', '/closers': 'Closers', '/message-log': 'Message Log',
   '/settings': 'Settings', '/operator': 'Operator View',

@@ -59,6 +59,23 @@ export async function initDatabase() {
     await p.query("CREATE TABLE IF NOT EXISTS skool_leads (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_skool_created ON skool_leads (created_at DESC)').catch(function() {});
 
+    // The setter and closer pipelines. ONE table: a prospect-appointment is a single
+    // row, and the two boards are two role-scoped renderings of it. Two tables would
+    // mean two sources of truth about whether a call showed.
+    //
+    // ghl_appointment_id is lifted out of the JSONB into its own column so it can
+    // carry a unique index. It is the dedupe key: without it every GoHighLevel
+    // webhook retry — and GHL retries — creates a duplicate card.
+    await p.query("CREATE TABLE IF NOT EXISTS pipeline_records (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT NOT NULL DEFAULT 'default', ghl_appointment_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ)").catch(function() {});
+    await p.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_pipe_ghl_appt ON pipeline_records (ghl_appointment_id) WHERE ghl_appointment_id IS NOT NULL AND deleted_at IS NULL').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_pipe_ws ON pipeline_records (workspace_id) WHERE deleted_at IS NULL').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_pipe_created ON pipeline_records (created_at DESC)').catch(function() {});
+
+    // Every stage change, with who made it. When someone disputes a no-show, this
+    // table is the answer — so it is append-only and never soft-deleted.
+    await p.query('CREATE TABLE IF NOT EXISTS pipeline_events (id TEXT PRIMARY KEY, record_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_pipe_events ON pipeline_events (record_id, created_at DESC)').catch(function() {});
+
     // After-call reports: the recap a closer files once the call is over.
     await p.query("CREATE TABLE IF NOT EXISTS after_call_reports (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_after_call_created ON after_call_reports (created_at DESC)').catch(function() {});
@@ -173,6 +190,8 @@ export async function loadFromDatabase() {
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
     var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
     var sk = await p.query('SELECT data, workspace_id FROM skool_leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1000').catch(function() { return { rows: [] }; });
+    var pr = await p.query('SELECT data, workspace_id, ghl_appointment_id FROM pipeline_records WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 2000').catch(function() { return { rows: [] }; });
+    var pe = await p.query('SELECT record_id, data FROM pipeline_events ORDER BY created_at ASC LIMIT 10000').catch(function() { return { rows: [] }; });
     var ra = await p.query('SELECT email, award_id, data FROM rep_awards').catch(function() { return { rows: [] }; });
     // A rolling window of AIOS chats. History is a convenience, not a record of
     // account, so it loads bounded rather than whole.
@@ -198,6 +217,17 @@ export async function loadFromDatabase() {
       messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
       afterCallReports: (ac && ac.rows ? ac.rows : []).map(withWs),
       skoolLeads: (sk && sk.rows ? sk.rows : []).map(withWs),
+      pipelineRecords: (pr && pr.rows ? pr.rows : []).map(function(r) {
+        var d = withWs(r);
+        // The column is authoritative for the dedupe key, same as workspace_id.
+        d.ghlAppointmentId = r.ghl_appointment_id || '';
+        return d;
+      }),
+      pipelineEvents: (pe && pe.rows ? pe.rows : []).map(function(r) {
+        var d = r.data || {};
+        d.recordId = r.record_id;
+        return d;
+      }),
       repAwards: ((ra && ra.rows) ? ra.rows : []).reduce(function(a, r) {
         var key = (r.email || '').toLowerCase();
         a[key] = a[key] || {};
@@ -445,9 +475,43 @@ export async function saveCustomMessage(entry) {
 // Soft delete. The row is retained and can be brought back with:
 //   UPDATE <table> SET deleted_at = NULL WHERE id = '<id>';
 export async function softDeleteRecord(table, id) {
-  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads'];
+  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads', 'pipeline_records'];
   if (ALLOWED.indexOf(table) === -1) throw new Error('Unknown table: ' + table);
   return query('UPDATE ' + table + ' SET deleted_at = NOW() WHERE id = $1', [id]);
+}
+
+// One row per prospect-appointment. ghl_appointment_id is written as NULL rather
+// than '' when absent, so the partial unique index does not treat every manually
+// created card as a collision with every other one.
+export async function savePipelineRecord(entry) {
+  return query(
+    'INSERT INTO pipeline_records (id, data, workspace_id, ghl_appointment_id, updated_at) VALUES ($1, $2, $3, $4, NOW()) '
+    + 'ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3, ghl_appointment_id = $4, updated_at = NOW()',
+    [entry.id, JSON.stringify(entry), entry.workspaceId || 'default', entry.ghlAppointmentId || null]
+  );
+}
+
+// Append-only. A stage change that has been recorded is never rewritten.
+export async function savePipelineEvent(event) {
+  return query(
+    'INSERT INTO pipeline_events (id, record_id, data) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+    [event.id, event.recordId, JSON.stringify(event)]
+  );
+}
+
+// The dedupe lookup, straight against the indexed column. Used by the webhook so a
+// retry finds the existing row even when the in-memory mirror has been restarted.
+export async function findPipelineByAppointment(ghlAppointmentId) {
+  if (!ghlAppointmentId) return null;
+  var r = await query(
+    'SELECT data, workspace_id, ghl_appointment_id FROM pipeline_records WHERE ghl_appointment_id = $1 AND deleted_at IS NULL LIMIT 1',
+    [ghlAppointmentId]
+  );
+  if (!r || !r.rows || !r.rows.length) return null;
+  var d = r.rows[0].data || {};
+  d.workspaceId = r.rows[0].workspace_id || 'default';
+  d.ghlAppointmentId = r.rows[0].ghl_appointment_id || '';
+  return d;
 }
 
 export async function saveSkoolLead(entry) {

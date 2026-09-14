@@ -4,6 +4,7 @@ import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } fro
 import { addBookedCall, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
 import { requireRoute } from '@/lib/submit-guard';
+import { syncBookedCall } from '@/lib/pipeline-sync';
 
 export async function POST(req) {
   await initStore();
@@ -26,6 +27,11 @@ export async function POST(req) {
       registerCloser(body.closerEmail || '', body.closer || '');
     }
     console.log('[Book Call]', entry.closer || entry.setter, '->', entry.leadsName);
+
+    // The setter and closer boards are a view of work already recorded, so the card
+    // is written after the booking itself and never in place of it. addBookedCall is
+    // untouched — this reads what it returned.
+    syncBookedCall(entry, { name: entry.setter || 'Booked call form', type: 'system' });
 
     // WhatsApp — routed through the shared sender so the send is logged
     // alongside the ones that come in from the n8n forms.

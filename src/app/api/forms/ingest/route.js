@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { syncBookedCall, syncClosedDeal } from '@/lib/pipeline-sync';
 import { initStore, addBookedCall, addClosedDeal, addEODReport, addAfterCallReport, registerCloser, addIngestAttempt, getIngestAttempts } from '@/lib/store';
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
 import { normalizeSubmission, resolveFormType, checkEODSanity } from '@/lib/form-ingest';
@@ -117,8 +118,8 @@ export async function POST(req) {
     }
 
     var entry;
-    if (type === 'book-call') entry = addBookedCall(record);
-    else if (type === 'close-deal') entry = addClosedDeal(record);
+    if (type === 'book-call') { entry = addBookedCall(record); syncBookedCall(entry, { name: 'n8n form', type: 'webhook' }); }
+    else if (type === 'close-deal') { entry = addClosedDeal(record); syncClosedDeal(entry, { name: 'n8n form', type: 'webhook' }); }
     else if (type === 'after-call') entry = addAfterCallReport(record);
     else entry = addEODReport(record);
 

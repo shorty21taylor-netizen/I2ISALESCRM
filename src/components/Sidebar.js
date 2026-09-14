@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap, Sparkles, KeyRound } from 'lucide-react';
+import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap, Sparkles, KeyRound, GitBranch } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
@@ -30,6 +30,7 @@ var navGroups = [
     label: 'Pipeline',
     icon: Phone,
     items: [
+      { href: '/pipeline', label: 'My Pipeline', icon: GitBranch },
       { href: '/booked-calls', label: 'Booked Calls', icon: Phone },
       { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
       { href: '/skool', label: 'Skool Community', icon: GraduationCap },

@@ -4,8 +4,9 @@
 
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
+import { DEFAULT_STAGE as PIPE_DEFAULT_STAGE, isStage as isPipeStage, money as pipeMoney } from '@/lib/pipeline';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, softDeleteRecord,
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, savePipelineRecord, savePipelineEvent, findPipelineByAppointment, softDeleteRecord,
   saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
   saveAuthAttempt, loadAuthAttempts,
 } from '@/lib/db';
@@ -30,6 +31,8 @@ var store = {
   eodReports: [],
   afterCallReports: [],
   skoolLeads: [],
+  pipelineRecords: [],
+  pipelineEvents: [],
   messageLog: [],
   commissionRates: {},
   closerProfiles: {},
@@ -92,6 +95,8 @@ export async function initStore() {
         store.eodReports = data.eodReports || [];
         store.afterCallReports = data.afterCallReports || [];
         store.skoolLeads = data.skoolLeads || [];
+        store.pipelineRecords = data.pipelineRecords || [];
+        store.pipelineEvents = data.pipelineEvents || [];
         store.messageLog = data.messageLog || [];
         store.closerProfiles = data.closerProfiles || {};
         store.repAwards = data.repAwards || {};
@@ -1996,6 +2001,242 @@ export function getSkoolLeads(workspaceId) {
 }
 
 // ============================================
+// SETTER AND CLOSER PIPELINES
+// ============================================
+//
+// One record, two views. A prospect-appointment is a single row: the setter board
+// and the closer board render the same row with different columns and different edit
+// permissions. There is no setter table and no closer table, deliberately — two
+// tables would be two sources of truth, and they would disagree about whether a call
+// showed within a week.
+//
+// The row references booked_calls and closed_deals by id. It never writes to them.
+
+function pipelineFields(data, existing) {
+  var base = existing || {};
+  function text(key, fallbackKey) {
+    var k = fallbackKey || key;
+    if (data[key] !== undefined) return String(data[key] === null ? '' : data[key]).trim();
+    return base[k] || '';
+  }
+
+  var out = {
+    prospectName: data.prospectName !== undefined ? String(data.prospectName || '').trim() : (base.prospectName || ''),
+    prospectEmail: data.prospectEmail !== undefined ? String(data.prospectEmail || '').trim().toLowerCase() : (base.prospectEmail || ''),
+    prospectPhone: text('prospectPhone'),
+    leadSource: text('leadSource'),
+
+    setter: data.setter !== undefined ? canonicalRep(data.setter) : (base.setter || ''),
+    closer: data.closer !== undefined ? canonicalRep(data.closer) : (base.closer || ''),
+    setterEmail: data.setterEmail !== undefined ? String(data.setterEmail || '').trim().toLowerCase() : (base.setterEmail || ''),
+    closerEmail: data.closerEmail !== undefined ? String(data.closerEmail || '').trim().toLowerCase() : (base.closerEmail || ''),
+
+    appointmentAt: data.appointmentAt !== undefined ? isoOrEmpty(data.appointmentAt) : (base.appointmentAt || ''),
+    offer: text('offer'),
+    dealTerms: text('dealTerms'),
+    notes: text('notes'),
+
+    ghlAppointmentId: text('ghlAppointmentId'),
+    ghlContactId: text('ghlContactId'),
+    bookedCallId: text('bookedCallId'),
+    closedDealId: text('closedDealId'),
+  };
+
+  out.cashCollected = data.cashCollected !== undefined ? pipeMoney(data.cashCollected) : pipeMoney(base.cashCollected);
+
+  var stage = data.stage !== undefined ? String(data.stage) : (base.stage || PIPE_DEFAULT_STAGE);
+  out.stage = isPipeStage(stage) ? stage : PIPE_DEFAULT_STAGE;
+
+  return out;
+}
+
+// A date that may arrive as an ISO string, a Date, or GoHighLevel's own format.
+// Anything unparseable is dropped rather than stored as "Invalid Date", which would
+// make every relative label on the board read NaN.
+function isoOrEmpty(value) {
+  if (!value) return '';
+  var d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
+}
+
+// The stages that mean a real appointment exists. Reaching any of them stamps
+// bookedAt once, so "sets this month" keeps counting a call after it has moved on.
+var BOOKED_ONWARD = ['booked', 'confirmed', 'showed', 'pitched', 'follow_up', 'won', 'lost', 'no_show'];
+
+function stampLifecycle(entry, previousStage, at) {
+  if (!entry.bookedAt && BOOKED_ONWARD.indexOf(entry.stage) !== -1) entry.bookedAt = at;
+  if (entry.stage !== previousStage) entry.stageChangedAt = at;
+  entry.lastActivityAt = at;
+  entry.updatedAt = at;
+}
+
+export function addPipelineRecord(data, actor) {
+  var now = new Date().toISOString();
+  var entry = Object.assign({
+    id: 'pipe-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+  }, pipelineFields(data || {}, null));
+
+  entry.workspaceId = resolveWriteWorkspace(data && data.workspaceId);
+  entry.createdAt = now;
+  entry.stageChangedAt = now;
+  entry.bookedAt = '';
+  stampLifecycle(entry, null, now);
+
+  canonicalizeInto(entry, data || {}, ['setter', 'closer']);
+
+  store.pipelineRecords.unshift(entry);
+  if (store.pipelineRecords.length > 2000) store.pipelineRecords = store.pipelineRecords.slice(0, 2000);
+  savePipelineRecord(entry).catch(function(e) { console.error('[DB] Save pipeline record error:', e.message); });
+
+  addPipelineEvent(entry.id, {
+    fromStage: '', toStage: entry.stage,
+    actorEmail: (actor && actor.email) || '', actorName: (actor && actor.name) || '',
+    actorType: (actor && actor.type) || 'system',
+    note: (actor && actor.note) || '',
+  });
+  return entry;
+}
+
+export function getPipelineRecord(id) {
+  for (var i = 0; i < store.pipelineRecords.length; i++) {
+    if (store.pipelineRecords[i] && store.pipelineRecords[i].id === id) return store.pipelineRecords[i];
+  }
+  return null;
+}
+
+export function updatePipelineRecord(id, data, actor) {
+  var record = getPipelineRecord(id);
+  if (!record) return { error: 'No pipeline record with id ' + id };
+
+  var previousStage = record.stage;
+  var fields = pipelineFields(data || {}, record);
+  Object.keys(fields).forEach(function(k) { record[k] = fields[k]; });
+  canonicalizeInto(record, data || {}, ['setter', 'closer']);
+
+  var now = new Date().toISOString();
+  stampLifecycle(record, previousStage, now);
+
+  savePipelineRecord(record).catch(function(e) { console.error('[DB] Update pipeline record error:', e.message); });
+
+  // Only a stage change is an event. Correcting a phone number is not something
+  // anyone will ever dispute; which stage it was in, and who put it there, is.
+  if (record.stage !== previousStage) {
+    addPipelineEvent(record.id, {
+      fromStage: previousStage, toStage: record.stage,
+      actorEmail: (actor && actor.email) || '', actorName: (actor && actor.name) || '',
+      actorType: (actor && actor.type) || 'rep',
+      note: (actor && actor.note) || '',
+    });
+  }
+  return { record: record };
+}
+
+export function getPipelineRecords(workspaceId) {
+  return scoped(store.pipelineRecords, workspaceId);
+}
+
+// The dedupe lookup. Memory first, then the database — a webhook retry that arrives
+// after a restart must still find the row it already created, or GoHighLevel's own
+// retries would fill the board with duplicates of every appointment.
+export async function findPipelineByAppointmentId(ghlAppointmentId) {
+  var key = String(ghlAppointmentId || '').trim();
+  if (!key) return null;
+  for (var i = 0; i < store.pipelineRecords.length; i++) {
+    var r = store.pipelineRecords[i];
+    if (r && r.ghlAppointmentId === key) return r;
+  }
+  var row = await findPipelineByAppointment(key).catch(function() { return null; });
+  if (!row) return null;
+  // Put it back in memory so the board and the next retry both see it.
+  if (!getPipelineRecord(row.id)) store.pipelineRecords.unshift(row);
+  return getPipelineRecord(row.id) || row;
+}
+
+// Create-or-move, keyed on the appointment id. The workspace is decided by the
+// caller and is never taken from the payload — see the webhook route.
+export async function upsertPipelineByAppointment(ghlAppointmentId, data, actor) {
+  var existing = await findPipelineByAppointmentId(ghlAppointmentId);
+  if (!existing) {
+    return {
+      created: true,
+      record: addPipelineRecord(Object.assign({}, data, { ghlAppointmentId: ghlAppointmentId }), actor),
+    };
+  }
+  // An update must never relocate a record into another workspace. If it arrives
+  // claiming a different one, that is a mapping mistake upstream, not permission.
+  var patch = Object.assign({}, data);
+  delete patch.workspaceId;
+  var result = updatePipelineRecord(existing.id, patch, actor);
+  return { created: false, record: result.record, error: result.error };
+}
+
+// Which existing card does a form submission belong to? The appointment id when we
+// have one; otherwise the same prospect on the same day, which is how a closer's
+// deal finds the card their setter booked.
+export function matchPipelineRecord(workspaceId, criteria) {
+  var rows = getPipelineRecords(workspaceId);
+  var appt = String((criteria && criteria.ghlAppointmentId) || '').trim();
+  if (appt) {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].ghlAppointmentId === appt) return rows[i];
+    }
+  }
+
+  var name = normaliseKey((criteria && criteria.prospectName) || '');
+  var email = String((criteria && criteria.prospectEmail) || '').trim().toLowerCase();
+  if (!name && !email) return null;
+
+  var day = criteria && criteria.day ? toReportDay(criteria.day) : '';
+  var best = null;
+  for (var j = 0; j < rows.length; j++) {
+    var r = rows[j];
+    var nameHit = name && normaliseKey(r.prospectName) === name;
+    var emailHit = email && r.prospectEmail && r.prospectEmail === email;
+    if (!nameHit && !emailHit) continue;
+    // Prefer a card whose appointment is on the day we were given, then any open
+    // card, then the most recent. A prospect who bought twice has two cards.
+    var sameDay = day && r.appointmentAt && toReportDay(r.appointmentAt) === day;
+    var score = (sameDay ? 4 : 0) + (r.stage !== 'won' ? 2 : 0) + (emailHit ? 1 : 0);
+    if (!best || score > best.score) best = { score: score, row: r };
+  }
+  return best ? best.row : null;
+}
+
+function normaliseKey(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// ---- the event log ----
+//
+// Append-only, and never soft-deleted. When someone disputes a no-show, this is the
+// answer: who moved the card, from what, to what, and when.
+
+export function addPipelineEvent(recordId, data) {
+  var event = {
+    id: 'pev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    recordId: recordId,
+    fromStage: (data && data.fromStage) || '',
+    toStage: (data && data.toStage) || '',
+    actorEmail: String((data && data.actorEmail) || '').toLowerCase(),
+    actorName: (data && data.actorName) || '',
+    actorType: ['rep', 'webhook', 'system'].indexOf((data && data.actorType) || '') !== -1 ? data.actorType : 'rep',
+    note: (data && data.note) || '',
+    createdAt: new Date().toISOString(),
+  };
+  store.pipelineEvents.push(event);
+  if (store.pipelineEvents.length > 10000) store.pipelineEvents = store.pipelineEvents.slice(-10000);
+  savePipelineEvent(event).catch(function(e) { console.error('[DB] Save pipeline event error:', e.message); });
+  return event;
+}
+
+export function getPipelineEvents(recordId) {
+  return store.pipelineEvents
+    .filter(function(e) { return e && e.recordId === recordId; })
+    .sort(function(a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); });
+}
+
+// ============================================
 // INGEST ATTEMPTS — did n8n actually reach us?
 // ============================================
 //
@@ -2044,6 +2285,7 @@ var DELETE_TARGETS = {
   'eod-report': { list: 'eodReports', table: 'eod_reports', label: 'EOD report' },
   'after-call': { list: 'afterCallReports', table: 'after_call_reports', label: 'after-call report' },
   'skool-lead': { list: 'skoolLeads', table: 'skool_leads', label: 'Skool lead' },
+  'pipeline': { list: 'pipelineRecords', table: 'pipeline_records', label: 'pipeline record' },
 };
 
 export async function deleteRecord(kind, id) {
