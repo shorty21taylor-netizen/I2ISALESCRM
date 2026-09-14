@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { initStore, getWorkspace, getWorkspaces, getWhatsappConfig } from '@/lib/store';
+import { initStore, getWorkspace, getWorkspaces, getWhatsappConfig, getMessageLog } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
 import {
   listForms, listIntegrations, listRoutes, formsMissingRoutes,
   upsertForm, removeForm, upsertIntegration, removeIntegration,
   upsertRoute, removeRoute, copySetupFrom,
-  ICONS, AUDIENCES, CHANNELS,
+  ICONS, AUDIENCES, CHANNELS, suggestedTargets,
 } from '@/lib/workspace-config';
 import { ensureLegacyForms, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
 
@@ -48,6 +48,29 @@ export async function GET(req) {
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: missing,
+    // For any form with no destination, the groups this CRM has actually posted
+    // that form to before — read out of the message log, because a WhatsApp group
+    // id cannot be read off a screen.
+    // Forms that arrive from an n8n workflow which posts to WhatsApp itself. For
+    // these a CRM destination is not missing — it would be a second copy of every
+    // message in the same group.
+    externallyPosted: (function() {
+      var log = getMessageLog(g.workspaceId) || [];
+      var out = {};
+      log.forEach(function(r) {
+        if (r && r.source === 'n8n' && r.status === 'external') out[r.kind] = true;
+      });
+      return Object.keys(out);
+    })(),
+    suggestions: (function() {
+      var log = getMessageLog(g.workspaceId) || [];
+      var out = {};
+      missing.forEach(function(key) {
+        var found = suggestedTargets(log, g.workspaceId, key);
+        if (found.length) out[key] = found;
+      });
+      return out;
+    })(),
     // Offered only where it makes sense: a workspace with real sales history and
     // no forms is one whose Submit page was lost, not one nobody has set up yet.
     canRestoreOriginals: (await listForms(g.workspaceId, { includeInactive: true })).length === 0

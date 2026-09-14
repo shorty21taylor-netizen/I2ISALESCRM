@@ -247,6 +247,8 @@ export default function WorkspaceFormsPage() {
           return (
             <RouteRow key={f.formKey} form={f} route={route} channels={data.channels}
               busy={busy} canTestSend={data.canTestSend}
+              suggestions={(data.suggestions || {})[f.formKey] || []}
+              externallyPosted={(data.externallyPosted || []).indexOf(f.formKey) !== -1}
               onSave={function(next) { act({ action: 'save-route', formKey: f.formKey, channel: next.channel, target: next.target, isActive: true }); }}
               onTest={function() { act({ action: 'test-send', formKey: f.formKey }, function(d) { setNotice(d.note || 'Test sent.'); }); }}
             />
@@ -331,12 +333,14 @@ export default function WorkspaceFormsPage() {
   );
 }
 
-function RouteRow({ form, route, channels, busy, canTestSend, onSave, onTest }) {
+function RouteRow({ form, route, channels, busy, canTestSend, suggestions, externallyPosted, onSave, onTest }) {
   var s1 = useState(route.channel), channel = s1[0], setChannel = s1[1];
   var s2 = useState(route.target === 'none' ? '' : route.target), target = s2[0], setTarget = s2[1];
   var configured = !!routeTargetOf(route);
+  var hints = suggestions || [];
 
   return (
+    <>
     <form className="wf-route" onSubmit={function(e) { e.preventDefault(); onSave({ channel: channel, target: target }); }}>
       <span className="wf-route-name">{form.label}</span>
       <select className="input-field" value={channel} onChange={function(e) { setChannel(e.target.value); }}>
@@ -352,6 +356,37 @@ function RouteRow({ form, route, channels, busy, canTestSend, onSave, onTest }) 
       </button>
       {!configured ? <span className="wf-chip-bad">Not set</span> : null}
     </form>
+    {/* A WhatsApp group never shows its own address, so nobody can copy it off
+        their screen. These are the groups this CRM has actually posted this form
+        to before, read back out of the message log. */}
+    {!configured && externallyPosted ? (
+      <div className="wf-hints">
+        <span className="wf-hints-label">
+          An n8n workflow already posts this one to WhatsApp. Giving it a destination here
+          would put a second copy of every message in the same group — pick
+        </span>
+        <button type="button" className="wf-hint" disabled={busy}
+          onClick={function() { setChannel('none'); onSave({ channel: 'none', target: '' }); }}>
+          no alerts
+        </button>
+        <span className="wf-hints-label">instead, and the CRM will keep recording them.</span>
+      </div>
+    ) : null}
+    {!configured && !externallyPosted && hints.length ? (
+      <div className="wf-hints">
+        <span className="wf-hints-label">Previously sent to:</span>
+        {hints.map(function(h) {
+          return (
+            <button key={h.target} type="button" className="wf-hint" disabled={busy}
+              title={h.count + ' message(s), last ' + new Date(h.lastSeen).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              onClick={function() { setTarget(h.target); onSave({ channel: 'whatsapp', target: h.target }); }}>
+              {h.target}
+            </button>
+          );
+        })}
+      </div>
+    ) : null}
+    </>
   );
 }
 

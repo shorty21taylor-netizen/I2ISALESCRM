@@ -325,3 +325,29 @@ export async function copySetupFrom(sourceWorkspaceId, targetWorkspaceId) {
       + 'so nothing posts into the wrong group.',
   };
 }
+
+// Where this form's messages have actually been going.
+//
+// A WhatsApp group id is not something anybody can read off their screen —
+// WhatsApp shows a group's name and never its address. But every notification
+// this CRM has ever sent recorded the destination it went to, so the answer to
+// "which group is the after-call one?" is already in the message log. This digs
+// it out rather than asking somebody to go hunting in n8n.
+export function suggestedTargets(messageLog, workspaceId, formKey) {
+  var id = ws(workspaceId);
+  var seen = {};
+  var out = [];
+  (messageLog || []).forEach(function(row) {
+    if (!row || row.kind !== formKey) return;
+    if ((row.workspaceId || 'default') !== id) return;
+    var target = String(row.destination || '').trim();
+    // Only real addresses: the log also carries 'none', 'n8n workflow' and the
+    // blank left by a refused send.
+    if (!target || target === 'none' || target.indexOf('@') === -1) return;
+    if (seen[target]) { seen[target].count++; return; }
+    seen[target] = { target: target, count: 1, lastSeen: row.sentAt, status: row.status };
+    out.push(seen[target]);
+  });
+  // Most recently used first — if a group was ever changed, the current one wins.
+  return out.sort(function(a, b) { return String(b.lastSeen).localeCompare(String(a.lastSeen)); }).slice(0, 3);
+}

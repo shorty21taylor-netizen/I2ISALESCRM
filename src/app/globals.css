@@ -3728,3 +3728,33 @@ html, body { overflow-x: clip; }
   .aw-unlock-medal svg { width: min(132px, 30vw); height: auto; }
   .aw-bloom { width: min(200px, 52vw); height: min(200px, 52vw); }
 }
+
+/* Groups this form has been posted to before — offered because a WhatsApp group
+   id is not something anybody can read off their screen. */
+.wf-hints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px 10px;
+  margin-top: -4px;
+}
+.wf-hints-label {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crm-muted);
+}
+.wf-hint {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  background: rgba(var(--accent-rgb), 0.1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--crm-accent);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wf-hint:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.2); }
