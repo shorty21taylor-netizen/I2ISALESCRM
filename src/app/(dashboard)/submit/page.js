@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle } from 'lucide-react';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle, Share2 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -119,6 +119,12 @@ export default function SubmitPage() {
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
   var f6 = useState(null), formsConfig = f6[0], setFormsConfig = f6[1];
+  var f7 = useState(false), canShare = f7[0], setCanShare = f7[1];
+
+  // Read once on mount rather than at render: navigator is absent on the server.
+  useEffect(function() {
+    setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
 
   // Everything on this page belongs to one workspace. The server decides which
   // from the session; the id here only makes the request refetch on a switch.
@@ -228,8 +234,16 @@ export default function SubmitPage() {
     setEodDate(toReportDay(new Date()));
   }
 
+  // On a phone this is the native share sheet, so a setter can push the calendar
+  // straight into WhatsApp or iMessage instead of copying, leaving the app and
+  // pasting. Everywhere else it is the clipboard, as before.
   function copyBookingLink() {
     if (!bookingLink || !bookingLink.url) return;
+    if (canShare) {
+      navigator.share({ title: bookingLink.label || 'Booking link', url: bookingLink.url })
+        .catch(function() { /* dismissing the sheet is not an error */ });
+      return;
+    }
     try {
       navigator.clipboard.writeText(bookingLink.url);
       setCopiedLink(true);
@@ -383,7 +397,7 @@ export default function SubmitPage() {
 
         {/* ===== ROUND ROBIN BOOKING LINK ===== */}
         {bookingLink && bookingLink.url && (
-          <div className="glass-card p-5 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="glass-card book-card p-5 flex flex-col md:flex-row md:items-center gap-4">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: 'rgba(var(--accent-rgb),0.12)' }}>
               <CalendarDays className="w-5 h-5 text-crm-accent" />
@@ -398,13 +412,14 @@ export default function SubmitPage() {
                 </span>
               </div>
               <div className="text-xs text-crm-muted mt-1">{bookingLink.blurb}</div>
-              <div className="text-[11px] font-mono text-crm-muted mt-1.5 truncate">{bookingLink.url}</div>
+              <div className="book-url text-[11px] font-mono text-crm-muted mt-1.5 truncate md:truncate">{bookingLink.url}</div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="book-actions flex items-center gap-2 flex-shrink-0">
               <button onClick={copyBookingLink} className="btn-ghost flex items-center gap-2 text-xs">
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-crm-positive" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedLink ? 'Copied' : 'Copy link'}
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-crm-positive" />
+                  : canShare ? <Share2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedLink ? 'Copied' : (canShare ? 'Share link' : 'Copy link')}
               </button>
               <a
                 href={bookingLink.url}
@@ -452,7 +467,7 @@ export default function SubmitPage() {
 
         {useExternal && (formLinks || []).length > 0 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {formLinks.map(function(form) {
                 if (!form.formUrl) return null;
                 var CardIcon = ICON_FOR[form.icon] || ClipboardCheck;
@@ -462,7 +477,7 @@ export default function SubmitPage() {
                     href={form.formUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="glass-card p-5 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform"
+                    className="glass-card p-5 flex flex-col gap-3 min-h-[112px] hover:-translate-y-0.5 transition-transform"
                   >
                     <div className="flex items-center justify-between">
                       <CardIcon className={'w-5 h-5 ' + (ACCENT_FOR[form.accent] || 'text-crm-muted')} />
@@ -591,7 +606,7 @@ export default function SubmitPage() {
                     </div>
                     <div>
                       <label className="form-label">Price Point</label>
-                      <input type="number" value={bcPricePoint} onChange={function(e) { setBcPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
+                      <input type="number" inputMode="decimal" value={bcPricePoint} onChange={function(e) { setBcPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
                     </div>
                   </div>
                 )}
@@ -744,7 +759,7 @@ export default function SubmitPage() {
                     </div>
                     <div>
                       <label className="form-label">Price Point</label>
-                      <input type="number" value={cdPricePoint} onChange={function(e) { setCdPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
+                      <input type="number" inputMode="decimal" value={cdPricePoint} onChange={function(e) { setCdPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
                     </div>
                   </div>
                 )}
@@ -791,7 +806,7 @@ export default function SubmitPage() {
                 </div>
                 <div>
                   <label className="form-label form-label-required">Cash Collected</label>
-                  <input type="number" value={cdCashCollected} onChange={function(e) { setCdCashCollected(e.target.value); }} className="input-field" placeholder="5500" required />
+                  <input type="number" inputMode="decimal" value={cdCashCollected} onChange={function(e) { setCdCashCollected(e.target.value); }} className="input-field" placeholder="5500" required />
                 </div>
               </div>
 
@@ -838,27 +853,27 @@ export default function SubmitPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Net New Calls Booked</label>
-                  <input type="number" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Calls on Calendar</label>
-                  <input type="number" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Calls Taken</label>
-                  <input type="number" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">No-Showed</label>
-                  <input type="number" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Canceled</label>
-                  <input type="number" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Rescheduled</label>
-                  <input type="number" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
@@ -866,15 +881,15 @@ export default function SubmitPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Calls Taken &amp; Pitched</label>
-                  <input type="number" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Closes</label>
-                  <input type="number" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Outbound Dials</label>
-                  <input type="number" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="numeric" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
@@ -882,15 +897,15 @@ export default function SubmitPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Cash Collected (MYFM)</label>
-                  <input type="number" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="decimal" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Cash Collected (I2I)</label>
-                  <input type="number" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="decimal" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
                   <label className="form-label">Revenue on Day</label>
-                  <input type="number" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
+                  <input type="number" inputMode="decimal" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
@@ -919,7 +934,27 @@ export default function SubmitPage() {
             <h3 className="text-sm font-mono text-crm-muted uppercase tracking-wider">Recent submissions</h3>
           </div>
           {submissions.length > 0 ? (
-            <div className="glass-card overflow-hidden">
+            <>
+            {/* A four-column table squeezed into 390px is four unreadable
+                columns. One card per submission below md, the table above it. */}
+            <div className="sub-recent-cards">
+              {submissions.slice(0, 15).map(function(s) {
+                var badge = typeBadge[s.type] || typeBadge['eod-report'];
+                return (
+                  <div key={'c-' + s.id} className="sub-card">
+                    <span className="sub-card-detail">{s.detail}</span>
+                    <span className="sub-card-when">
+                      {new Date(s.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </span>
+                    <span className="sub-card-rep">{s.closerName}</span>
+                    <span className={'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium ' + badge.cls}>
+                      {badge.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="glass-card overflow-hidden sub-recent-table">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -950,6 +985,7 @@ export default function SubmitPage() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <div className="glass-card p-8 text-center text-sm text-crm-muted">
               No submissions yet. Use the forms above to start logging your activity.

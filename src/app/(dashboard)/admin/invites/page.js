@@ -24,6 +24,12 @@ export default function TeamPage() {
 
   // Scoped to the workspace on screen, and refetched when you switch, so this
   // list is always the accounts of the client you are looking at.
+  // The workspace on screen, which is the only one an account can be made in.
+  var currentWorkspaceName = (function() {
+    for (var i = 0; i < workspaces.length; i++) if (workspaces[i].id === workspaceId) return workspaces[i].name;
+    return '';
+  })();
+
   var load = useCallback(function() {
     apiFetch(withWorkspace('/api/users', workspaceId))
       .then(function(r) {
@@ -59,12 +65,12 @@ export default function TeamPage() {
     e.preventDefault();
     if (!form.email.trim()) { flash(false, 'Email is required'); return; }
     if (form.password.length < 6) { flash(false, 'Password must be at least 6 characters'); return; }
-    if (form.workspaceIds.length === 0) { flash(false, 'Assign at least one workspace'); return; }
+    if (!workspaceId) { flash(false, 'No workspace is selected'); return; }
 
     apiFetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(Object.assign({}, form, { workspaceIds: [workspaceId] })),
     })
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -211,25 +217,19 @@ export default function TeamPage() {
 
           <div>
             <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">
-              Workspaces &mdash; they will only see these
+              Workspace
             </label>
+            {/* Not a choice. An account created here belongs to the workspace you
+                are standing in — offering a list of every company on the platform
+                is how somebody ends up with a seat at a client they do not work
+                for. To add a person to a different workspace, switch to it. */}
             <div className="flex flex-wrap gap-2">
-              {workspaces.map(function(w) {
-                var on = form.workspaceIds.indexOf(w.id) !== -1;
-                return (
-                  <button
-                    key={w.id}
-                    type="button"
-                    onClick={function() { setForm(Object.assign({}, form, { workspaceIds: toggleWorkspace(form.workspaceIds, w.id) })); }}
-                    className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ' +
-                      (on ? 'text-crm-text-bright border-crm-accent/40' : 'text-crm-muted border-crm-border hover:text-crm-text')}
-                    style={on ? { background: 'rgba(var(--accent-rgb),0.15)' } : {}}
-                  >
-                    {on ? <Check className="w-3 h-3" /> : <Building2 className="w-3 h-3" />} {w.name}
-                  </button>
-                );
-              })}
-              {workspaces.length === 0 && <span className="text-xs text-crm-muted">No workspaces yet</span>}
+              <span
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border text-crm-text-bright border-crm-accent/40"
+                style={{ background: 'rgba(var(--accent-rgb),0.15)' }}
+              >
+                <Check className="w-3 h-3" /> {currentWorkspaceName || 'This workspace'}
+              </span>
             </div>
           </div>
 

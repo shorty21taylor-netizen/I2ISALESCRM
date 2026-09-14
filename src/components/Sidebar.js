@@ -117,8 +117,12 @@ export default function Sidebar() {
   // email is the operator's. Trusting the server alone meant one failed /auth/me
   // call — or an identity header that didn't arrive — silently hid the nav.
   // Visibility is permissive on purpose; the APIs still enforce access with a 403.
-  var localOperator = !!(user && (user.email || '').toLowerCase() === OPERATOR_EMAIL);
-  var isOwner = (access && access.isOwner) || localOperator;
+  // Operator View and the admin surfaces belong to one account and no other.
+  // Both halves must agree it is that account — a server flag alone, or a local
+  // guess alone, is one failure away from showing the cross-client view to a
+  // client's own manager.
+  var signedInEmail = ((user && user.email) || '').toLowerCase();
+  var isOwner = signedInEmail === OPERATOR_EMAIL && (!access || !!access.isOwner);
   // Same permissive rule as isOwner: assume a manager until the server says
   // otherwise, so a slow /auth/me never hides the nav from someone entitled to it.
   // The APIs are the enforcement point; this only decides what is worth showing.

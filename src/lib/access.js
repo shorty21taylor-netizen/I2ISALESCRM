@@ -148,8 +148,11 @@ export async function effectiveReadWorkspace(req, requested) {
 export async function effectiveWriteWorkspace(req, requested) {
   var access = await resolveAccess(req);
   if (access.canSeeAll) {
-    if (!requested || requested === ALL_WORKSPACES) return 'default';
-    return requested;
+    if (requested && requested !== ALL_WORKSPACES) return requested;
+    // The workspace the operator is standing in — not 'default'. Falling back to
+    // 'default' meant an operator working inside a new client wrote that client's
+    // deals, EODs and new accounts into the original company's books.
+    return access.activeWorkspaceId || 'default';
   }
   return access.workspaceIds[0] || 'default';
 }

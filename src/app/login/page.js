@@ -126,7 +126,9 @@ function SignIn() {
               <form onSubmit={handleSubmit}>
                 <label className="signin-field">
                   <span>Email</span>
-                  <input type="email" value={email} className="input-field" autoComplete="username" required
+                  <input type="email" value={email} className="input-field" required
+                    inputMode="email" autoComplete="username"
+                    autoCapitalize="none" autoCorrect="off" spellCheck="false"
                     placeholder="anthony@influence2impact.com"
                     onChange={function(e) { setEmail(e.target.value); }} />
                 </label>

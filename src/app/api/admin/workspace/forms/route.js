@@ -7,6 +7,7 @@ import {
   upsertRoute, removeRoute, copySetupFrom,
   ICONS, AUDIENCES, CHANNELS,
 } from '@/lib/workspace-config';
+import { ensureLegacyForms } from '@/lib/legacy-forms';
 
 export var dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export async function GET(req) {
   var g = await gate(req);
   if (g.denied) return g.denied;
 
+  await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
   var missing = await formsMissingRoutes(g.workspaceId);
   var wc = getWhatsappConfig() || {};
 

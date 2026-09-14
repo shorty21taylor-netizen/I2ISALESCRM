@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initStore, getWorkspaces } from '@/lib/store';
-import { resolveAccess, effectiveReadWorkspace, ALL_WORKSPACES } from '@/lib/access';
+import { initStore, getWorkspaces, addWorkspaceMember } from '@/lib/store';
+import { resolveAccess, effectiveReadWorkspace, effectiveWriteWorkspace, ALL_WORKSPACES } from '@/lib/access';
 import { membershipRows } from '@/lib/workspace-auth';
 import { listUsers, createUser, updateUser, deleteUser } from '@/lib/users';
 import { grantableRoles, roleGrants, roleLabel } from '@/lib/roles';
@@ -83,14 +83,22 @@ export async function POST(req) {
     var body = await req.json();
     var problem = checkRoleChange(gate.access, body.email, body.role || 'closer');
     if (problem) return NextResponse.json({ error: problem }, { status: 403 });
+    // The workspace comes from the session, never the request. A manager could
+    // otherwise post another company's workspace id and mint themselves a seat
+    // inside it; the operator still switches workspace to add somebody there.
+    var target = await effectiveWriteWorkspace(req, null);
     var user = await createUser({
       email: body.email,
       name: body.name,
       password: body.password,
       role: body.role,
-      workspaceIds: body.workspaceIds,
+      workspaceIds: [target],
     });
-    return NextResponse.json({ success: true, user: user });
+    // A roster row too, so the new account shows up on the workspace's own list
+    // rather than only on the account list.
+    await addWorkspaceMember(target, body.email, body.name || '', body.role || 'closer')
+      .catch(function(e) { console.error('[Users] roster row:', e.message); });
+    return NextResponse.json({ success: true, user: user, workspaceId: target });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }
@@ -105,7 +113,11 @@ export async function PATCH(req) {
     if (!body.email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     var problem = checkRoleChange(gate.access, body.email, body.role);
     if (problem) return NextResponse.json({ error: problem }, { status: 403 });
-    var user = await updateUser(body.email, body);
+    // Only the operator may move somebody between workspaces; a manager editing
+    // a rep can change their name and role, not which company they belong to.
+    var patch = Object.assign({}, body);
+    if (!gate.access.canSeeAll) delete patch.workspaceIds;
+    var user = await updateUser(body.email, patch);
     return NextResponse.json({ success: true, user: user });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });

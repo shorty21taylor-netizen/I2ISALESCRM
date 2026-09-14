@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
+import MobileChrome from '@/components/MobileChrome';
 import BrandTheme from '@/components/BrandTheme';
 import { getFormConfig } from '@/lib/form-config';
 
@@ -22,10 +22,13 @@ export default function DashboardLayout({ children }) {
     }
   }, []);
   return (
-    <div className="flex min-h-screen">
+    <div className="app-shell">
       <BrandTheme />
-      <Sidebar />
-      <main className="flex-1 ml-[268px] transition-all duration-300">{children}</main>
+      {/* The shell owns the sidebar, the phone chrome and the main column. The
+          268px left margin used to be unconditional, which made the document
+          wider than a phone and slid every page sideways — it is a desktop-only
+          rule now. */}
+      <MobileChrome>{children}</MobileChrome>
     </div>
   );
 }

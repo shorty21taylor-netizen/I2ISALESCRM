@@ -985,7 +985,7 @@
    what you see on /reports/sales is exactly what lands in the PDF. */
 
 .rpt-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #1c1c1f;
   padding: 24px 16px 64px;
   color: #111827;
@@ -1449,7 +1449,7 @@ html.light body::after {
 .sidebar {
   left: 14px;
   top: 14px;
-  height: calc(100vh - 28px);
+  height: calc(100dvh - 28px);
   border-radius: var(--r-panel);
   border: 1px solid var(--glass-card-border);
   background: var(--lift), var(--sidebar-bg);
@@ -2403,7 +2403,7 @@ html.light {
 .me-goal-empty:hover { color: var(--crm-text); }
 
 /* The card a rep screenshots into the team chat. */
-.card-stage { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+.card-stage { min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px; }
 .card-wrap { width: 100%; max-width: 460px; }
 .card-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .stat-card {
@@ -2688,7 +2688,7 @@ html.light {
 }
 
 .welcome {
-  position: relative; min-height: 100vh; display: grid; place-items: center;
+  position: relative; min-height: 100dvh; display: grid; place-items: center;
   background: var(--crm-bg); overflow: hidden;
 }
 .welcome-glow {
@@ -2737,7 +2737,7 @@ html.light {
 
 /* ---- sign in ---- */
 .signin {
-  position: relative; min-height: 100vh; display: grid; place-items: center;
+  position: relative; min-height: 100dvh; display: grid; place-items: center;
   padding: 32px 16px; background: var(--crm-bg); overflow: hidden;
 }
 .signin-glow {
@@ -2825,7 +2825,7 @@ html.light {
   grid-template-columns: 232px minmax(0, 1fr);
   gap: 16px;
   padding: 24px;
-  height: 100vh;
+  height: 100dvh;
   min-height: 520px;
 }
 
@@ -3044,7 +3044,7 @@ html.light {
   .aios-page { grid-template-columns: minmax(0, 1fr); height: auto; }
   .aios-page { padding: 16px; height: auto; }
   .aios-rail { max-height: 180px; }
-  .aios-main { height: calc(100vh - 260px); min-height: 420px; }
+  .aios-main { height: calc(100dvh - 260px); min-height: 420px; }
   .aios-bubble { max-width: 92%; }
 }
 
@@ -3383,4 +3383,348 @@ html.light {
   .wf-row, .wf-route, .wf-int { grid-template-columns: 1fr auto; row-gap: 3px; }
   .wf-key, .wf-aud, .wf-int-k, .wf-int-v { grid-column: 1 / -1; }
   .wf-edit-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ============================================ */
+/* MOBILE SHELL                                  */
+/* ============================================ */
+/* Everything here is below 1024px. At and above lg the desktop layout is
+   untouched: the sidebar is the fixed column it has always been, the main
+   column keeps its 268px margin, and none of the phone chrome renders. */
+
+/* Block, not flex. The sidebar is position:fixed and out of flow, so the main
+   column was always the only flex item — but the phone top bar and tab bar are
+   siblings of it, and in a row they became columns of their own and squeezed the
+   page into a sliver. Block layout gives desktop the identical result (a fixed
+   sidebar plus a 268px margin) and gives the phone chrome the full width. */
+.app-shell { display: block; min-height: 100dvh; }
+
+.mob-main {
+  flex: 1 1 auto;
+  /* Without this a wide child — a table, a chart — stretches the flex item past
+     the viewport instead of scrolling inside its own container. It is the other
+     half of the sideways-scroll bug, and no amount of overflow-hidden on body
+     fixes it properly. */
+  min-width: 0;
+  width: 100%;
+}
+
+/* ---- top bar ---- */
+.mob-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 8px;
+  border-bottom: 0.5px solid var(--glass-card-border);
+  background: var(--page-header-bg);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+.mob-burger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  color: var(--crm-text-bright);
+  flex-shrink: 0;
+}
+.mob-burger:active { background: var(--glass-card-highlight); }
+.mob-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--crm-text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mob-topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.mob-ws { width: 44px; }
+.mob-ws .px-2 { padding-left: 0; padding-right: 0; }
+
+/* ---- drawer ---- */
+/* The sidebar element itself slides; there is no second copy of the nav to keep
+   in step with the first. */
+.mob-drawer { display: contents; }
+
+.mob-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- bottom tabs ---- */
+.mob-tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 0.5px solid var(--glass-card-border);
+  background: var(--page-header-bg);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mob-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 7px 2px;
+  color: var(--crm-muted);
+  font-size: 10px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s ease;
+}
+.mob-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mob-tab.active { color: var(--crm-accent); }
+.mob-tab:active { background: var(--glass-card-highlight); }
+
+@media (max-width: 1023px) {
+  /* The sidebar is a drawer over the page, never a column beside it — opening it
+     must not resize or shift what is underneath. */
+  .sidebar {
+    width: 280px !important;
+    max-width: 86vw;
+    z-index: 50;
+    left: 0;
+    transform: translateX(-101%);
+    /* visibility, not just a transform. A translate that lands a pixel or two
+       short leaves a sliver of the nav painted down the left edge of every page,
+       which is exactly the "side panel showing too much" symptom. The delay lets
+       it finish sliding out before it disappears. */
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    height: 100dvh;
+  }
+  .mob-drawer.open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.2s ease, visibility 0s linear 0s;
+  }
+
+  /* Page headers were one non-wrapping row: a greeting on the left, a live pill
+     and a cash strip on the right. On a phone the right half ran off the screen. */
+  .stagger-1.flex.items-center.justify-between,
+  .stagger-2.flex.items-center.justify-between,
+  .flex.items-center.justify-between.flex-wrap { flex-wrap: wrap; gap: 10px; }
+
+  /* The cash strip and the range pickers are wider than any phone. They scroll
+     in their own rail instead of widening the page. */
+  .glass-surface {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .glass-surface::-webkit-scrollbar { display: none; }
+  .glass-surface > * { flex-shrink: 0; }
+
+  /* The collapse rail is a desktop affordance; on a phone the drawer closes by
+     tapping away from it. */
+  .sidebar > button:last-child { display: none; }
+
+  /* Room for the tab bar, so the last row of every page clears it. */
+  .mob-main {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+
+  /* Page headers sit under the top bar rather than on top of it. */
+  .page-header { top: 56px; }
+}
+
+@media (min-width: 1024px) {
+  /* Belt and braces: whatever the drawer state, desktop never translates. */
+  .sidebar { transform: none !important; }
+}
+
+/* ---- global mobile plumbing ---- */
+
+/* A backstop, and only that: every element the probe found past the right edge
+   was fixed at its source first. `clip` rather than `hidden` because `hidden`
+   creates a scroll container and silently breaks position: sticky. */
+html, body { overflow-x: clip; }
+
+@media (max-width: 1023px) {
+  /* Under 16px, iOS zooms the whole page in on focus and never zooms back out.
+     This one rule is the difference between an EOD a rep can fill in one-handed
+     and one they have to pinch their way around. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* A finger is about 44px. Anything smaller is a miss, and a miss on a submit
+     form is a lost deal report. */
+  button, a[role="button"], .btn-primary, .btn-ghost, [role="tab"] {
+    min-height: 44px;
+  }
+  /* Drawer rows were 40px — close enough to look right and far enough off to be
+     missed by a thumb on a moving bus. */
+  .nav-link, .nav-group-head { min-height: 44px; }
+  .mob-tab { min-height: 56px; }
+}
+
+/* ---- mobile: page-level patterns ---- */
+@media (max-width: 1023px) {
+  /* Page headers were built as a single non-wrapping row. On a phone the right
+     half — a live pill, a cash strip, a range picker — ran off the edge. */
+  .page-header .flex.items-center.justify-between { flex-wrap: wrap; gap: 8px; }
+  .page-header .px-8 { padding-left: 16px; padding-right: 16px; }
+
+  /* The segmented range pickers (Today / Yesterday / This Week / …) are wider
+     than any phone. They scroll inside their own rail rather than widening the
+     document — and the scrollbar is hidden because a thumb is the affordance. */
+  .glass-surface.inline-flex {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .glass-surface.inline-flex::-webkit-scrollbar { display: none; }
+  .glass-surface.inline-flex > * { flex: 0 0 auto; }
+
+  /* Any table on a phone gets its own sideways scroll. The alternative is the
+     page itself moving, which is what made every screen feel broken. */
+  .data-table, table.w-full { min-width: 560px; }
+  .table-scroll,
+  .glass-card:has(> table),
+  .glass-card:has(> .data-table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Generous page padding is a desktop luxury; on a 390px screen it is most of
+     the line length. */
+  .p-6 { padding: 16px; }
+  .px-8 { padding-left: 16px; padding-right: 16px; }
+  .py-8 { padding-top: 20px; padding-bottom: 20px; }
+
+  /* Decorative glows were sized for a desktop column and spilled off the side. */
+  .me-avatar-halo { max-width: 100%; }
+  .bg-orbs::before, .bg-orbs::after { max-width: 100vw; }
+}
+
+/* ---- submit page on a phone ---- */
+@media (max-width: 767px) {
+  /* A table of recent submissions does not fit, and squeezing it makes four
+     unreadable columns. One card per submission instead. */
+  .sub-recent-table { display: none; }
+  .sub-recent-cards { display: flex; flex-direction: column; gap: 8px; }
+  .sub-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-card-border);
+    background: var(--glass-card-highlight);
+  }
+  .sub-card-detail { font-size: 13px; color: var(--crm-text-bright); font-weight: 500; min-width: 0; }
+  .sub-card-when { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--crm-muted); white-space: nowrap; }
+  .sub-card-rep { font-size: 12px; color: var(--crm-muted); }
+}
+@media (min-width: 768px) {
+  .sub-recent-cards { display: none; }
+}
+
+/* The booking link card: label and URL above, full-width buttons below, and the
+   URL wrapping instead of pushing the card wider than the screen. */
+@media (max-width: 767px) {
+  .book-card { flex-direction: column; align-items: stretch; }
+  /* The URL carries Tailwind's `truncate`, whose white-space:nowrap beats any
+     word-break. Undo all three or the link stays one long unwrapped line. */
+  .book-url {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-all;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .book-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .book-actions > * { width: 100%; justify-content: center; min-height: 44px; }
+}
+
+/* ---- AIOS on a phone ---- */
+@media (max-width: 859px) {
+  .aios-page {
+    height: calc(100dvh - 56px - 56px - env(safe-area-inset-bottom));
+    padding: 12px;
+    gap: 10px;
+  }
+  /* The conversation rail is a desktop convenience; on a phone the thread is
+     the page, reachable from the drawer. */
+  .aios-rail { display: none; }
+  .aios-main { height: 100%; min-height: 0; }
+  .aios-bubble { max-width: 85%; }
+  .aios-thread { padding: 14px; }
+  .aios-composer {
+    position: sticky;
+    bottom: 0;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: var(--glass-card-bg);
+  }
+  .aios-input { min-height: 44px; }
+  .aios-send { min-height: 44px; width: 44px; }
+  /* Chips wrap onto a second line rather than scrolling out of reach. */
+  .aios-starters { flex-wrap: wrap; }
+  .aios-starter { min-height: 44px; }
+  /* A table inside an answer scrolls in its own gutter-to-gutter rail. */
+  .aios-bubble table { display: block; overflow-x: auto; max-width: 100%; margin: 0 -14px; padding: 0 14px; }
+}
+
+/* ---- dashboard and awards on a phone ---- */
+@media (max-width: 1023px) {
+  /* Two stat tiles across. One across wastes half the screen on a device where
+     screen is the scarce thing. */
+  .td-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .td-tile { padding: 12px; }
+  .td-tile-v { font-size: 20px; }
+
+  /* Charts: an explicit pixel height. ResponsiveContainer's height:100% resolves
+     to zero inside a flex parent that has no height of its own, which is how a
+     chart silently disappears on mobile rather than looking wrong. */
+  .h-\[320px\] { height: 220px; }
+
+  /* Recharts measures its own width; without this it keeps the width it had at
+     the last layout and pushes the card wider than the screen. */
+  .recharts-responsive-container { max-width: 100%; }
+
+  .aw-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .aw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The unlock overlay has to fit the smallest phone, not the design canvas. */
+@media (max-width: 767px) {
+  .aw-unlock-inner { width: min(92vw, 360px); padding: 18px; }
+  .aw-unlock-stage { width: min(160px, 42vw); height: min(160px, 42vw); }
+  .aw-unlock-medal svg { width: min(132px, 30vw); height: auto; }
+  .aw-bloom { width: min(200px, 52vw); height: min(200px, 52vw); }
 }

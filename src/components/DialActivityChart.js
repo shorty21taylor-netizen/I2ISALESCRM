@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Phone } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
@@ -58,6 +59,16 @@ function DialTooltip({ active, payload, label }) {
 }
 
 export default function DialActivityChart({ data }) {
+  // Every other label below md. Twelve dates squeezed into 390px overlap
+  // into an unreadable smear; six are legible and say the same thing.
+  var nt = useState(false), narrowTicks = nt[0], setNarrowTicks = nt[1];
+  useEffect(function() {
+    function check() { setNarrowTicks(window.innerWidth < 768); }
+    check();
+    window.addEventListener('resize', check);
+    return function() { window.removeEventListener('resize', check); };
+  }, []);
+
   if (!data || data.length === 0) {
     return (
       <div className="glass-card overflow-hidden">
@@ -98,7 +109,7 @@ export default function DialActivityChart({ data }) {
             <BarChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: 0 }} barCategoryGap="20%" barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
               <ReferenceLine y={30} stroke="rgba(255,255,255,0.12)" strokeDasharray="6 4" strokeWidth={1} label={{ value: 'Target', position: 'right', fill: '#6b6b6b', fontSize: 9, fontFamily: 'JetBrains Mono' }} />
-              <XAxis
+              <XAxis interval={narrowTicks ? 1 : 'preserveStartEnd'}
                 dataKey="date"
                 tick={{ fill: '#6b6b6b', fontSize: 11, fontFamily: 'JetBrains Mono' }}
                 axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
