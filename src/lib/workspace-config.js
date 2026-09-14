@@ -17,6 +17,7 @@ import {
   saveWorkspaceIntegration, softDeleteWorkspaceIntegration,
   saveWorkspaceRoute, softDeleteWorkspaceRoute,
 } from '@/lib/db';
+import crypto from 'crypto';
 
 export var ICONS = ['phone', 'dollar', 'clipboard-check', 'document', 'calendar'];
 export var AUDIENCES = ['all', 'setter', 'closer', 'manager'];
@@ -155,6 +156,39 @@ export async function removeForm(workspaceId, formKey) {
   await softDeleteWorkspaceForm(id, formKey)
     .catch(function(e) { console.error('[Workspace config] delete form:', e.message); });
   return { success: true };
+}
+
+// ---- the form ingest key ----
+//
+// A workspace's ingest key lives with its other integrations, and it is what binds
+// a hosted form to this workspace and no other. It is defined here rather than in
+// ingest-auth.js so that createWorkspace() can seal a new workspace on the way in
+// without importing the auth layer, which reads back out of the store.
+
+export var INGEST_PROVIDER = 'summit';
+export var INGEST_KEY_NAME = 'ingest_key';
+
+// Prefixed with the workspace it belongs to, so a key found loose in an n8n node
+// can be traced without having to try it against anything.
+export function newIngestKey(workspaceId) {
+  var tag = String(workspaceId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) || 'ws';
+  return 'sk_' + tag + '_' + crypto.randomBytes(24).toString('hex');
+}
+
+export async function getIngestKeyFor(workspaceId) {
+  return getIntegration(workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME);
+}
+
+// Seal a workspace. Idempotent by default: an existing key is returned untouched,
+// so this can be called on every boot without rotating a key that is already in
+// somebody's n8n workflow. Pass { rotate: true } to deliberately replace it.
+export async function sealWorkspace(workspaceId, opts) {
+  var existing = await getIngestKeyFor(workspaceId).catch(function() { return ''; });
+  if (existing && !(opts && opts.rotate)) return { key: existing, created: false };
+  var key = newIngestKey(workspaceId);
+  var result = await upsertIntegration(workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME, key);
+  if (result && result.error) return { error: result.error };
+  return { key: key, created: true };
 }
 
 // ---- integrations ----

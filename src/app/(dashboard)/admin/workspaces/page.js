@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, X, Check, LogIn, Layers, Users } from 'lucide-react';
+import { Plus, Building2, X, Check, LogIn, Layers, Users, ShieldCheck, Copy } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { ALL_WORKSPACES, useWorkspace, setActiveWorkspace, useAccess, apiFetch } from '@/lib/workspace-client';
 
@@ -34,6 +34,11 @@ export default function WorkspacesPage() {
   var [newMemberEmail, setNewMemberEmail] = useState('');
   var [newMemberName, setNewMemberName] = useState('');
   var [teamMsg, setTeamMsg] = useState(null);
+  // The ingest key the new workspace was sealed with, shown once on creation so it
+  // can go straight into that workspace's n8n workflows. It is not a secret that is
+  // lost if dismissed — Forms & Routing shows it again — but it is the one moment
+  // somebody is definitely about to need it.
+  var [createdKey, setCreatedKey] = useState(null);
 
   function openTeam(ws) {
     setTeamFor(ws);
@@ -107,10 +112,47 @@ export default function WorkspacesPage() {
     });
     var data = await res.json();
     setSaving(false);
-    if (data.success) { resetForm(); fetchWorkspaces(); }
+    if (data.success) {
+      resetForm();
+      fetchWorkspaces();
+      if (data.workspace && data.workspace.ingestKey) {
+        setCreatedKey({ name: data.workspace.name, id: data.workspace.id, key: data.workspace.ingestKey });
+      }
+    }
   }
 
   var funnelOptions = ['Challenge Funnel', 'VSL Funnel', 'Webinar Funnel', 'Application Funnel', 'Book a Call', 'Free Trial', 'Cold Outbound', 'Paid Ads', 'Referral', 'Skool', 'Other'];
+
+  function keyBanner() {
+    if (!createdKey) return null;
+    return (
+      <div className="glass-card p-4 mb-4" style={{ borderColor: 'rgba(34,197,94,0.35)' }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-display font-bold flex items-center gap-2" style={{ color: '#22c55e' }}>
+              <ShieldCheck className="w-4 h-4" /> {createdKey.name} is sealed
+            </p>
+            <p className="text-[11px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+              Nothing can write into this workspace without the key below. Put it in every
+              n8n workflow for {createdKey.name} as the <code className="aik-code">x-api-key</code> header.
+            </p>
+            <p className="text-[11px] font-mono mt-2" style={{ color: 'var(--crm-text-bright)', wordBreak: 'break-all' }}>
+              {createdKey.key}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button className="btn-ghost p-1.5" title="Copy"
+              onClick={function() { try { navigator.clipboard.writeText(createdKey.key); } catch (e) {} }}>
+              <Copy className="w-4 h-4" />
+            </button>
+            <button className="btn-ghost p-1.5" title="Dismiss" onClick={function() { setCreatedKey(null); }}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -127,6 +169,8 @@ export default function WorkspacesPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-8">
+
+        {keyBanner()}
 
         {/* Workspace cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -43,10 +43,10 @@ export function ingestKeyMatches(expected, presented) {
 // that key writes there and nowhere else, and no other key writes into it.
 
 import { getWorkspaces } from '@/lib/store';
-import { getIntegration } from '@/lib/workspace-config';
+import { getIntegration, INGEST_PROVIDER, INGEST_KEY_NAME } from '@/lib/workspace-config';
 
-export var INGEST_PROVIDER = 'summit';
-export var INGEST_KEY_NAME = 'ingest_key';
+// Re-exported so the routes that already import them from here keep working.
+export { INGEST_PROVIDER, INGEST_KEY_NAME };
 
 // The workspace an install-wide key writes into when the payload names none.
 // Kept as 'default' so the workflows that were running before any of this keep

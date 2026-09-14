@@ -12,6 +12,7 @@ import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEOD
 } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 import { saveRepAward } from '@/lib/db';
+import { sealWorkspace } from '@/lib/workspace-config';
 
 // The primary workspace every pre-workspace record belongs to. Seeded in SQL when a
 // database is present, and kept here as well so the switcher still works in
@@ -2429,6 +2430,28 @@ export async function createWorkspace(data) {
   };
   store.workspaces.push(ws);
   await saveWorkspace(ws).catch(function(e) { console.error('[DB]', e.message); });
+
+  // Sealed on the way in, before it can receive a single submission.
+  //
+  // A workspace with no key of its own is reachable by the shared install-wide
+  // key, which is how a hosted form set up for one client's offer could file into
+  // another client's books. A brand new workspace has no n8n workflows yet, so
+  // there is nothing to break by requiring its own key from the first minute —
+  // and a form wired up before the key is pasted in fails loudly with a 401
+  // rather than quietly filing somewhere else.
+  var seal = await sealWorkspace(id).catch(function(e) {
+    console.error('[Workspace] Seal failed for ' + id + ':', e.message);
+    return { error: e.message };
+  });
+  if (seal && seal.key) {
+    ws.ingestKey = seal.key;
+    console.log('[Workspace] Created ' + id + ' — sealed with its own ingest key');
+  } else {
+    // Not fatal, but it must not pass unnoticed: an unsealed workspace is exactly
+    // the state this is here to prevent.
+    console.error('[Workspace] ' + id + ' was created WITHOUT an ingest key. '
+      + 'Generate one in Workspace \u2192 Forms & Routing before pointing any form at it.');
+  }
 
   if (data.ownerEmail) {
     await addUserToWorkspace(id, data.ownerEmail, data.ownerName || '', 'owner');
