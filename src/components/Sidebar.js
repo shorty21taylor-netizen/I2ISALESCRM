@@ -56,6 +56,7 @@ var navGroups = [
       { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
       { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
       { href: '/admin/workspace', label: 'Access & Sign-ins', icon: KeyRound, teamOnly: true },
+      { href: '/admin/workspace/forms', label: 'Submit Forms', icon: ClipboardList, teamOnly: true },
     ],
   },
   {

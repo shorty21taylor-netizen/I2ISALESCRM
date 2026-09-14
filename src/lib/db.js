@@ -82,6 +82,24 @@ export async function initDatabase() {
     await p.query("CREATE TABLE IF NOT EXISTS rep_awards (id TEXT PRIMARY KEY, email TEXT NOT NULL, award_id TEXT NOT NULL, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_rep_awards_email ON rep_awards (email)').catch(function() {});
 
+    // ===== PER-WORKSPACE SUBMIT CONFIG =====
+    // Which forms a workspace shows, what it integrates with, and where each
+    // form's submissions are sent. All three were global before, which is how a
+    // new workspace came up wearing another company's forms and posting into
+    // another company's WhatsApp group.
+    //
+    // workspace_id is TEXT here because that is what workspaces.id is in this
+    // schema ('default', 'ws-...'), not a SERIAL integer.
+    await p.query("CREATE TABLE IF NOT EXISTS workspace_forms (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, form_key TEXT NOT NULL, label TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('all','setter','closer','manager')), form_url TEXT, icon TEXT NOT NULL DEFAULT 'clipboard', accent TEXT NOT NULL DEFAULT 'neutral', destination_label TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, form_key))").catch(function() {});
+
+    await p.query("CREATE TABLE IF NOT EXISTS workspace_integrations (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL, config_key TEXT NOT NULL, config_value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, provider, config_key))").catch(function() {});
+
+    await p.query("CREATE TABLE IF NOT EXISTS workspace_routes (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, form_key TEXT NOT NULL, channel TEXT NOT NULL CHECK (channel IN ('whatsapp','slack','email','none')), target TEXT NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, form_key, channel))").catch(function() {});
+
+    await p.query('CREATE INDEX IF NOT EXISTS idx_forms_ws ON workspace_forms (workspace_id, sort_order) WHERE deleted_at IS NULL').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_routes_ws ON workspace_routes (workspace_id, form_key) WHERE deleted_at IS NULL').catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_integrations_ws ON workspace_integrations (workspace_id, provider) WHERE deleted_at IS NULL').catch(function() {});
+
     // Every sign-in attempt, good or bad. With a shared team password this is the
     // only forensic trail there is, so it is a real table rather than a log line.
     await p.query("CREATE TABLE IF NOT EXISTS auth_attempts (id TEXT PRIMARY KEY, email TEXT, ip TEXT NOT NULL, user_agent TEXT, success BOOLEAN NOT NULL, workspace_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())").catch(function() {});
@@ -232,6 +250,104 @@ export async function saveRepAward(email, awardId, data) {
     + 'ON CONFLICT (id) DO UPDATE SET data = $4',
     [key, String(email || '').toLowerCase(), awardId, JSON.stringify(data)]
   );
+}
+
+// ===== PER-WORKSPACE SUBMIT CONFIG =====
+//
+// Small tables read on every submit page load, so they are loaded whole at boot
+// and kept in memory like the rest of the store. Every write goes through here.
+
+export async function loadWorkspaceForms() {
+  var r = await query('SELECT * FROM workspace_forms WHERE deleted_at IS NULL ORDER BY workspace_id, sort_order');
+  return (r && r.rows) ? r.rows : [];
+}
+
+export async function loadWorkspaceIntegrations() {
+  var r = await query('SELECT * FROM workspace_integrations WHERE deleted_at IS NULL ORDER BY workspace_id, provider');
+  return (r && r.rows) ? r.rows : [];
+}
+
+export async function loadWorkspaceRoutes() {
+  var r = await query('SELECT * FROM workspace_routes WHERE deleted_at IS NULL ORDER BY workspace_id, form_key');
+  return (r && r.rows) ? r.rows : [];
+}
+
+export async function saveWorkspaceForm(row) {
+  return query(
+    'INSERT INTO workspace_forms (workspace_id, form_key, label, description, audience, form_url, icon, accent, destination_label, sort_order, is_active, deleted_at) '
+    + 'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULL) '
+    + 'ON CONFLICT (workspace_id, form_key) DO UPDATE SET label = $3, description = $4, audience = $5, '
+    + 'form_url = $6, icon = $7, accent = $8, destination_label = $9, sort_order = $10, is_active = $11, deleted_at = NULL',
+    [row.workspaceId, row.formKey, row.label, row.description || '', row.audience || 'all',
+      row.formUrl || null, row.icon || 'clipboard', row.accent || 'neutral',
+      row.destinationLabel || '', row.sortOrder || 0, row.isActive !== false]
+  );
+}
+
+// Soft, like every delete here: the row stays with a timestamp on it.
+export async function softDeleteWorkspaceForm(workspaceId, formKey) {
+  return query('UPDATE workspace_forms SET deleted_at = NOW() WHERE workspace_id = $1 AND form_key = $2',
+    [workspaceId, formKey]);
+}
+
+export async function saveWorkspaceIntegration(row) {
+  return query(
+    'INSERT INTO workspace_integrations (workspace_id, provider, config_key, config_value, updated_at, deleted_at) '
+    + 'VALUES ($1,$2,$3,$4,NOW(),NULL) '
+    + 'ON CONFLICT (workspace_id, provider, config_key) DO UPDATE SET config_value = $4, updated_at = NOW(), deleted_at = NULL',
+    [row.workspaceId, row.provider, row.configKey, row.configValue]
+  );
+}
+
+export async function softDeleteWorkspaceIntegration(workspaceId, provider, configKey) {
+  return query('UPDATE workspace_integrations SET deleted_at = NOW() WHERE workspace_id = $1 AND provider = $2 AND config_key = $3',
+    [workspaceId, provider, configKey]);
+}
+
+export async function saveWorkspaceRoute(row) {
+  return query(
+    'INSERT INTO workspace_routes (workspace_id, form_key, channel, target, is_active, deleted_at) '
+    + 'VALUES ($1,$2,$3,$4,$5,NULL) '
+    + 'ON CONFLICT (workspace_id, form_key, channel) DO UPDATE SET target = $4, is_active = $5, deleted_at = NULL',
+    [row.workspaceId, row.formKey, row.channel, row.target, row.isActive !== false]
+  );
+}
+
+export async function softDeleteWorkspaceRoute(workspaceId, formKey, channel) {
+  return query('UPDATE workspace_routes SET deleted_at = NOW() WHERE workspace_id = $1 AND form_key = $2 AND channel = $3',
+    [workspaceId, formKey, channel]);
+}
+
+// How many sales records are still unattributed. The answer should be zero;
+// this is what proves it before anything is made NOT NULL.
+export async function countUnattributedRecords() {
+  var out = {};
+  var tables = ['booked_calls', 'closed_deals', 'eod_reports'];
+  for (var i = 0; i < tables.length; i++) {
+    var total = await query('SELECT COUNT(*)::int AS n FROM ' + tables[i]).catch(function() { return null; });
+    var nulls = await query('SELECT COUNT(*)::int AS n FROM ' + tables[i] + ' WHERE workspace_id IS NULL').catch(function() { return null; });
+    var byWs = await query('SELECT workspace_id, COUNT(*)::int AS n FROM ' + tables[i] + ' GROUP BY 1 ORDER BY 2 DESC').catch(function() { return null; });
+    out[tables[i]] = {
+      total: total && total.rows[0] ? total.rows[0].n : null,
+      nullWorkspace: nulls && nulls.rows[0] ? nulls.rows[0].n : null,
+      byWorkspace: (byWs && byWs.rows) ? byWs.rows : [],
+    };
+  }
+  return out;
+}
+
+// Attribute any record that predates workspace scoping. Only ever fills a blank —
+// it must never touch a row that already names a workspace, and never any other
+// column on a sales record.
+export async function attributeNullWorkspaces(workspaceId) {
+  var out = {};
+  var tables = ['booked_calls', 'closed_deals', 'eod_reports'];
+  for (var i = 0; i < tables.length; i++) {
+    var r = await query('UPDATE ' + tables[i] + ' SET workspace_id = $1 WHERE workspace_id IS NULL', [workspaceId])
+      .catch(function() { return null; });
+    out[tables[i]] = r ? r.rowCount : 0;
+  }
+  return out;
 }
 
 // One sign-in attempt. Written on every try, successful or not.

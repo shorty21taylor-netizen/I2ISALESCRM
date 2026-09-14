@@ -2,26 +2,23 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { initStore } from '@/lib/store';
 import { saveAppConfig, loadAppConfig } from '@/lib/db';
-import { callerEmail, OWNER_EMAIL } from '@/lib/access';
+import { resolveAccess, effectiveReadWorkspace, OWNER_EMAIL } from '@/lib/access';
 import { getIngestKey } from '@/lib/ingest-auth';
+import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
 
-// Not a form the CRM ingests — it is the calendar a setter sends a prospect to.
-// Kept alongside the form links so it is editable in Settings rather than compiled in.
-var DEFAULT_BOOKING_LINK = {
-  label: 'Round Robin Booking Link',
-  blurb: 'Setters — send this to a prospect to book them onto a closer',
-  url: 'https://api.leadconnectorhq.com/widget/booking/YtuohtkrLHiQ1MRZQmXo',
-};
+export var dynamic = 'force-dynamic';
 
-var DEFAULT_FORMS = {
-  'book-call': { label: 'Booked Appointment', url: 'https://summitsales.app.n8n.cloud/form/lead-booking' },
-  'close-deal': { label: 'Closed Deal (Gong Channel)', url: 'https://summitsales.app.n8n.cloud/form/deal-won' },
-  'eod-report': { label: 'EOD Report', url: 'https://summitsales.app.n8n.cloud/form/eod-report' },
-  'after-call': { label: 'After-Call Report', url: 'https://summitsales.app.n8n.cloud/form/after-call-report' },
-};
+// What the Submit page renders, for the workspace the caller's session names.
+//
+// There are no defaults here any more. This route used to hold four form
+// constants and a booking URL, with one saved override row for the whole install,
+// so every workspace — including one created five minutes ago — came up wearing
+// the first workspace's forms and its booking link. A workspace now shows exactly
+// what somebody set up for it, which for a new one is nothing.
 
 async function isOwner(req) {
-  return (await callerEmail(req)) === OWNER_EMAIL;
+  var access = await resolveAccess(req);
+  return access.isOperator || access.email === OWNER_EMAIL;
 }
 
 function maskKey(key) {
@@ -30,57 +27,52 @@ function maskKey(key) {
   return key.slice(0, 4) + '••••' + key.slice(-4);
 }
 
-// A saved config only holds the forms that existed when it was saved. Returning it
-// as-is would hide any form added later behind a stale row in app_config — which is
-// exactly what happened to the After-Call card. Defaults underneath, saved on top.
-function mergedForms(saved) {
-  var out = {};
-  Object.keys(DEFAULT_FORMS).forEach(function(k) { out[k] = DEFAULT_FORMS[k]; });
-  if (saved) {
-    Object.keys(saved).forEach(function(k) {
-      if (saved[k] && saved[k].url) out[k] = saved[k];
-    });
-  }
-  return out;
-}
-
-function mergedBookingLink(saved) {
-  var out = {
-    label: DEFAULT_BOOKING_LINK.label,
-    blurb: DEFAULT_BOOKING_LINK.blurb,
-    url: DEFAULT_BOOKING_LINK.url,
-  };
-  if (saved && typeof saved === 'object') {
-    if (saved.label) out.label = saved.label;
-    if (saved.blurb) out.blurb = saved.blurb;
-    // An explicitly blank url means "hide it", so only a string decides.
-    if (saved.url !== undefined) out.url = saved.url;
-  }
-  return out;
-}
-
 export async function GET(req) {
   await initStore();
   try {
-    var cfg = (await loadAppConfig('forms')) || {};
+    var access = await resolveAccess(req);
+    if (!access.email) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+
+    // The workspace comes from the session. A query parameter can narrow an
+    // operator's view but can never widen a member's.
+    var url = new URL(req.url);
+    var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
+    if (Array.isArray(workspaceId) || workspaceId === '__all__') workspaceId = access.workspaceIds[0] || 'default';
+
+    var forms = await listForms(workspaceId);
+    var booking = await bookingLinkFor(workspaceId);
     var key = await getIngestKey();
+    var cfg = (await loadAppConfig('forms')) || {};
     var owner = await isOwner(req);
+
     return NextResponse.json({
       success: true,
-      forms: mergedForms(cfg.forms),
-      bookingLink: mergedBookingLink(cfg.bookingLink),
+      workspaceId: workspaceId,
+      // An array, in the order an admin arranged them — not a map keyed by four
+      // hardcoded names.
+      forms: forms,
+      // Null means there is no booking link for this workspace, and the card is
+      // not rendered. It is never another workspace's calendar.
+      bookingLink: booking,
+      emptyMessage: EMPTY_FORMS_MESSAGE,
+      canSetUp: !!access.canSeeTeam,
+      // Live forms that would refuse a submission, so the page can warn the
+      // people who can fix it rather than letting a rep find out.
+      missingRoutes: access.canSeeTeam ? await formsMissingRoutes(workspaceId) : [],
       useExternalForms: cfg.useExternalForms !== false,
       ingestKeyConfigured: !!key,
       ingestKeySource: process.env.FORM_INGEST_KEY ? 'env' : (cfg.ingestKey ? 'settings' : 'none'),
-      // Only the operator ever sees key material, and only masked. The full value is
-      // shown once, at the moment it is generated.
       ingestKeyMasked: owner ? maskKey(key) : '',
     });
   } catch (e) {
+    console.error('[Forms config]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
+// Only the install-wide settings still live here: the ingest key n8n authenticates
+// with, and whether the hosted forms are shown at all. Forms, links and
+// destinations moved to /api/admin/workspace/forms, where they are per workspace.
 export async function POST(req) {
   await initStore();
   try {
@@ -90,8 +82,6 @@ export async function POST(req) {
     var body = await req.json();
     var cfg = (await loadAppConfig('forms')) || {};
 
-    if (body.forms) cfg.forms = mergedForms(body.forms);
-    if (body.bookingLink) cfg.bookingLink = mergedBookingLink(body.bookingLink);
     if (body.useExternalForms !== undefined) cfg.useExternalForms = !!body.useExternalForms;
 
     var generated = '';
@@ -106,12 +96,11 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      forms: mergedForms(cfg.forms),
-      bookingLink: mergedBookingLink(cfg.bookingLink),
       useExternalForms: cfg.useExternalForms !== false,
-      // Returned exactly once, right after generation — it is never readable again.
       ingestKey: generated || undefined,
       ingestKeyConfigured: !!(process.env.FORM_INGEST_KEY || cfg.ingestKey),
+      movedNote: 'Forms, booking links and destinations are per workspace now — '
+        + 'set them in Workspace settings → Submit forms.',
       note: process.env.FORM_INGEST_KEY
         ? 'FORM_INGEST_KEY is set in the environment and takes precedence over this saved key.'
         : undefined,

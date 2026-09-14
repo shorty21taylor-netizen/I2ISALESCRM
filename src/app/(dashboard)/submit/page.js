@@ -1,11 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
 import { toReportDay } from '@/lib/report-date';
+
+// The icon set an admin picks from. Stored as a name on the form row so the
+// choice survives without the page compiling in a list of forms.
+var ICON_FOR = {
+  'phone': Phone,
+  'dollar': DollarSign,
+  'clipboard-check': ClipboardCheck,
+  'document': FileText,
+  'calendar': CalendarDays,
+};
+
+var ACCENT_FOR = {
+  accent: 'text-crm-accent',
+  positive: 'text-crm-positive',
+  neutral: 'text-crm-muted',
+};
 
 function buildProgramString(brand, myfmDuration, subProgram, partnerName) {
   if (brand === 'MYFM') return 'MYFM - ' + (myfmDuration || '6 Month Coaching');
@@ -82,6 +99,7 @@ var typeBadge = {
 
 export default function SubmitPage() {
   var workspaceId = useWorkspace();
+  var router = useRouter();
   // "All workspaces" is a viewing mode, not a destination — let the server default
   // to the primary workspace rather than stamping a placeholder id.
   var submitWorkspaceId = (!workspaceId || workspaceId === ALL_WORKSPACES) ? undefined : workspaceId;
@@ -100,16 +118,24 @@ export default function SubmitPage() {
   var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
+  var f6 = useState(null), formsConfig = f6[0], setFormsConfig = f6[1];
+
+  // Everything on this page belongs to one workspace. The server decides which
+  // from the session; the id here only makes the request refetch on a switch.
   useEffect(function() {
-    fetch('/api/forms/config')
+    if (!workspaceId) return;
+    apiFetch(withWorkspace('/api/forms/config', workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d && d.forms) setFormLinks(d.forms);
-        if (d && d.bookingLink) setBookingLink(d.bookingLink);
-        if (d && d.useExternalForms === false) setUseExternal(false);
+        if (!d || !d.success) return;
+        setFormsConfig(d);
+        setFormLinks(d.forms || []);
+        // Null is a real answer: this workspace has no booking link, so no card.
+        setBookingLink(d.bookingLink || null);
+        if (d.useExternalForms === false) setUseExternal(false);
       })
-      .catch(function() { /* fall back to the built-in forms */ });
-  }, []);
+      .catch(function() { setFormsConfig({ forms: [], bookingLink: null }); });
+  }, [workspaceId]);
 
   // Book a Call form
   var b1 = useState(''), bcLeadsName = b1[0], setBcLeadsName = b1[1];
@@ -392,37 +418,64 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {/* ===== HOSTED FORMS (n8n) ===== */}
-        {useExternal && formLinks && (
+        {/* ===== THIS WORKSPACE'S FORMS ===== */}
+        {/* A workspace nobody has set up shows nothing, and says so. It used to
+            show the first workspace's four forms, which is how a closer on a new
+            offer could file a deal into another company's group. */}
+        {formsConfig && (formLinks || []).length === 0 && (
+          <div className="glass-card p-8 text-center">
+            <ClipboardCheck className="w-7 h-7 mx-auto mb-3 text-crm-muted" />
+            <p className="text-sm text-crm-text max-w-[520px] mx-auto leading-relaxed">
+              {formsConfig.emptyMessage || 'No forms set up for this workspace yet.'}
+            </p>
+            {formsConfig.canSetUp ? (
+              <button className="btn-primary mt-4 inline-flex items-center gap-2 text-xs"
+                onClick={function() { router.push('/admin/workspace/forms'); }}>
+                <Settings2 className="w-3.5 h-3.5" /> Open workspace settings
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {formsConfig && formsConfig.missingRoutes && formsConfig.missingRoutes.length > 0 && (
+          <div className="sub-warn">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {formsConfig.missingRoutes.length} live {formsConfig.missingRoutes.length === 1 ? 'form has' : 'forms have'} no
+              destination. Submissions to {formsConfig.missingRoutes.length === 1 ? 'it' : 'them'} will be rejected.
+            </span>
+            <button className="sub-warn-go" onClick={function() { router.push('/admin/workspace/forms'); }}>
+              Fix it
+            </button>
+          </div>
+        )}
+
+        {useExternal && (formLinks || []).length > 0 && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {[
-                { key: 'book-call', icon: Phone, accent: 'text-crm-accent', blurb: 'Setters — log a new booked appointment' },
-                { key: 'close-deal', icon: DollarSign, accent: 'text-crm-positive', blurb: 'Closers — ring the bell on a won deal' },
-                { key: 'eod-report', icon: ClipboardCheck, accent: 'text-crm-muted', blurb: 'Everyone — end-of-day numbers' },
-                { key: 'after-call', icon: FileText, accent: 'text-crm-accent', blurb: 'Closers — recap what happened on the call' },
-              ].map(function(card) {
-                var link = formLinks[card.key];
-                if (!link || !link.url) return null;
-                var CardIcon = card.icon;
+              {formLinks.map(function(form) {
+                if (!form.formUrl) return null;
+                var CardIcon = ICON_FOR[form.icon] || ClipboardCheck;
                 return (
                   <a
-                    key={card.key}
-                    href={link.url}
+                    key={form.formKey}
+                    href={form.formUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="glass-card p-5 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform"
                   >
                     <div className="flex items-center justify-between">
-                      <CardIcon className={'w-5 h-5 ' + card.accent} />
+                      <CardIcon className={'w-5 h-5 ' + (ACCENT_FOR[form.accent] || 'text-crm-muted')} />
                       <ExternalLink className="w-4 h-4 text-crm-muted" />
                     </div>
                     <div>
-                      <div className="font-display font-semibold text-crm-text-bright">{link.label}</div>
-                      <div className="text-xs text-crm-muted mt-1">{card.blurb}</div>
+                      <div className="font-display font-semibold text-crm-text-bright">{form.label}</div>
+                      {form.description ? (
+                        <div className="text-xs text-crm-muted mt-1">{form.description}</div>
+                      ) : null}
                     </div>
                     <div className="text-[11px] font-mono text-crm-muted mt-auto">
-                      Logs to the CRM + posts to WhatsApp
+                      {form.destinationLabel || 'Logs to the CRM'}
                     </div>
                   </a>
                 );
@@ -439,7 +492,7 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {(!useExternal || !formLinks || showBuiltIn) && (
+        {(formLinks || []).length > 0 && (!useExternal || showBuiltIn) && (
         <div className="space-y-6">
 
         {/* Tab Toggle */}

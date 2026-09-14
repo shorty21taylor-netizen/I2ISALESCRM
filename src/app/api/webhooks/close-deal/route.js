@@ -3,6 +3,7 @@ import { repScope, scopeList } from '@/lib/rep-scope';
 import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
+import { requireRoute } from '@/lib/submit-guard';
 
 export async function POST(req) {
   await initStore();
@@ -14,6 +15,12 @@ export async function POST(req) {
     // The server decides the owning workspace; a member cannot write into
     // another client's workspace by posting a different workspaceId.
     body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);
+
+    // Before anything is written: does this workspace have somewhere to send it?
+    // No route means no record, so a submission is never saved into a state where
+    // nobody was told about it — or worse, where the wrong company was.
+    var unrouted = await requireRoute(body.workspaceId, 'close-deal');
+    if (unrouted) return unrouted;
     var entry = addClosedDeal(body);
     if (body.closerEmail || body.closer) {
       registerCloser(body.closerEmail || '', body.closer || body.closerName || '');
@@ -27,7 +34,6 @@ export async function POST(req) {
       formType: 'close-deal',
       entry: entry,
       source: 'crm',
-      override: body._whatsapp,
     });
 
     return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });

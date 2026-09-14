@@ -3,6 +3,7 @@ import { repScope, scopeList } from '@/lib/rep-scope';
 import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
+import { requireRoute } from '@/lib/submit-guard';
 import { checkEODSanity } from '@/lib/form-ingest';
 
 export async function POST(req) {
@@ -29,6 +30,12 @@ export async function POST(req) {
     if (insane) return NextResponse.json({ error: insane }, { status: 400 });
 
     body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);
+
+    // Before anything is written: does this workspace have somewhere to send it?
+    // No route means no record, so a submission is never saved into a state where
+    // nobody was told about it — or worse, where the wrong company was.
+    var unrouted = await requireRoute(body.workspaceId, 'eod-report');
+    if (unrouted) return unrouted;
     var entry = addEODReport(body);
     if (body.closerEmail || body.salesRep) {
       registerCloser(body.closerEmail || '', body.salesRep || body.closerName || '');
@@ -43,7 +50,6 @@ export async function POST(req) {
       formType: 'eod-report',
       entry: entry,
       source: 'crm',
-      override: body._whatsapp,
     });
 
     return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
