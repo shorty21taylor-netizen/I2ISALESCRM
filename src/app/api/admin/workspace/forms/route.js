@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { initStore, getWorkspace, getWorkspaces, getWhatsappConfig, getMessageLog } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
 import {
-  listForms, listIntegrations, listRoutes, formsMissingRoutes,
+  listForms, listIntegrations, listRoutes, formsMissingRoutes, getIntegration,
   upsertForm, removeForm, upsertIntegration, removeIntegration,
   upsertRoute, removeRoute, copySetupFrom,
   ICONS, AUDIENCES, CHANNELS, suggestedTargets, knownGroupIds,
 } from '@/lib/workspace-config';
 import { ensureLegacyForms, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
+import { INGEST_PROVIDER, INGEST_KEY_NAME, defaultIngestWorkspace } from '@/lib/ingest-auth';
+import crypto from 'crypto';
 
 export var dynamic = 'force-dynamic';
 
@@ -53,6 +55,16 @@ export async function GET(req) {
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: missing,
+    // The key this workspace's hosted forms must present. While it is set, no other
+    // key can write a record into this workspace — which is what stops a form link
+    // set up for one client's offer from filing into another client's books.
+    ingest: {
+      key: await getIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME),
+      // Without a key of its own, this workspace is still reachable by the shared
+      // install-wide key, and an n8n workflow that names no workspace at all lands
+      // here instead.
+      sharedFallbackWorkspace: defaultIngestWorkspace(),
+    },
     // For any form with no destination, the groups this CRM has actually posted
     // that form to before — read out of the message log, because a WhatsApp group
     // id cannot be read off a screen.
@@ -138,6 +150,17 @@ export async function POST(req) {
     result = await upsertIntegration(g.workspaceId, body.provider, body.configKey, body.configValue);
   } else if (action === 'delete-integration') {
     result = await removeIntegration(g.workspaceId, body.provider, body.configKey);
+  } else if (action === 'generate-ingest-key') {
+    // Sealing a workspace: from here on its forms carry this key, and a submission
+    // presenting any other key is refused rather than filed somewhere else.
+    var fresh = 'sk_' + g.workspaceId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
+      + '_' + crypto.randomBytes(24).toString('hex');
+    result = await upsertIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME, fresh);
+    if (!result || !result.error) result = { success: true, key: fresh };
+  } else if (action === 'clear-ingest-key') {
+    // Unsealing. The workspace goes back to being reachable by the shared key, so
+    // this is only ever right while migrating a workflow over.
+    result = await removeIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME);
   } else if (action === 'save-route') {
     result = await upsertRoute(g.workspaceId, body.formKey, body.channel, body.target, body.isActive);
   } else if (action === 'delete-route') {
@@ -174,6 +197,10 @@ export async function POST(req) {
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: await formsMissingRoutes(g.workspaceId),
+    ingest: {
+      key: await getIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME),
+      sharedFallbackWorkspace: defaultIngestWorkspace(),
+    },
   }));
 }
 

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Send, AlertTriangle, GripVertical, Copy, Save,
-  Phone, DollarSign, ClipboardCheck, FileText, CalendarDays, Link2,
+  Phone, DollarSign, ClipboardCheck, FileText, CalendarDays, Link2, KeyRound, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
 
@@ -282,6 +282,71 @@ export default function WorkspaceFormsPage() {
           </div>
         </section>
       ) : null}
+
+      {/* ===== FORM INGEST KEY ===== */}
+      <section className="glass-card wsa-card">
+        <div className="wsa-head">
+          <KeyRound className="w-4 h-4 text-crm-accent" />
+          <h2 className="wsa-title">Form ingest key</h2>
+        </div>
+        <p className="wsa-sub">
+          The key this workspace&rsquo;s hosted forms send as <code className="aik-code">x-api-key</code>.
+          The key decides which workspace a submission lands in — not the form, and not
+          whatever the n8n workflow behind it says. While a key is set here, nothing
+          else can write a record into this workspace.
+        </p>
+
+        {data.ingest && data.ingest.key ? (
+          <div className="wsa-list">
+            <div className="wf-int">
+              <span className="wf-int-p" style={{ color: '#22c55e' }}>
+                <ShieldCheck className="w-3.5 h-3.5" style={{ display: 'inline', verticalAlign: '-2px' }} /> sealed
+              </span>
+              <span className="wf-int-v" style={{
+                whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip',
+                wordBreak: 'break-all', color: 'var(--crm-text-bright)',
+              }}>{data.ingest.key}</span>
+              <button type="button" className="wf-act" disabled={busy} title="Copy"
+                onClick={function() {
+                  try { navigator.clipboard.writeText(data.ingest.key); setNotice('Key copied.'); }
+                  catch (e) { setError('Could not copy — select it by hand.'); }
+                }}>
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="wsa-sub" style={{ marginTop: '8px' }}>
+              Put this in the HTTP Request node of every n8n workflow for this workspace,
+              as the header <code className="aik-code">x-api-key</code>. A submission arriving
+              with any other key is refused, not filed somewhere else.
+            </p>
+            <div className="wsa-row" style={{ marginTop: '10px' }}>
+              <button type="button" className="btn-ghost wsa-btn" disabled={busy}
+                onClick={function() { act({ action: 'generate-ingest-key' }, function() { setNotice('New key generated — update the n8n workflows for this workspace.'); }); }}>
+                Rotate
+              </button>
+              <button type="button" className="btn-ghost wsa-btn" disabled={busy}
+                onClick={function() { act({ action: 'clear-ingest-key' }, function() { setNotice('Key removed. This workspace is reachable by the shared key again.'); }); }}>
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="wsa-list">
+            <p className="wsa-empty" style={{ color: '#f59e0b' }}>
+              <ShieldAlert className="w-3.5 h-3.5" style={{ display: 'inline', verticalAlign: '-2px' }} />{' '}
+              No key of its own. This workspace can still be written to by the shared
+              install-wide key, and a workflow that names no workspace at all lands in
+              <code className="aik-code">{(data.ingest && data.ingest.sharedFallbackWorkspace) || 'default'}</code>.
+            </p>
+            <div className="wsa-row" style={{ marginTop: '10px' }}>
+              <button type="button" className="btn-primary wsa-btn" disabled={busy}
+                onClick={function() { act({ action: 'generate-ingest-key' }, function() { setNotice('Key generated — put it in this workspace\'s n8n workflows.'); }); }}>
+                Generate a key for this workspace
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ===== INTEGRATIONS ===== */}
       <section className="glass-card wsa-card">

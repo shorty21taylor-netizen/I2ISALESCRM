@@ -4,7 +4,7 @@ import { initStore, addBookedCall, addClosedDeal, addEODReport, addAfterCallRepo
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
 import { normalizeSubmission, resolveFormType, checkEODSanity } from '@/lib/form-ingest';
 import { sendFormNotification } from '@/lib/notify-server';
-import { getIngestKey, ingestKeyMatches } from '@/lib/ingest-auth';
+import { getIngestKey, authorizeIngestKey, resolveClaimedWorkspace } from '@/lib/ingest-auth';
 
 // Public ingest endpoint for the hosted n8n forms.
 //
@@ -13,8 +13,10 @@ import { getIngestKey, ingestKeyMatches } from '@/lib/ingest-auth';
 //   { "Client Name": "...", "Deal Value": "5000", ... }
 //
 // n8n has no CRM session, so the workspace header the browser sends is absent.
-// A shared ingest key authenticates the workflow instead, and the record lands in
-// the workspace named in the payload (default: 'default').
+// An ingest key authenticates the workflow instead — and the KEY decides which
+// workspace the record lands in, not the payload. Give each workspace its own key
+// (Workspace -> Forms & Routing) and its forms can only ever write into it, however
+// the n8n workflow behind them is configured.
 
 function cors() {
   return {
@@ -78,15 +80,18 @@ export async function POST(req) {
         { status: 503, headers: cors() }
       );
     }
-    if (!ingestKeyMatches(expected, presented)) {
-      console.warn('[Ingest] Rejected submission — bad or missing key');
+    // The key is checked before anything is parsed, and a workspace-specific key
+    // pins the destination here and now — the payload never gets to move it.
+    var auth = await authorizeIngestKey(presented);
+    if (!auth.ok) {
+      console.warn('[Ingest] Rejected submission —', auth.reason);
       note(req, {
         status: 'rejected',
-        reason: presented ? 'Key did not match FORM_INGEST_KEY' : 'No x-api-key header on the request',
+        reason: presented ? 'Key did not match any ingest key' : 'No x-api-key header on the request',
         keyPresented: sawKey,
         requestedType: url.searchParams.get('type') || '',
       });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: cors() });
+      return NextResponse.json({ error: auth.reason }, { status: auth.status, headers: cors() });
     }
 
     requestedType = url.searchParams.get('type') || url.searchParams.get('form') || raw.formType || raw.type || '';
@@ -98,6 +103,29 @@ export async function POST(req) {
 
     var type = norm.type;
     var record = norm.record;
+
+    // Where this submission is allowed to land. A per-workspace key has already
+    // decided; an install-wide key gets its claim checked against the workspaces
+    // that exist and the ones that have sealed themselves with a key of their own.
+    //
+    // Before this, a booked-call form whose workflow named another company wrote
+    // straight into that company's books, and one that named nobody wrote into
+    // 'default' — so a new client's form quietly filled the first client's CRM.
+    var placement = resolveClaimedWorkspace(auth, record.workspaceId);
+    if (!placement.ok) {
+      console.warn('[Ingest] Refused placement:', placement.reason,
+        '| claimed=' + (record.workspaceId || '(none)'));
+      note(req, {
+        status: 'rejected', reason: placement.reason, keyPresented: sawKey,
+        type: type, requestedType: requestedType,
+      });
+      return NextResponse.json({ error: placement.reason }, { status: placement.status, headers: cors() });
+    }
+    if (placement.ignoredClaim && placement.ignoredClaim !== placement.workspaceId) {
+      console.warn('[Ingest] Payload claimed workspace "' + placement.ignoredClaim
+        + '" but the key belongs to "' + placement.workspaceId + '" — the key wins.');
+    }
+    record.workspaceId = placement.workspaceId;
 
     // Minimum viable record per form — a blank submission should fail loudly at
     // n8n rather than land as an empty row in the CRM.
