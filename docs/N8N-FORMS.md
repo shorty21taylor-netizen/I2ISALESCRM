@@ -12,21 +12,31 @@ the CRM, the CRM writes the record, sends the WhatsApp message, and logs the sen
 
 ---
 
-## 1. Set the ingest key (once)
+## 1. Get the workspace's ingest key
 
-The ingest endpoint is public, so it is protected by a shared secret.
+The ingest endpoint is public, so it is protected by a key — and **the key decides
+which workspace the submission lands in.**
 
-**Railway → CRM service → Variables:**
+Every workspace has its own. A new workspace is sealed the moment it is created and
+shows its key once on **Admin → Workspaces**; it is always available afterwards at
+**Team → Submit Forms → Form ingest key**.
 
-```
-FORM_INGEST_KEY = <a long random string>
-```
+Use **that workspace's key** in that workspace's workflows. Never reuse another
+workspace's key: the form will look like it is working while filing its submissions
+into the other company's books.
 
-Redeploy. (Alternatively: **Settings → Sales Forms (n8n) → Generate new ingest key**
-— that route stores the key in the database and needs no redeploy, but the
-environment variable wins if both are set.)
+> **Setting up a new workspace?** Follow `docs/SOP-NEW-WORKSPACE.md` instead of this
+> page. It covers the key, the routes, the GoHighLevel link and how to prove the
+> records landed in the right place before a rep touches the form.
 
-Without a key set, every n8n submission is rejected with `503`.
+### The shared key (legacy)
+
+`FORM_INGEST_KEY` on the Railway service is an install-wide key kept only for
+workspaces that have not been migrated yet — today that is Influence2Impact
+(`default`). It cannot write into any workspace that has a key of its own, and it
+stops working entirely once every workspace is sealed.
+
+Without any key set, every n8n submission is rejected with `503`.
 
 ## 2. Wire each n8n workflow
 
@@ -38,7 +48,7 @@ In each of the three workflows, add an **HTTP Request** node immediately after t
   (`book-call` for lead-booking, `eod-report` for the EOD form, `after-call` for the
   after-call report)
 - **Authentication:** none — use a header instead
-- **Headers:** `x-api-key: <FORM_INGEST_KEY>`
+- **Headers:** `x-api-key: <this workspace's ingest key>`
 - **Body Content Type:** JSON
 - **Body:** `{{ $json }}` (send all form fields — "JSON" mode, expression)
 
@@ -70,7 +80,8 @@ sent so the log holds the real message.
 ## 4. Verify
 
 1. `GET https://<crm>/api/forms/ingest?type=close-deal` → should return
-   `"ingestKeyConfigured": true`.
+   `"ingestKeyConfigured": true`. Signed in as the operator it also returns the
+   last 50 ingest attempts with the reason each was accepted or rejected.
 2. Submit each form once with test data.
 3. **CRM → Closed Deals / EOD Logs / Dashboard** — the record is there.
 4. **CRM → Message Log** — one row per submission showing `sent`, `failed`,
@@ -167,14 +178,19 @@ vanishing into JSONB. Promote it to a first-class column by adding its label to
 
 ## Multi-workspace
 
-Submissions land in the `default` workspace unless the payload carries a
-`workspaceId`. To route a client's form elsewhere, add a hidden value in the n8n
-HTTP Request body:
+**The key decides the workspace. The payload does not.**
 
-```
-{{ { ...$json, workspaceId: 'acme' } }}
-```
+Point a workflow at a workspace by giving it that workspace's ingest key — nothing
+else. Do **not** put `workspaceId` in the HTTP Request body:
 
+- with that workspace's own key, a `workspaceId` in the body is ignored;
+- with the shared key, naming a sealed workspace is refused with `403`, and naming a
+  workspace that does not exist is refused with `400`.
+
+This is deliberate. The body used to decide, which meant a form set up for one
+client filed into another client's books whenever its workflow said the wrong thing
+— and a form whose workflow said nothing at all defaulted into `default`, the first
+company's books.
 
 ---
 
