@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
+import { resolveAccess } from '@/lib/access';
 import { initStore, getStore } from '@/lib/store';
 
 export var dynamic = 'force-dynamic';
 
 export async function GET(req) {
   await initStore();
+
+  // A diagnostic that deliberately reads across every workspace, so it belongs
+  // to the account owner alone. Unscoped, it handed one client's manager the
+  // combined cash of the whole platform.
+  var access = await resolveAccess(req);
+  if (!access.isOperator) {
+    return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+  }
+
   var store = getStore();
 
   var profiles = store.closerProfiles || {};

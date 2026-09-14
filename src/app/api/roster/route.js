@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initStore, getAllCloserProfiles } from '@/lib/store';
-import { callerEmail } from '@/lib/access';
+import { callerEmail, effectiveReadWorkspace } from '@/lib/access';
+import { scopeProfiles } from '@/lib/rep-roster-scope';
 import { listUsers } from '@/lib/users';
 import { repIdentity } from '@/lib/rep-stats';
 import { effectiveStatus } from '@/lib/rep-status';
@@ -26,7 +27,10 @@ export async function GET(req) {
       if (k) byEmail[k] = a;
     });
 
-    var profiles = getAllCloserProfiles() || {};
+    // Faces and names for one workspace. Unscoped, this handed every screen that
+    // lists people the whole account's floor.
+    var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
+    var profiles = scopeProfiles(getAllCloserProfiles() || {}, workspaceId);
     var reps = Object.keys(profiles).map(function(email) {
       var profile = profiles[email];
       var account = byEmail[email];

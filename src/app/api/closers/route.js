@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility, renameCloser } from '@/lib/store';
-import { callerEmail, OWNER_EMAIL } from '@/lib/access';
+import { callerEmail, OWNER_EMAIL, effectiveReadWorkspace } from '@/lib/access';
+import { scopeProfiles } from '@/lib/rep-roster-scope';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
 // Remove a rep from the roster, or put them back. Records are never touched.
@@ -34,7 +35,11 @@ export async function GET(req) {
   await initStore();
   try {
     await initStore();
-    var profiles = getAllCloserProfiles();
+    // The roster a caller sees is their own workspace's. This list drives the EOD
+    // tracker, the closers screen and every rep picker, so an unscoped version of
+    // it put one client's whole floor on another client's compliance report.
+    var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
+    var profiles = scopeProfiles(getAllCloserProfiles(), workspaceId);
     var store = getStore();
     var today = todayInReportTimezone();
 

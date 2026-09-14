@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
+import { resolveAccess } from '@/lib/access';
 import { initStore, getStore, getFilteredOverview } from '@/lib/store';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
 export async function GET(request) {
   await initStore();
+
+  // A diagnostic that deliberately reads across every workspace, so it belongs
+  // to the account owner alone. Unscoped, it handed one client's manager the
+  // combined cash of the whole platform.
+  var access = await resolveAccess(request);
+  if (!access.isOperator) {
+    return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+  }
+
 
   var url = new URL(request.url);
   var start = url.searchParams.get('start') || todayInReportTimezone();
