@@ -3400,13 +3400,13 @@ html.light {
 .app-shell { display: block; min-height: 100dvh; }
 
 .mob-main {
-  flex: 1 1 auto;
-  /* Without this a wide child — a table, a chart — stretches the flex item past
-     the viewport instead of scrolling inside its own container. It is the other
-     half of the sideways-scroll bug, and no amount of overflow-hidden on body
-     fixes it properly. */
+  /* Deliberately no width. In block layout an auto width fills whatever is left
+     after the margin, which is the right answer at both ends: full width on a
+     phone where the margin is zero, and viewport-minus-268px on desktop. Setting
+     width:100% instead made the desktop column 268px wider than the screen — the
+     exact overflow this whole change exists to remove, reintroduced from the
+     other side. */
   min-width: 0;
-  width: 100%;
 }
 
 /* ---- top bar ---- */
