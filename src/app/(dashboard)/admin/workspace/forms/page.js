@@ -121,7 +121,28 @@ export default function WorkspaceFormsPage() {
         <p className="wsa-sub">Drag to reorder. The order here is the order reps see.</p>
 
         {data.forms.length === 0 ? (
-          <p className="wsa-empty">No forms yet. Everything a rep can submit starts here.</p>
+          <div>
+            <p className="wsa-empty">No forms yet. Everything a rep can submit starts here.</p>
+            {data.canRestoreOriginals ? (
+              <div className="wsa-banner" style={{ marginTop: '10px' }}>
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  This workspace has {data.recordCount} filed records but no forms — its Submit
+                  page was lost when forms became per-workspace. Put the original
+                  {' ' + data.originalFormCount} back, with their booking link and WhatsApp
+                  destinations.
+                </span>
+                <button type="button" className="btn-primary wsa-btn" disabled={busy}
+                  onClick={function() {
+                    act({ action: 'restore-originals' }, function(d) {
+                      setNotice('Restored ' + d.forms + ' forms to ' + (d.workspace || 'this workspace') + '.');
+                    });
+                  }}>
+                  Restore them
+                </button>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div className="wf-list">
             {data.forms.map(function(f) {

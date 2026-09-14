@@ -12,7 +12,7 @@
 // Any other workspace, and any workspace that already has one form, is left
 // exactly alone. A workspace created tomorrow still starts empty.
 
-import { getWorkspaces, getWorkspace, getWhatsappConfig } from '@/lib/store';
+import { getWorkspaces, getWhatsappConfig, getStore } from '@/lib/store';
 import { loadAppConfig } from '@/lib/db';
 import { listForms, listIntegrations, listRoutes, upsertForm, upsertIntegration, upsertRoute } from '@/lib/workspace-config';
 
@@ -49,34 +49,75 @@ var GROUP_FIELD = {
   'after-call': 'afterCallGroupId',
 };
 
-// The workspace this install started as. 'default' is its id in every deployment
-// of this CRM; the slug is checked too so a renamed original is still found.
-export function originalWorkspace() {
-  if (getWorkspace('default')) return getWorkspace('default');
-  var all = getWorkspaces();
-  for (var i = 0; i < all.length; i++) {
-    if (String(all[i].slug || '').toLowerCase() === 'i2i') return all[i];
+// Which workspace actually needs its Submit page back.
+//
+// Deliberately not "the one whose id is 'default'". store.js guarantees a
+// workspace with that id exists — if the database has none it synthesises one —
+// so an install whose real workspace carries a generated id would have had these
+// forms restored onto a phantom nobody ever opens. That is exactly what happened.
+//
+// The question is answered from the data instead: the workspace holding this
+// install's sales history, which has no forms. A workspace created this morning
+// has no history and can never qualify, and one that already has a single form is
+// somebody's configuration and is never touched.
+var MIN_RECORDS = 10;
+
+export function recordCountsByWorkspace() {
+  var store = getStore();
+  var counts = {};
+  function tally(list) {
+    (list || []).forEach(function(r) {
+      var id = (r && r.workspaceId) || 'default';
+      counts[id] = (counts[id] || 0) + 1;
+    });
   }
-  // Fall back to the oldest workspace — the one that existed before any of this.
-  return all.slice().sort(function(a, b) {
-    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
-  })[0] || null;
+  tally(store.closedDeals);
+  tally(store.eodReports);
+  tally(store.bookedCalls);
+  tally(store.afterCallReports);
+  return counts;
+}
+
+export async function workspaceNeedingRestore() {
+  var counts = recordCountsByWorkspace();
+  var all = getWorkspaces();
+  var best = null;
+
+  for (var i = 0; i < all.length; i++) {
+    var ws = all[i];
+    var records = counts[ws.id] || 0;
+    if (records < MIN_RECORDS) continue;
+    var forms = await listForms(ws.id, { includeInactive: true });
+    if (forms.length) continue;
+    if (!best || records > best.records) best = { ws: ws, records: records };
+  }
+  return best;
 }
 
 var done = false;
 
 export async function ensureLegacyForms() {
   if (done) return { skipped: 'already checked' };
-  done = true;
 
-  var ws = originalWorkspace();
-  if (!ws) return { skipped: 'no workspace' };
+  var candidate = await workspaceNeedingRestore();
+  if (!candidate) {
+    // Nothing to do — but only mark it settled once the check actually ran to
+    // completion. Setting the flag first meant one failed query on a cold boot
+    // disabled the restore for the life of the process.
+    done = true;
+    return { skipped: 'nothing needs restoring' };
+  }
 
-  var existing = await listForms(ws.id, { includeInactive: true });
-  // The moment it has a single form, it is somebody's configuration and this
-  // never touches it again.
-  if (existing.length) return { skipped: 'already configured', workspaceId: ws.id };
+  var ws = candidate.ws;
+  return restoreFormsInto(ws, candidate.records).then(function(result) {
+    done = true;
+    return result;
+  });
+}
 
+// Split out so an operator can trigger it by hand when the automatic rule does
+// not fire — a button that definitely works beats a heuristic that usually does.
+export async function restoreFormsInto(ws, records) {
   var saved = (await loadAppConfig('forms').catch(function() { return null; })) || {};
   var wc = getWhatsappConfig() || {};
 
@@ -121,6 +162,7 @@ export async function ensureLegacyForms() {
     await upsertRoute(ws.id, key, 'whatsapp', groupId, true);
   }
 
-  console.log('[Legacy forms] restored the original workspace’s Submit page (' + ws.name + ')');
-  return { restored: true, workspaceId: ws.id, forms: LEGACY_FORMS.length };
+  console.log('[Legacy forms] restored the Submit page for ' + ws.name
+    + ' (' + ws.id + ', ' + (records || 0) + ' existing records)');
+  return { restored: true, workspaceId: ws.id, workspace: ws.name, forms: LEGACY_FORMS.length };
 }

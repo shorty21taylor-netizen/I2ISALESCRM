@@ -7,7 +7,7 @@ import {
   upsertRoute, removeRoute, copySetupFrom,
   ICONS, AUDIENCES, CHANNELS,
 } from '@/lib/workspace-config';
-import { ensureLegacyForms } from '@/lib/legacy-forms';
+import { ensureLegacyForms, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
 
 export var dynamic = 'force-dynamic';
 
@@ -48,6 +48,12 @@ export async function GET(req) {
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: missing,
+    // Offered only where it makes sense: a workspace with real sales history and
+    // no forms is one whose Submit page was lost, not one nobody has set up yet.
+    canRestoreOriginals: (await listForms(g.workspaceId, { includeInactive: true })).length === 0
+      && (recordCountsByWorkspace()[g.workspaceId] || 0) > 0,
+    recordCount: recordCountsByWorkspace()[g.workspaceId] || 0,
+    originalFormCount: LEGACY_FORMS.length,
     icons: ICONS,
     audiences: AUDIENCES,
     channels: CHANNELS,
@@ -101,6 +107,16 @@ export async function POST(req) {
     if (!result.error) {
       var source = getWorkspace(body.sourceWorkspaceId);
       result.copiedFrom = source ? source.name : body.sourceWorkspaceId;
+    }
+  } else if (action === 'restore-originals') {
+    // The four forms, the GoHighLevel calendar and the WhatsApp destinations this
+    // install shipped with, put back into the workspace on screen. Refuses a
+    // workspace that already has forms so it can never overwrite a real setup.
+    var current = await listForms(g.workspaceId, { includeInactive: true });
+    if (current.length) {
+      result = { error: 'This workspace already has forms. Remove them first if you really want the originals back.' };
+    } else {
+      result = await restoreFormsInto(g.ws, recordCountsByWorkspace()[g.workspaceId] || 0);
     }
   } else if (action === 'test-send') {
     result = await testSend(req, g, body.formKey);
