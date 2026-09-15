@@ -93,8 +93,16 @@ export async function POST(req) {
     var body = await req.json().catch(function () { return {}; });
 
     // Setting which workspace is the console is a separate, smaller action.
+    // It must name a workspace that exists: storing a blank or a stale id would
+    // leave the nav falling back to a name match and quietly showing Operator
+    // View inside a client's workspace.
     if (body && body.action === 'set-operator-workspace') {
-      var saved = await setOperatorWorkspaceId(body.workspaceId);
+      var target = String(body.workspaceId || '').trim();
+      var exists = getWorkspaces().filter(Boolean).some(function (w) { return w.id === target; });
+      if (!target || !exists) {
+        return NextResponse.json({ error: 'Name a workspace that exists.' }, { status: 400 });
+      }
+      var saved = await setOperatorWorkspaceId(target);
       return NextResponse.json({ success: true, operatorWorkspaceId: saved.workspaceId });
     }
 

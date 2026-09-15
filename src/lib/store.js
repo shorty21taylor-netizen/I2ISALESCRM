@@ -2886,15 +2886,26 @@ export async function setOperatorConfig(email, config) {
 // hardcoded so renaming or moving it does not need a deploy.
 var OPERATOR_WS_KEY = 'operator-workspace';
 
+// Held in memory as well as in app_config, like every other setting here. Reading
+// it straight from the database meant a blip — or an environment without one —
+// handed back nothing, and the nav fell through to the name match and put
+// Operator View back inside whichever workspace happened to be named like it.
+var operatorWorkspaceCache = null;
+
 export async function getOperatorWorkspaceId() {
+  if (operatorWorkspaceCache !== null) return operatorWorkspaceCache;
   try {
     var cfg = await loadAppConfig(OPERATOR_WS_KEY);
-    if (cfg && cfg.workspaceId) return String(cfg.workspaceId);
+    if (cfg && cfg.workspaceId) {
+      operatorWorkspaceCache = String(cfg.workspaceId);
+      return operatorWorkspaceCache;
+    }
   } catch (e) {
     console.error('[Operator workspace] load failed:', e.message);
   }
   // Nothing set yet: fall back to a workspace that names itself as the console,
-  // so a fresh install works before anyone visits a settings screen.
+  // so a fresh install works before anyone visits a settings screen. Not cached —
+  // it is a guess, and it should stop being used the moment a real one is set.
   var match = (store.workspaces || []).filter(Boolean).find(function(w) {
     return /summit\s*closing\s*group/i.test(w.name || '');
   });
@@ -2903,6 +2914,13 @@ export async function getOperatorWorkspaceId() {
 
 export async function setOperatorWorkspaceId(workspaceId) {
   var value = { workspaceId: String(workspaceId || '') };
-  await saveAppConfig(OPERATOR_WS_KEY, value);
+  // In memory first, so the setting holds for this process even if Postgres is
+  // unreachable; the write is still attempted and still logged when it fails.
+  operatorWorkspaceCache = value.workspaceId;
+  try {
+    await saveAppConfig(OPERATOR_WS_KEY, value);
+  } catch (e) {
+    console.error('[Operator workspace] save failed:', e.message);
+  }
   return value;
 }
