@@ -5,6 +5,7 @@ import { apiFetch, useAccess } from '@/lib/workspace-client';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
 import OperatorPL from '@/components/OperatorPL';
+import CommandDashboard from '@/components/CommandDashboard';
 
 var RANGES = [
   { key: 'today', label: 'Today' },
@@ -36,7 +37,7 @@ function rangeParams(key) {
 
 export default function OperatorPage() {
   var s1 = useState(null), data = s1[0], setData = s1[1];
-  var s2 = useState('30d'), range = s2[0], setRange = s2[1];
+  var s2 = useState('today'), range = s2[0], setRange = s2[1];
   // null until the first payload arrives, then a map of offerKey -> included.
   var s3 = useState(null), enabled = s3[0], setEnabled = s3[1];
   var s4 = useState(false), loading = s4[0], setLoading = s4[1];
@@ -139,8 +140,8 @@ export default function OperatorPage() {
             <Building2 className="w-5 h-5 text-crm-accent" /> Operator View
           </h1>
           <p className="text-xs md:text-sm text-crm-muted mt-1">
-            Every offer you manage, across every workspace — this view sits above them, so the
-            workspace picker does not apply here.
+            Every workspace at once — cash, calls and closes for the whole company. This view sits
+            above the workspaces, so the workspace picker does not apply here.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -166,6 +167,12 @@ export default function OperatorPage() {
       </div>
 
       {error && <div className="glass-card p-4 text-sm text-crm-negative">Could not load operator data: {error}</div>}
+
+      {/* The company, first: this is the page's whole reason for existing and it
+          should not be below anything. */}
+      <CommandDashboard
+        metrics={data && data.metrics}
+        rangeLabel={(RANGES.filter(function(r) { return r.key === range; })[0] || {}).label} />
 
       {/* What the operator actually takes home: workspace toggles, per-offer
           override rates they can edit, and the four figures that follow from

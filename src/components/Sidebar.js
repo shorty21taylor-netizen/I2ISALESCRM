@@ -163,7 +163,11 @@ export default function Sidebar() {
         )}
       </div>
 
-      {canSwitch && !accountLevel && <WorkspaceSwitcher collapsed={collapsed} />}
+      {/* Hidden on account-level pages, where a picker would offer to narrow a
+          view that is deliberately company-wide — EXCEPT inside the console
+          workspace, where Operator View is the only link in the sidebar and the
+          picker is therefore the only way back out to a client. */}
+      {canSwitch && (!accountLevel || inOperatorWorkspace) && <WorkspaceSwitcher collapsed={collapsed} />}
 
       <nav className="nav-scroll flex-1 min-h-0 py-2 px-2 overflow-y-auto">
         {navGroups.map(function(group) {

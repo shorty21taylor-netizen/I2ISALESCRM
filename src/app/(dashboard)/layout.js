@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import MobileChrome from '@/components/MobileChrome';
 import BrandTheme from '@/components/BrandTheme';
 import { getFormConfig } from '@/lib/form-config';
+import OperatorConsoleGuard from '@/components/OperatorConsoleGuard';
 
 // No door of its own. AuthGate wraps every non-public path and asks the server
 // whether the session is still good; this used to re-check localStorage on top of
@@ -24,6 +25,9 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="app-shell">
       <BrandTheme />
+      {/* Standing in the operator's console, every page but Operator View is a
+          client's screen that this workspace has no clients for. */}
+      <OperatorConsoleGuard />
       {/* The shell owns the sidebar, the phone chrome and the main column. The
           268px left margin used to be unconditional, which made the document
           wider than a phone and slid every page sideways — it is a desktop-only

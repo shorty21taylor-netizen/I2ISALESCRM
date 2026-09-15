@@ -6,6 +6,7 @@ import {
 } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
 import { seedConfig, computeOperator, sanitizeConfig, dealsInRange } from '@/lib/operator';
+import { computeCommandMetrics } from '@/lib/command-metrics';
 import { todayInReportTimezone } from '@/lib/report-date';
 
 export var dynamic = 'force-dynamic';
@@ -58,11 +59,26 @@ export async function GET(req) {
     var myName = operatorName(g.access.email);
     var computed = computeOperator(windowDeals, config, myName);
 
+    // The company-wide numbers. Handed the WHOLE store on purpose — the report
+    // filters each record type on its own date field, and pre-filtering here on
+    // one of them would silently drop the others.
+    var st = getStore();
+    var metrics = computeCommandMetrics({
+      start: start,
+      end: end,
+      workspaces: workspaces,
+      deals: st.closedDeals || [],
+      eods: st.eodReports || [],
+      booked: st.bookedCalls || [],
+      afterCalls: st.afterCallReports || [],
+    });
+
     return NextResponse.json({
       success: true,
       dateRange: { start: start, end: end },
       config: config,
       computed: computed,
+      metrics: metrics,
       myName: myName,
       operatorWorkspaceId: await getOperatorWorkspaceId(),
       // Lean rows — enough for the client to recompute a toggle without a refetch,
