@@ -197,7 +197,13 @@ export default function WorkspaceAdminPage() {
         </div>
       </section>
 
-      {/* ===== SIGN-INS ===== */}
+      {/* ===== SIGN-INS =====
+          Operator only. These rows name a person and their IP address, and the
+          refusals among them belong to no workspace — which is how one client's
+          manager came to be shown every other client's reps. The server sends an
+          empty list to anyone but the operator; this guard keeps the heading from
+          rendering above it. */}
+      {data.showSignIns && (
       <section className="glass-card wsa-card">
         <div className="wsa-head">
           <h2 className="wsa-title">Recent sign-ins</h2>
@@ -225,6 +231,7 @@ export default function WorkspaceAdminPage() {
           })}
         </div>
       </section>
+      )}
     </div>
   );
 }

@@ -42,7 +42,12 @@ export async function GET(req) {
   if (g.denied) return g.denied;
   await ensureAuthReady();
 
-  var attempts = getWorkspaceAttempts(g.workspaceId, 50);
+  // Sign-in rows carry an email and an IP — personal data about a named person.
+  // They are the operator's to read across the whole install, and nobody else's:
+  // a workspace manager has no business seeing who tried to sign in, and the
+  // unattributed failures that made the old list useful were other clients'
+  // people. The panel is not rendered at all when this comes back empty.
+  var attempts = g.access.canSeeAll ? getWorkspaceAttempts(g.workspaceId, 50, true) : [];
   // Two successes for one rep from different IPs inside ten minutes is the shape
   // a borrowed login makes. Flagged rather than left to be noticed.
   var flagged = flagSharedSignIns(attempts);
@@ -55,7 +60,9 @@ export async function GET(req) {
     roster: await rosterFor(g.workspaceId),
     // Two accounts whose addresses differ only in case are two records for one
     // person. Shown to the people who can merge them rather than left in a log.
-    duplicateEmails: (emailIndexState().duplicates || []),
+    // Also operator-only: it names addresses from across the install.
+    duplicateEmails: g.access.canSeeAll ? (emailIndexState().duplicates || []) : [],
+    showSignIns: !!g.access.canSeeAll,
     roles: ROLES.map(function(r) { return { id: r, label: roleLabel(r) }; }),
     signIns: attempts.map(function(a) {
       return {

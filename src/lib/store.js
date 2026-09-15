@@ -2689,13 +2689,19 @@ export function getAuthAttempts() {
   return store.authAttempts || [];
 }
 
-export function getWorkspaceAttempts(workspaceId, limit) {
+export function getWorkspaceAttempts(workspaceId, limit, includeUnattributed) {
   var rows = (store.authAttempts || []);
-  // A failed attempt never resolved to a workspace, so it carries none. The
-  // workspace's own list would be missing exactly the rows it exists to show, so
-  // unattributed failures are included.
+  // A failed attempt never resolves to a workspace, so it carries none. Those
+  // rows used to be folded into every workspace's list on the theory that a
+  // workspace would otherwise be missing the failures it exists to show. The
+  // cost of that was a cross-tenant leak: one client's manager was shown every
+  // other client's rep emails and IP addresses, because a refusal is exactly
+  // the row that carries no workspace.
+  //
+  // Unattributed rows now belong to the operator's install-wide view alone.
   var mine = rows.filter(function(r) {
-    return !r.workspaceId || r.workspaceId === workspaceId;
+    if (r.workspaceId) return r.workspaceId === workspaceId;
+    return !!includeUnattributed;
   });
   return mine.slice(0, limit || 50);
 }
