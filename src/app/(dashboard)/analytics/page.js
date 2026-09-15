@@ -6,6 +6,7 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
 import { Download, X } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ClientOnly from '@/components/ClientOnly';
+import AnalyzeReport from '@/components/AnalyzeReport';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
 import { GROUP_LABELS } from '@/lib/rep-groups';
@@ -292,6 +293,7 @@ export default function AnalyticsPage() {
               {shortDay(m.range.start)} — {shortDay(m.range.end)} · {m.range.daysReported} reporting days · {m.range.repsReporting} reps
             </p>
           </div>
+          <AnalyzeReport surface="metrics" label="Team Metrics" defaultRange="month" />
           <div className="flex flex-wrap items-center gap-2">
             <div className="an-seg">
               {PRESETS.map(function(p) {

@@ -5,6 +5,7 @@ import { FileText, Trash2 } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ExtraFields from '@/components/ExtraFields';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import AnalyzeReport from '@/components/AnalyzeReport';
 import { getUser } from '@/lib/auth';
 import { toReportDay } from '@/lib/report-date';
 
@@ -103,6 +104,7 @@ export default function AfterCallPage() {
             <h1 className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>After-Call Reports</h1>
             <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>{filtered.length} reports · {uniqueLeads.length} leads</p>
           </div>
+          <AnalyzeReport surface="after-call" label="After-Call Reports" defaultRange="month" />
         </div>
       </header>
 

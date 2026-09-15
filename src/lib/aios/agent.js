@@ -80,7 +80,10 @@ function inputOf(block) {
 // again rather than trusting its own transcript.
 // `deps.client` exists so the loop itself can be exercised without buying tokens;
 // in every real call it is absent and the SDK client below is used.
+// `deps.maxToolCalls` raises the ceiling for the Analyze button, which reads far
+// more widely than a single chat question before it can claim a pattern.
 export async function askAios(ctx, question, history, deps) {
+  var budget = (deps && deps.maxToolCalls) || MAX_TOOL_CALLS;
   var apiKey = (deps && deps.client) ? '' : await getApiKey();
   if (!(deps && deps.client) && !apiKey) {
     return {
@@ -103,7 +106,7 @@ export async function askAios(ctx, question, history, deps) {
   var trace = [];
   var calls = 0;
 
-  for (var turn = 0; turn < MAX_TOOL_CALLS + 1; turn++) {
+  for (var turn = 0; turn < budget + 1; turn++) {
     var response;
     try {
       response = await client.beta.messages.create({
@@ -139,7 +142,7 @@ export async function askAios(ctx, question, history, deps) {
       var block = response.content[i];
       if (block.type !== 'tool_use') continue;
 
-      if (calls >= MAX_TOOL_CALLS) {
+      if (calls >= budget) {
         results.push({
           type: 'tool_result', tool_use_id: block.id, is_error: true,
           content: 'Look-up budget for this question is spent. Answer from what you already have, and say '

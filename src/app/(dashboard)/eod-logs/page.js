@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import ExtraFields from '@/components/ExtraFields';
 import { toReportDay, calendarDay } from '@/lib/report-date';
 import RepAvatar from '@/components/RepAvatar';
+import AnalyzeReport from '@/components/AnalyzeReport';
 import useRoster from '@/lib/use-roster';
 
 export default function EODLogsPage() {
@@ -415,6 +416,7 @@ export default function EODLogsPage() {
             <h1 className="text-xl md:text-2xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>EOD Logs</h1>
             <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>{monthName}</p>
           </div>
+          <AnalyzeReport surface="eod" label="EOD Reports" defaultRange="month" />
           <div className="flex items-center gap-2">
             <div className="glass-surface inline-flex rounded-xl p-1 gap-0.5">
               <button onClick={function() { setView('tracker'); setSelectedDay(null); }}
