@@ -5,7 +5,7 @@ import { apiFetch, withWorkspace, useWorkspace, ALL_WORKSPACES } from '@/lib/wor
 import { ROLES, roleById, roleLabel } from '@/lib/roles';
 
 function emptyForm() {
-  return { name: '', email: '', password: '', role: 'closer', workspaceIds: [] };
+  return { name: '', email: '', role: 'closer', workspaceIds: [] };
 }
 
 export default function TeamPage() {
@@ -64,7 +64,6 @@ export default function TeamPage() {
   function handleCreate(e) {
     e.preventDefault();
     if (!form.email.trim()) { flash(false, 'Email is required'); return; }
-    if (form.password.length < 6) { flash(false, 'Password must be at least 6 characters'); return; }
     // The combined view is a way of looking at every company at once, not a
     // company. Adding somebody from it used to succeed and file them into
     // whichever workspace the session happened to be pinned to, which is how a
@@ -82,11 +81,17 @@ export default function TeamPage() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.success) { flash(false, d.error || 'Could not create user'); return; }
-        // Name the destination, so a mis-set workspace is visible the moment it
-        // happens rather than at their first sign-in.
+        // Name the destination AND the credential that actually opens it.
+        //
+        // This used to say "can now sign in with that email and password",
+        // meaning the password typed on this form. Nothing reads that password —
+        // login checks the workspace team password and only that — so every rep
+        // added here was handed a string that could never work, and the first
+        // one to try it looked like a broken account.
         flash(true, (d.user.name || d.user.email) + ' was added to '
           + (currentWorkspaceName || d.workspaceId)
-          + ' — signing in with that email and password lands them there.');
+          + ' — they sign in with that email and the '
+          + (currentWorkspaceName || 'workspace') + ' team password.');
         setForm(emptyForm());
         load();
       })
@@ -96,7 +101,6 @@ export default function TeamPage() {
   function saveEdit() {
     if (!editing) return;
     var payload = { email: editing.email, name: editing.name, workspaceIds: editing.workspaceIds, role: editing.role };
-    if (editing.password) payload.password = editing.password;
 
     apiFetch('/api/users', {
       method: 'PATCH',
@@ -106,7 +110,7 @@ export default function TeamPage() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.success) { flash(false, d.error || 'Could not save'); return; }
-        flash(true, 'Saved ' + d.user.name + (editing.password ? ' — password updated' : ''));
+        flash(true, 'Saved ' + d.user.name);
         setEditing(null);
         load();
       })
@@ -181,7 +185,7 @@ export default function TeamPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-crm-text-bright">Team & Permissions</h1>
           <p className="text-xs text-crm-muted mt-0.5">
-            Set someone&apos;s password and choose which workspaces they can reach
+            Add someone to this workspace and choose what they can reach. They sign in with their email and the team password.
           </p>
         </div>
       </div>
@@ -209,12 +213,6 @@ export default function TeamPage() {
               <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Email</label>
               <input className="input-field" type="email" value={form.email} placeholder="adeel@summitclosing.com"
                 onChange={function(e) { setForm(Object.assign({}, form, { email: e.target.value })); }} />
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Password</label>
-              <input className="input-field" type="text" value={form.password} placeholder="At least 6 characters"
-                onChange={function(e) { setForm(Object.assign({}, form, { password: e.target.value })); }} />
-              <p className="text-[10px] text-crm-muted/60 mt-1">Shown in plain text so you can pass it on. Stored hashed.</p>
             </div>
             <div>
               <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Role</label>
@@ -259,7 +257,7 @@ export default function TeamPage() {
         <div className="p-5 space-y-3">
           {loading && <p className="text-xs text-crm-muted">Loading…</p>}
           {!loading && users.length === 0 && (
-            <p className="text-xs text-crm-muted">No accounts yet. Anyone without one signs in with the shared team password.</p>
+            <p className="text-xs text-crm-muted">No accounts yet. Everyone here signs in with their email and the team password.</p>
           )}
 
           {users.map(function(u) {
@@ -279,7 +277,7 @@ export default function TeamPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button onClick={function() { setEditing(Object.assign({}, u, { password: '' })); }} className="btn-ghost text-xs">Edit</button>
+                      <button onClick={function() { setEditing(Object.assign({}, u)); }} className="btn-ghost text-xs">Edit</button>
                       <button onClick={function() { setConfirmDelete(u.email); }} className="btn-ghost p-2 text-crm-negative" aria-label={'Remove ' + u.email}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -287,16 +285,11 @@ export default function TeamPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Name</label>
                         <input className="input-field text-sm" value={editing.name}
                           onChange={function(e) { setEditing(Object.assign({}, editing, { name: e.target.value })); }} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">New password</label>
-                        <input className="input-field text-sm" type="text" value={editing.password} placeholder="Leave blank to keep"
-                          onChange={function(e) { setEditing(Object.assign({}, editing, { password: e.target.value })); }} />
                       </div>
                       <div>
                         <label className="block text-xs font-mono text-crm-muted uppercase tracking-wider mb-2">Role</label>

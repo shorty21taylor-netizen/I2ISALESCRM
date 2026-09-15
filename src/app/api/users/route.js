@@ -106,10 +106,13 @@ export async function POST(req) {
     if (!target || target === ALL_WORKSPACES) {
       return NextResponse.json({ error: 'No workspace to add them to.' }, { status: 400 });
     }
+    // No password. createUser never stored one and login never read one — sign-in
+    // is the email plus the workspace team password. Passing it here made the
+    // screen above ask for a credential that was discarded on arrival and then
+    // promised to the new rep as the way in.
     var user = await createUser({
       email: body.email,
       name: body.name,
-      password: body.password,
       role: body.role,
       workspaceIds: [target],
     });

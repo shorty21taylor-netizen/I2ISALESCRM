@@ -2,19 +2,7 @@ import { NextResponse } from 'next/server';
 import { getWorkspaces, createWorkspace, initStore, updateWorkspace } from '@/lib/store';
 import { hashTeamPassword } from '@/lib/workspace-auth';
 import { resolveAccess, visibleWorkspaces } from '@/lib/access';
-
-// Never hand a workspace's sign-in credentials to a browser. The raw records carry
-// teamPasswordSalt/Hash; serialising them whole shipped that material to every
-// caller of this route, member and operator alike.
-function publicWorkspace(w) {
-  if (!w) return null;
-  var out = {};
-  Object.keys(w).forEach(function (k) {
-    if (/password|salt|hash|secret|token|apiKey/i.test(k)) return;
-    out[k] = w[k];
-  });
-  return out;
-}
+import { publicWorkspace } from '@/lib/workspace-public';
 
 export var dynamic = 'force-dynamic';
 
