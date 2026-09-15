@@ -130,6 +130,12 @@ export default function Sidebar() {
   var canSeeTeam = access ? (!!access.canSeeTeam || isOwner) : true;
   // A member belongs to exactly one workspace, so there is nothing to switch between.
   var canSwitch = access ? !!access.canSwitch : false;
+
+  // Standing in the operator's console. Both ids come from /auth/me so renaming
+  // or moving the console never needs a deploy.
+  var operatorWs = (access && access.operatorWorkspaceId) || '';
+  var activeWs = (access && access.activeWorkspaceId) || '';
+  var inOperatorWorkspace = !!(isOwner && operatorWs && activeWs && operatorWs === activeWs);
   // Pages that sit above the workspaces rather than inside one. A picker here
   // would offer to narrow a view that is deliberately company-wide.
   var accountLevel = pathname === '/operator';
@@ -163,9 +169,17 @@ export default function Sidebar() {
         {navGroups.map(function(group) {
           if (group.operatorOnly && !isOwner) return null;
           if (group.teamOnly && !canSeeTeam) return null;
+          // Inside the operator's own console there is only one thing to look at.
+          // Every other group is a client's floor, and none of it is this
+          // workspace's business.
+          if (inOperatorWorkspace && group.id !== 'operator') return null;
 
           var items = group.items.filter(function(item) {
             if (item.operatorOnly && !isOwner) return false;
+            // Operator View is a portfolio tool, not a per-client one. It used to
+            // sit in every workspace's sidebar, which put a cross-client cash
+            // rollup one click away from a screen scoped to one client.
+            if (item.href === '/operator' && !inOperatorWorkspace) return false;
             if (item.teamOnly && !canSeeTeam) return false;
             // Shown only while it is owed, and hidden the moment it is not.
             if (item.onboardingOnly && !onboardingOwed) return false;

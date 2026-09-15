@@ -4,6 +4,7 @@ import { Building2, DollarSign, Wallet, Percent, Layers, RefreshCw } from 'lucid
 import { apiFetch, useAccess } from '@/lib/workspace-client';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
+import OperatorPL from '@/components/OperatorPL';
 
 var RANGES = [
   { key: 'today', label: 'Today' },
@@ -165,6 +166,11 @@ export default function OperatorPage() {
       </div>
 
       {error && <div className="glass-card p-4 text-sm text-crm-negative">Could not load operator data: {error}</div>}
+
+      {/* What the operator actually takes home: workspace toggles, per-offer
+          override rates they can edit, and the four figures that follow from
+          them. Persisted, so the rates survive a reload. */}
+      <OperatorPL start={rangeParams(range).start} end={rangeParams(range).end} />
 
       {/* Combined totals across selected offers */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">

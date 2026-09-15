@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initStore, getWorkspace, getDisplayNameState, getOnboardingSteps } from '@/lib/store';
+import { initStore, getWorkspace, getDisplayNameState, getOnboardingSteps, getOperatorWorkspaceId } from '@/lib/store';
 import { resolveAccess, visibleWorkspaces } from '@/lib/access';
 import { progressFor } from '@/lib/onboarding-plan';
 import { rotationOverdue } from '@/lib/workspace-auth';
@@ -44,6 +44,14 @@ export async function GET(req) {
       workspaceIds: access.workspaceIds,
       workspaceId: access.canSeeAll ? null : access.workspaceIds[0],
       workspaces: workspaces,
+      // Which workspace this session is standing in, and which one is the
+      // operator's console. The nav uses the pair to decide whether Operator View
+      // belongs in the sidebar at all — it is a portfolio tool, not a per-client
+      // one, and it was appearing in every client's workspace.
+      activeWorkspaceId: access.canSeeAll
+        ? (access.activeWorkspaceId || null)
+        : (access.workspaceIds[0] || null),
+      operatorWorkspaceId: access.isOperator ? await getOperatorWorkspaceId() : null,
       // Nobody should be sitting in the product with nowhere to be. The copy for
       // it lives on the client; this is the flag that raises it.
       noWorkspace: !access.canSeeAll && workspaces.length === 0,

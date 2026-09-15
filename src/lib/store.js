@@ -9,6 +9,7 @@ import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
 import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, savePipelineRecord, savePipelineEvent, findPipelineByAppointment, softDeleteRecord,
   saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
   saveAuthAttempt, loadAuthAttempts,
+  saveOperatorConfig, loadOperatorConfig,
 } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 import { saveRepAward } from '@/lib/db';
@@ -42,6 +43,7 @@ var store = {
   aiosConversations: [],
   aiosUsage: {},
   authAttempts: [],
+  operatorConfigs: {},
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -2835,4 +2837,72 @@ export function setLastWorkspace(email, workspaceId) {
 export function getLastWorkspace(email) {
   var profile = getCloserProfile(email);
   return (profile && profile.lastWorkspaceId) || null;
+}
+
+// ============================================
+// OPERATOR CONFIG — override rates and workspace toggles
+// ============================================
+//
+// Keyed per operator, so a second owner later does not inherit the first one's
+// pay configuration. Held in memory for the page's sake and written straight
+// through to Postgres, because a rate that resets on deploy stops paying someone.
+
+function operatorConfigId(email) {
+  return 'operator:' + String(email || '').trim().toLowerCase();
+}
+
+export function getOperatorConfigCached(email) {
+  return store.operatorConfigs[operatorConfigId(email)] || null;
+}
+
+export async function loadOperatorConfigFor(email) {
+  var id = operatorConfigId(email);
+  if (store.operatorConfigs[id]) return store.operatorConfigs[id];
+  try {
+    var row = await loadOperatorConfig(id);
+    if (row) store.operatorConfigs[id] = row;
+    return row || null;
+  } catch (e) {
+    console.error('[Operator config] load failed:', e.message);
+    return null;
+  }
+}
+
+export async function setOperatorConfig(email, config) {
+  var id = operatorConfigId(email);
+  store.operatorConfigs[id] = config;
+  try {
+    await saveOperatorConfig(id, config);
+  } catch (e) {
+    // Memory already has it, so the page stays correct for this process; the
+    // error is loud because the next deploy would otherwise lose it silently.
+    console.error('[Operator config] SAVE FAILED — will not survive restart:', e.message);
+    return { success: true, persisted: false, error: e.message };
+  }
+  return { success: true, persisted: true };
+}
+
+// Which workspace is the operator's own console. Stored in app_config rather than
+// hardcoded so renaming or moving it does not need a deploy.
+var OPERATOR_WS_KEY = 'operator-workspace';
+
+export async function getOperatorWorkspaceId() {
+  try {
+    var cfg = await loadAppConfig(OPERATOR_WS_KEY);
+    if (cfg && cfg.workspaceId) return String(cfg.workspaceId);
+  } catch (e) {
+    console.error('[Operator workspace] load failed:', e.message);
+  }
+  // Nothing set yet: fall back to a workspace that names itself as the console,
+  // so a fresh install works before anyone visits a settings screen.
+  var match = (store.workspaces || []).filter(Boolean).find(function(w) {
+    return /summit\s*closing\s*group/i.test(w.name || '');
+  });
+  return match ? match.id : '';
+}
+
+export async function setOperatorWorkspaceId(workspaceId) {
+  var value = { workspaceId: String(workspaceId || '') };
+  await saveAppConfig(OPERATOR_WS_KEY, value);
+  return value;
 }

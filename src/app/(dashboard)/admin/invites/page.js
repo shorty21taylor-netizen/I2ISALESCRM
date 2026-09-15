@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { UserPlus, Users, Trash2, Save, Key, Check, AlertCircle, X, Building2 } from 'lucide-react';
-import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
+import { apiFetch, withWorkspace, useWorkspace, ALL_WORKSPACES } from '@/lib/workspace-client';
 import { ROLES, roleById, roleLabel } from '@/lib/roles';
 
 function emptyForm() {
@@ -65,7 +65,14 @@ export default function TeamPage() {
     e.preventDefault();
     if (!form.email.trim()) { flash(false, 'Email is required'); return; }
     if (form.password.length < 6) { flash(false, 'Password must be at least 6 characters'); return; }
-    if (!workspaceId) { flash(false, 'No workspace is selected'); return; }
+    // The combined view is a way of looking at every company at once, not a
+    // company. Adding somebody from it used to succeed and file them into
+    // whichever workspace the session happened to be pinned to, which is how a
+    // rep added "here" ended up signing in somewhere else.
+    if (!workspaceId || workspaceId === ALL_WORKSPACES) {
+      flash(false, 'Switch to the workspace they belong in first — an account is created inside one company, not across all of them.');
+      return;
+    }
 
     apiFetch('/api/users', {
       method: 'POST',
@@ -75,7 +82,11 @@ export default function TeamPage() {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.success) { flash(false, d.error || 'Could not create user'); return; }
-        flash(true, d.user.name + ' can now sign in with that email and password');
+        // Name the destination, so a mis-set workspace is visible the moment it
+        // happens rather than at their first sign-in.
+        flash(true, (d.user.name || d.user.email) + ' was added to '
+          + (currentWorkspaceName || d.workspaceId)
+          + ' — signing in with that email and password lands them there.');
         setForm(emptyForm());
         load();
       })

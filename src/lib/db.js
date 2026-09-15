@@ -91,6 +91,11 @@ export async function initDatabase() {
     // redeploy, which silently stopped all WhatsApp sending until it was re-entered.
     await p.query("CREATE TABLE IF NOT EXISTS app_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
+    // The operator's override rates and workspace toggles. One row per operator,
+    // id 'operator:<email>', so a second owner later does not inherit the first
+    // one's pay configuration.
+    await p.query("CREATE TABLE IF NOT EXISTS operator_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
     // Award grants. One row per rep per award, keyed by email + award id so the
     // grant is unique by construction — the same guarantee the spec's
     // UNIQUE (rep_id, award_id) was after, expressed the way this schema works.
@@ -580,6 +585,19 @@ export async function loadWorkspaceUsers(workspaceId) {
 }
 
 // ===== APP CONFIG (WhatsApp credentials + scheduler settings) =====
+
+export async function saveOperatorConfig(id, data) {
+  return query(
+    'INSERT INTO operator_config (id, data, updated_at) VALUES ($1, $2, NOW()) '
+      + 'ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()',
+    [id, JSON.stringify(data || {})]
+  );
+}
+
+export async function loadOperatorConfig(id) {
+  var r = await query('SELECT data FROM operator_config WHERE id = $1', [id]);
+  return r && r.rows && r.rows[0] ? r.rows[0].data : null;
+}
 
 export async function saveAppConfig(key, data) {
   return query(

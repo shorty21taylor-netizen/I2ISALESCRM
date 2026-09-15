@@ -83,10 +83,29 @@ export async function POST(req) {
     var body = await req.json();
     var problem = checkRoleChange(gate.access, body.email, body.role || 'closer');
     if (problem) return NextResponse.json({ error: problem }, { status: 403 });
-    // The workspace comes from the session, never the request. A manager could
-    // otherwise post another company's workspace id and mint themselves a seat
-    // inside it; the operator still switches workspace to add somebody there.
-    var target = await effectiveWriteWorkspace(req, null);
+    // Where does this person actually land? This is the thing that decides which
+    // company they sign in to, so it is resolved explicitly rather than by
+    // fallback.
+    //
+    // For anyone scoped to one workspace the session decides and the request is
+    // ignored — a manager could otherwise post another company's id and mint
+    // themselves a seat inside it.
+    //
+    // The operator can see several at once, so theirs comes from the screen they
+    // are standing on. Adding somebody while the combined view was selected used
+    // to resolve to 'default': the screen said "All workspaces", the rep was
+    // filed into Influence2Impact, and they signed in there instead of the
+    // company they were added to. There is no sensible guess, so it refuses.
+    var asked = Array.isArray(body.workspaceIds) ? body.workspaceIds[0] : body.workspaceId;
+    if (gate.access.canSeeAll && (!asked || asked === ALL_WORKSPACES)) {
+      return NextResponse.json({
+        error: 'Pick the workspace to add them to first. "All workspaces" is a view, not a destination.',
+      }, { status: 400 });
+    }
+    var target = await effectiveWriteWorkspace(req, asked);
+    if (!target || target === ALL_WORKSPACES) {
+      return NextResponse.json({ error: 'No workspace to add them to.' }, { status: 400 });
+    }
     var user = await createUser({
       email: body.email,
       name: body.name,

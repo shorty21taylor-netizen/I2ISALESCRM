@@ -137,8 +137,11 @@ export function useAccess() {
         if (!d.canSeeAll) {
           var allowed = d.workspaceIds || [];
           var current = getActiveWorkspace();
-          if (allowed.indexOf(current) === -1) {
-            setActiveWorkspace(allowed[0] || 'default');
+          // Their own workspace, never 'default'. Falling back to a hardcoded id
+          // pointed somebody with no seat yet at the original company's books —
+          // the server refuses them, but the screen should not offer it either.
+          if (allowed.length && allowed.indexOf(current) === -1) {
+            setActiveWorkspace(allowed[0]);
           }
         }
       })
