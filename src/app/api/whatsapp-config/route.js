@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { setWhatsAppConfig, getWhatsAppConfig, isWhatsAppConfigured } from '@/lib/whatsapp';
 import { updateSchedulerConfig, initScheduler } from '@/lib/scheduler';
 import { initStore, setWhatsappConfig, getWhatsappConfig } from '@/lib/store';
+import { resolveAccess } from '@/lib/access';
 
 export async function POST(req) {
   await initStore();
   try {
+    // This is the install-wide Assistro config — API key, group ids, scheduler.
+    // A workspace admin writing here would repoint every client's messages.
+    var access = await resolveAccess(req);
+    if (!access.isOperator) {
+      return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+    }
     var body = await req.json();
 
     // Update legacy WhatsApp config (whatsapp.js — used by scheduler)
@@ -47,8 +54,13 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   await initStore();
+  // Reading it exposes the Assistro key's presence and every group id.
+  var access = await resolveAccess(req);
+  if (!access.isOperator) {
+    return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+  }
   try {
     var wc = getWhatsappConfig();
     return NextResponse.json({

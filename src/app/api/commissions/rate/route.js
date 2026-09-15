@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { setCommissionRate, getAllCommissionRates, initStore } from '@/lib/store';
+import { resolveAccess } from '@/lib/access';
 
+// Commission rates are keyed by email across the whole install, so setting one is
+// the account owner's act. Unguarded, any signed-in rep could raise their own rate.
 export async function POST(req) {
   await initStore();
   try {
-    await initStore();
+    var access = await resolveAccess(req);
+    if (!access.isOperator) {
+      return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+    }
     var body = await req.json();
     if (!body.email || body.rate === undefined) {
       return NextResponse.json({ error: 'email and rate required' }, { status: 400 });
@@ -16,7 +22,12 @@ export async function POST(req) {
   }
 }
 
-export async function GET() {
+// The full rate table is every rep on the platform, including other clients'.
+export async function GET(req) {
   await initStore();
+  var access = await resolveAccess(req);
+  if (!access.isOperator) {
+    return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+  }
   return NextResponse.json({ success: true, rates: getAllCommissionRates() });
 }
