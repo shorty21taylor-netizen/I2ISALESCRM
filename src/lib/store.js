@@ -794,6 +794,10 @@ function emptyRep(name) {
     revenue: 0,
     dealCash: 0,
     eodCash: 0,
+    // Excluded from cash/closes above; reported so a rep's row can still say
+    // "and £X on partner offers" rather than the money simply vanishing.
+    partnerCash: 0,
+    partnerDeals: 0,
     cashMYFM: 0,
     cashI2I: 0,
     reportedRevenue: 0,
@@ -815,7 +819,9 @@ function emptyRep(name) {
 }
 
 function repDay(rep, date) {
-  if (!rep.days[date]) rep.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0 };
+  // partnerCash/partnerDeals are what this rep collected that day on somebody
+  // else's offer. Tracked per day because the settling below is per day.
+  if (!rep.days[date]) rep.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0, partnerCash: 0, partnerDeals: 0 };
   return rep.days[date];
 }
 
@@ -883,7 +889,23 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
     if (!rep) return;
 
     var cash = parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0;
-    repDay(rep, date).dealCash += cash;
+    var day = repDay(rep, date);
+
+    // Partner business is somebody else's offer sold through this floor. It has
+    // its own board, and it used to be counted on BOTH — so the team standings
+    // were inflated by external cash and the two boards described overlapping
+    // money. It is tallied here only so the EOD figure can be corrected below.
+    if (classifyOffer(deal.program) === 'partner') {
+      day.partnerCash += cash;
+      day.partnerDeals++;
+      rep.partnerCash += cash;
+      rep.partnerDeals++;
+      if (!rep.email && deal.closerEmail) rep.email = String(deal.closerEmail).toLowerCase().trim();
+      touchActivity(rep, deal.submittedAt);
+      return;
+    }
+
+    day.dealCash += cash;
     rep.dealCash += cash;
     rep.deals++;
     if (!rep.email && deal.closerEmail) rep.email = String(deal.closerEmail).toLowerCase().trim();
@@ -902,13 +924,25 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
 
     Object.keys(rep.days).forEach(function(date) {
       var day = rep.days[date];
-      var dayCash = Math.max(day.dealCash, day.eodCash);
+      // An EOD reports the day's cash as one figure with no program attached, so
+      // a rep who closed a partner deal and filed an honest EOD has that money
+      // inside eodCash too. Dropping the deal alone would leave it there and the
+      // partner cash would survive on the team board anyway. Taking it back out
+      // here is right whether or not they included it: if they did, this removes
+      // it; if they did not, the subtraction floors at zero and the non-partner
+      // deal total still settles the day.
+      var eodCash = Math.max(0, day.eodCash - day.partnerCash);
+      var eodRevenue = Math.max(0, day.eodRevenue - day.partnerCash);
+      var dayCash = Math.max(day.dealCash, eodCash);
       rep.cash += dayCash;
-      rep.revenue += Math.max(day.eodRevenue, dayCash);
+      rep.revenue += Math.max(eodRevenue, dayCash);
     });
     rep.daysActive = Object.keys(rep.days).length;
     delete rep.days;
 
+    // Same correction for the count: an EOD's "closes" includes partner closes,
+    // which belong on the partner board and not here.
+    rep.closes = Math.max(0, rep.closes - rep.partnerDeals);
     // A rep who logged deals but reported no closes in an EOD still closed them.
     rep.closes = Math.max(rep.closes, rep.deals);
 
@@ -921,6 +955,7 @@ export function getLeaderboard(startDate, endDate, workspaceId) {
     rep.cashMYFM = Math.round(rep.cashMYFM * 100) / 100;
     rep.cashI2I = Math.round(rep.cashI2I * 100) / 100;
     rep.reportedRevenue = Math.round(rep.reportedRevenue * 100) / 100;
+    rep.partnerCash = Math.round(rep.partnerCash * 100) / 100;
     rep.closeRate = rep.pitched > 0 ? Math.round((rep.closes / rep.pitched) * 1000) / 10 : 0;
     rep.cashPerDial = rep.dials > 0 ? Math.round((rep.cash / rep.dials) * 100) / 100 : 0;
     rep.avgDealSize = rep.closes > 0 ? Math.round(rep.cash / rep.closes) : 0;
@@ -1018,9 +1053,10 @@ export function getLeaderboardTotals(rows) {
 // unlike the main board this one is deal-derived only — an EOD records the day's
 // cash but never which brand it came from.
 //
-// These deals are ALSO part of the main standings, where cash is the rep's total
-// take for the day. This board is a lens on that same money, not a slice carved
-// out of it, so the two boards deliberately do not sum to a grand total.
+// These deals are NOT in the main standings. Partner business is somebody else's
+// offer sold through this floor, and counting it on the team board both inflated
+// the company's own numbers and described the same money twice. The two boards
+// are now disjoint: team cash plus partner cash is the floor's whole take.
 
 export function getPartnerLeaderboard(startDate, endDate, workspaceId) {
   var start = startDate || null;
