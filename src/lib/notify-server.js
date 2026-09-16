@@ -130,3 +130,75 @@ export async function sendFormNotification(opts) {
 
   return Object.assign({}, result, { logId: logEntry.id });
 }
+
+// Sending something that is not a form submission — today, the after-call AI
+// analysis — to a workspace's own group.
+//
+// It goes through resolveRoute for the same reason every form does: the
+// destination belongs to the workspace, never to the caller and never to an
+// environment variable. A workspace with no route configured gets nothing sent,
+// not a message into whichever group the install happens to have on hand.
+export async function sendWorkspaceMessage(opts) {
+  var workspaceId = opts.workspaceId || '';
+  var formKey = opts.formKey || 'after-call';
+  var message = opts.message || '';
+
+  var base = {
+    kind: opts.kind || formKey,
+    source: opts.source || 'crm',
+    recordId: '', recordLabel: opts.label || '',
+    workspaceId: workspaceId,
+  };
+
+  if (!workspaceId) {
+    return { sent: false, unrouted: true, reason: 'No workspace to send from.' };
+  }
+
+  var resolved = await resolveRoute(workspaceId, formKey);
+  if (!resolved.ok || resolved.silent) {
+    var reason = resolved.silent
+      ? 'This workspace is set to notify nowhere for ' + formKey + '.'
+      : (resolved.reason || 'No route configured.');
+    addMessageLog(Object.assign({}, base, {
+      destination: '', message: message, status: 'skipped', error: reason,
+    }));
+    return { sent: false, unrouted: true, reason: reason };
+  }
+
+  var route = resolved.route;
+  if (route.channel !== 'whatsapp') {
+    return { sent: false, unrouted: true, reason: 'The ' + route.channel + ' channel is not wired up to send.' };
+  }
+
+  var wc = getWhatsappConfig();
+  if (!wc.assistroApiUrl) {
+    return { sent: false, reason: 'No Assistro API URL configured' };
+  }
+
+  console.log('[Notify] ' + formKey + ' analysis | workspace=' + workspaceId + ' | target=' + route.target);
+
+  var result = { sent: false };
+  var error = '';
+  try {
+    var res = await fetch(new URL('/api/notify', opts.req.url).href, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistroApiUrl: wc.assistroApiUrl,
+        assistroApiKey: wc.assistroApiKey,
+        whatsappGroupId: route.target,
+        message: message,
+      }),
+    });
+    result = await res.json().catch(function() { return { sent: false, error: 'Bad response from notifier' }; });
+    if (!result.sent) error = result.error || result.reason || 'Send failed';
+  } catch (e) {
+    error = e.message;
+  }
+
+  var logEntry = addMessageLog(Object.assign({}, base, {
+    destination: route.target, channel: route.channel, message: message,
+    status: result.sent ? 'sent' : 'failed', error: error,
+  }));
+  return Object.assign({}, result, { logId: logEntry.id });
+}

@@ -70,3 +70,35 @@ export function calendarDay(d) {
   var day = d.getDate();
   return y + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
 }
+
+// A named range ("today", "7", "90") as a pair of team-timezone day keys.
+//
+// Every page that offered these buttons built them the same wrong way: take
+// `new Date()`, call setHours(0,0,0,0), then convert. Midnight *in the browser*
+// is not midnight on the floor — on a UTC server it is 5pm Pacific the day
+// before, so "Today" quietly spanned two Pacific days and the header still said
+// Today. Days are counted here instead, on the team's calendar.
+export function rangeForPreset(preset, customStart, customEnd) {
+  var today = todayInReportTimezone();
+  if (preset === 'custom') {
+    return { start: customStart || '', end: customEnd || today };
+  }
+  if (preset === 'today') return { start: today, end: today };
+  if (preset === 'yesterday') {
+    var y = shiftReportDay(today, -1);
+    return { start: y, end: y };
+  }
+  var days = parseInt(preset, 10);
+  if (!days || days < 0) return { start: '', end: today };
+  return { start: shiftReportDay(today, -days), end: today };
+}
+
+// Move a YYYY-MM-DD day key by whole days. Parsed as UTC noon so a DST change
+// cannot roll it into the neighbouring day.
+export function shiftReportDay(day, delta) {
+  if (!day) return '';
+  var parts = String(day).split('-');
+  var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0));
+  d.setUTCDate(d.getUTCDate() + (delta || 0));
+  return d.toISOString().split('T')[0];
+}

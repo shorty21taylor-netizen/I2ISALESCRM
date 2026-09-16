@@ -19,6 +19,12 @@ export async function pipelineViewer(req) {
     return {
       anonymous: true, email: '', name: '', role: '', senior: false,
       workspaceIds: [],
+      // An identity that owns nothing, so a caller that scopes by it fails
+      // closed rather than falling through to "no filter, show everything".
+      identity: { name: '', recordName: '', email: '', matchNames: [],
+        matches: function() { return false; },
+        matchesEmail: function() { return false; },
+        owns: function() { return false; } },
       relation: function() { return ''; },
       visible: function() { return []; },
     };
@@ -47,6 +53,9 @@ export async function pipelineViewer(req) {
     anonymous: false,
     email: access.email,
     name: identity.name,
+    // The match set itself, for callers that scope a list of records by owner
+    // rather than asking about one record at a time.
+    identity: identity,
     role: access.role,
     senior: senior,
     isOwner: !!access.isOwner,

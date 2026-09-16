@@ -10,6 +10,7 @@ import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEOD
   saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
   saveAuthAttempt, loadAuthAttempts,
   saveOperatorConfig, loadOperatorConfig,
+  saveAnalysis, getAnalysis,
 } from '@/lib/db';
 import { saveWorkspace, loadWorkspaces, loadWorkspace, saveWorkspaceUser, findUserWorkspace, loadWorkspaceUsers, saveAppConfig, loadAppConfig } from '@/lib/db';
 import { saveRepAward } from '@/lib/db';
@@ -44,6 +45,7 @@ var store = {
   aiosUsage: {},
   authAttempts: [],
   operatorConfigs: {},
+  aiAnalyses: {},
   whatsappConfig: {
     assistroApiUrl: '',
     assistroApiKey: '',
@@ -2959,4 +2961,38 @@ export async function setOperatorWorkspaceId(workspaceId) {
     console.error('[Operator workspace] save failed:', e.message);
   }
   return value;
+}
+
+// ============================================
+// AI ANALYSES — cached so re-opening a page does not re-bill
+// ============================================
+//
+// Keyed by what was analysed, not by when: `aftercall:<scope>:<from>:<to>`. The
+// same question asked twice is answered from the row rather than the model.
+// Memory first so a page load never waits on Postgres, written through so the
+// answer survives a redeploy. Analyses are never deleted.
+
+export async function loadAnalysis(id) {
+  if (store.aiAnalyses[id]) return store.aiAnalyses[id];
+  try {
+    var row = await getAnalysis(id);
+    if (row) store.aiAnalyses[id] = row;
+    return row || null;
+  } catch (e) {
+    console.error('[AI analysis] load failed:', e.message);
+    return null;
+  }
+}
+
+export async function setAnalysis(id, data) {
+  store.aiAnalyses[id] = data;
+  try {
+    await saveAnalysis(id, data);
+  } catch (e) {
+    // The page still has it for this process; the error is loud because the next
+    // deploy would otherwise silently re-bill for the same question.
+    console.error('[AI analysis] SAVE FAILED — will re-bill after a restart:', e.message);
+    return { persisted: false };
+  }
+  return { persisted: true };
 }

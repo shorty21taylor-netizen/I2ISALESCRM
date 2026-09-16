@@ -6,8 +6,9 @@ import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import ExtraFields from '@/components/ExtraFields';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AnalyzeReport from '@/components/AnalyzeReport';
+import AiAnalysisPanel from '@/components/AiAnalysisPanel';
 import { getUser } from '@/lib/auth';
-import { toReportDay } from '@/lib/report-date';
+import { toReportDay, rangeForPreset } from '@/lib/report-date';
 
 // After-call recaps. Until now this form's submissions were rejected outright by the
 // ingest route (unknown form type) — nothing a closer wrote here ever reached the CRM.
@@ -54,23 +55,10 @@ export default function AfterCallPage() {
     setLoading(false);
   }
 
-  function getDateRange() {
-    var end = new Date();
-    var start = new Date();
-    if (range === 'today') {
-      start.setHours(0, 0, 0, 0);
-    } else if (range === 'yesterday') {
-      start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
-      end.setDate(end.getDate() - 1); end.setHours(23, 59, 59);
-    } else if (range === 'custom') {
-      return { start: customStart, end: customEnd || toReportDay(new Date()) };
-    } else {
-      start.setDate(start.getDate() - parseInt(range));
-    }
-    return { start: toReportDay(start), end: toReportDay(end) };
-  }
-
-  var dateRange = getDateRange();
+  // Counted on the team's calendar, not the browser's. The old version took
+  // midnight locally and converted it, which on a UTC host made "Today" start at
+  // 5pm Pacific the day before — and the AI panel below reads this same range.
+  var dateRange = rangeForPreset(range, customStart, customEnd);
   var searchTerm = search.toLowerCase().trim();
 
   var filtered = reports.filter(function(r) {
@@ -109,6 +97,11 @@ export default function AfterCallPage() {
       </header>
 
       <div className="px-4 md:px-8 pb-8">
+
+        {/* Summit Sales AI over the reports in the range above. It reads the same
+            window the table below shows, so the button and the list can never be
+            describing different weeks. */}
+        <AiAnalysisPanel from={dateRange.start} to={dateRange.end} reportCount={filtered.length} />
 
         {deleteError && (
           <div className="glass-card p-3 mb-4" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>

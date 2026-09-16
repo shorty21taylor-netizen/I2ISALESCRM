@@ -91,6 +91,11 @@ export async function initDatabase() {
     // redeploy, which silently stopped all WhatsApp sending until it was re-entered.
     await p.query("CREATE TABLE IF NOT EXISTS app_config (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW())").catch(function() {});
 
+    // Every AI analysis ever run, keyed by what it analysed. Re-opening a page
+    // must not re-bill, so a run is looked up before it is made. Never deleted —
+    // an old analysis is the record of what the floor looked like that week.
+    await p.query("CREATE TABLE IF NOT EXISTS ai_analyses (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+
     // The operator's override rates and workspace toggles. One row per operator,
     // id 'operator:<email>', so a second owner later does not inherit the first
     // one's pay configuration.
@@ -585,6 +590,18 @@ export async function loadWorkspaceUsers(workspaceId) {
 }
 
 // ===== APP CONFIG (WhatsApp credentials + scheduler settings) =====
+
+export async function saveAnalysis(id, data) {
+  return query(
+    'INSERT INTO ai_analyses (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
+    [id, JSON.stringify(data || {})]
+  );
+}
+
+export async function getAnalysis(id) {
+  var r = await query('SELECT data FROM ai_analyses WHERE id = $1', [id]);
+  return r && r.rows && r.rows[0] ? r.rows[0].data : null;
+}
 
 export async function saveOperatorConfig(id, data) {
   return query(
