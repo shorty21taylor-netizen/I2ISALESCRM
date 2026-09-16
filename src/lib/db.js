@@ -208,6 +208,9 @@ export async function loadFromDatabase() {
     var ac2 = await p.query('SELECT id, email, workspace_id, data FROM aios_conversations WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
     var am = await p.query('SELECT conversation_id, data FROM aios_messages WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 5000').catch(function() { return { rows: [] }; });
     var au = await p.query("SELECT email, day, asked FROM aios_usage WHERE day >= $1", [new Date(Date.now() - 86400000 * 3).toISOString().slice(0, 10)]).catch(function() { return { rows: [] }; });
+    // The roster. Loaded whole, because "which workspace is this person on" has
+    // to be answerable for everyone on the first request after a restart.
+    var wu = await p.query('SELECT workspace_id, email, data FROM workspace_users ORDER BY created_at ASC').catch(function() { return { rows: [] }; });
 
     // workspace_id is the authoritative column; mirror it onto the in-memory record
     // so every consumer can read record.workspaceId without another query.
@@ -260,6 +263,12 @@ export async function loadFromDatabase() {
         a[(r.email || '').toLowerCase() + '|' + r.day] = r.asked || 0;
         return a;
       }, {}),
+      workspaceUsers: ((wu && wu.rows) ? wu.rows : []).map(function(r) {
+        var d = r.data || {};
+        d.workspaceId = r.workspace_id;
+        d.email = r.email;
+        return d;
+      }),
     };
   } catch (e) {
     console.error('[DB] Load error:', e.message);
@@ -578,9 +587,36 @@ export async function saveWorkspaceUser(user) {
 }
 
 export async function findUserWorkspace(email) {
-  var r = await query('SELECT workspace_id, data FROM workspace_users WHERE email = $1 LIMIT 1', [email.toLowerCase()]);
+  // Ordered, and active rows first. An unordered LIMIT 1 over somebody with two
+  // roster rows returned whichever Postgres felt like — including a row that had
+  // been deactivated on purpose, which then pinned their session to the workspace
+  // they had just been taken off.
+  var r = await query(
+    "SELECT workspace_id, data FROM workspace_users WHERE email = $1"
+    + " ORDER BY (data->>'active' IS DISTINCT FROM 'false') DESC, created_at ASC LIMIT 1",
+    [email.toLowerCase()]
+  );
   if (!r || r.rows.length === 0) return null;
   return { workspaceId: r.rows[0].workspace_id, user: r.rows[0].data };
+}
+
+// Every roster row, for the in-memory copy the scoping code reads.
+//
+// This was the missing load. workspace_users was written on every add and read
+// back only one workspace at a time, so after a restart the in-memory roster was
+// empty and repScopeFilter — which decides the EOD board, the Closers list and
+// every rep picker — had nothing to go on. Everyone fell through to 'default',
+// which is to say into Influence2Impact's books.
+export async function loadAllWorkspaceUsers() {
+  var r = await query('SELECT workspace_id, email, data FROM workspace_users ORDER BY created_at ASC');
+  if (!r) return [];
+  return r.rows.map(function(row) {
+    var d = row.data || {};
+    // The columns are authoritative, the same rule every other table follows.
+    d.workspaceId = row.workspace_id;
+    d.email = row.email;
+    return d;
+  });
 }
 
 export async function loadWorkspaceUsers(workspaceId) {

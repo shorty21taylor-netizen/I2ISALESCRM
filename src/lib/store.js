@@ -111,11 +111,17 @@ export async function initStore() {
           return c;
         });
         store.aiosUsage = data.aiosUsage || {};
+        // The roster, whole. Without this the in-memory copy started empty on
+        // every deploy and rep-roster-scope.js — which is what the EOD board, the
+        // Closers list and every rep picker ask "does this person work here?" —
+        // answered "nobody is on any roster", so everybody landed in 'default'.
+        store.workspaceUsers = data.workspaceUsers || [];
         console.log('[Store] Loaded from DB:',
           store.bookedCalls.length, 'booked,',
           store.closedDeals.length, 'deals,',
           store.eodReports.length, 'EODs,',
-          Object.keys(store.closerProfiles).length, 'closers'
+          Object.keys(store.closerProfiles).length, 'closers,',
+          store.workspaceUsers.length, 'roster rows'
         );
         canonicalizeRepNames();
         recalcOverview(); // after canonicalization, so the totals group on one spelling

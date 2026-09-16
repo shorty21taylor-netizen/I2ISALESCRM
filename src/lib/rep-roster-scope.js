@@ -49,6 +49,19 @@ function recordIndex(store) {
   return { byEmail: byEmail, byName: byName };
 }
 
+// Has this person actually filed work in a given workspace?
+//
+// Separate from the scope predicate because the roster repair needs the opposite
+// question: not "where should we show them" but "is there anything here that
+// would be lost by taking them off this roster".
+export function hasRecordsIn(workspaceId, email, name) {
+  var records = recordIndex(getStore());
+  var byEmail = records.byEmail[key(email)];
+  if (byEmail && byEmail[workspaceId]) return true;
+  var byName = name ? records.byName[nameKey(name)] : null;
+  return !!(byName && byName[workspaceId]);
+}
+
 // Returns a predicate: does this profile belong in the workspace being viewed?
 //
 // Pass ALL_WORKSPACES (or nothing) and everyone is in — that is the operator's

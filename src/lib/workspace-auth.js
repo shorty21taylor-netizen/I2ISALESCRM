@@ -13,8 +13,9 @@
 import crypto from 'crypto';
 import { getWorkspaces, getWorkspace, updateWorkspace, getStore, saveAuthAttemptRow, getAuthAttempts, addWorkspaceMember } from '@/lib/store';
 import { getUser, listUsers } from '@/lib/users';
-import { loadAppConfig, ensureLowerEmailIndex } from '@/lib/db';
+import { loadAppConfig, ensureLowerEmailIndex, saveWorkspaceUser } from '@/lib/db';
 import { OWNER_EMAIL } from '@/lib/owner';
+import { hasRecordsIn } from '@/lib/rep-roster-scope';
 
 var KEYLEN = 64;
 
@@ -344,12 +345,34 @@ async function seedRoster() {
     have[normalizeEmail(u.email) + '|' + u.workspaceId] = true;
   });
 
+  // Somebody already on a roster somewhere has been placed. This backfill exists
+  // for accounts that predate the roster table, not to have an opinion about
+  // people who are already on it.
+  var placed = {};
+  (store.workspaceUsers || []).forEach(function(u) {
+    if (u.active === false) return;
+    placed[normalizeEmail(u.email)] = true;
+  });
+
   for (var i = 0; i < accounts.length; i++) {
     var a = accounts[i];
     if (a.active === false) continue;
-    var ids = (a.workspaceIds && a.workspaceIds.length) ? a.workspaceIds : ['default'];
+    var email = normalizeEmail(a.email);
+
+    // An account that does not say where it belongs gets NO row invented for it.
+    //
+    // It used to get one in 'default'. That is how a rep hired into RWH turned up
+    // on Influence2Impact's compliance board: the account said nothing, the
+    // backfill said "default", and 'default' is a real company's books. A missing
+    // workspace means "wherever they are", never "the first one" — and when
+    // nothing knows where they are, the answer is to add nothing and leave them
+    // to whatever the roster table already says.
+    var ids = (a.workspaceIds && a.workspaceIds.length) ? a.workspaceIds : [];
+    if (!ids.length) continue;
+    if (placed[email]) continue;
+
     for (var j = 0; j < ids.length; j++) {
-      var key = normalizeEmail(a.email) + '|' + ids[j];
+      var key = email + '|' + ids[j];
       // Already on the roster: leave it exactly as it is, including a
       // deactivation somebody made on purpose.
       if (have[key]) continue;
@@ -377,9 +400,74 @@ async function checkEmailIndex() {
   return indexState;
 }
 
+// ---- clearing up after the old backfill ----
+//
+// Before seedRoster() learned to fail closed, every account that did not name a
+// workspace was handed a roster row in 'default' — and 'default' is
+// Influence2Impact, a real company with real books. Those rows were written to
+// Postgres, so fixing the code does not unwrite them: a rep hired into another
+// workspace still shows up on Influence2Impact's compliance board, because a
+// roster row is the strongest claim there is that somebody works somewhere.
+//
+// This retires exactly those rows and no others. A 'default' row is retired only
+// when the person's own account names the workspaces they work in and 'default'
+// is not one of them — that is an admin's explicit statement, and a row
+// contradicting it was invented rather than chosen. Soft, like every delete here,
+// so re-adding them brings it straight back; and if they turn out to have filed
+// real work in Influence2Impact, rep-roster-scope still places them there on the
+// strength of the records.
+var repairedRoster = false;
+
+async function retireInventedDefaultRows() {
+  if (repairedRoster) return;
+  repairedRoster = true;
+
+  var accounts = await listUsers().catch(function() { return []; });
+  var stated = {};
+  accounts.forEach(function(a) {
+    if (!a || !a.workspaceIds || !a.workspaceIds.length) return;
+    stated[normalizeEmail(a.email)] = a.workspaceIds;
+  });
+
+  var store = getStore();
+  var rows = (store.workspaceUsers || []).filter(function(u) {
+    if (u.workspaceId !== 'default' || u.active === false) return false;
+    var email = normalizeEmail(u.email);
+    if (email === OWNER_EMAIL) return false;
+    var says = stated[email];
+    // No stated workspaces means nobody has said otherwise. Left alone.
+    if (!says) return false;
+    if (says.indexOf('default') !== -1) return false;
+
+    // They have filed real work here. Whatever their account says, taking them
+    // off this roster would drop somebody off a board they genuinely appear on,
+    // and losing a person a workspace does have is the worse failure of the two.
+    if (hasRecordsIn('default', u.email, u.name)) {
+      console.log('[Auth] kept a default roster row for', email, '— they have filed work in Influence2Impact');
+      return false;
+    }
+    return true;
+  });
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    row.active = false;
+    row.deactivatedAt = new Date().toISOString();
+    row.retiredReason = 'Account names ' + (stated[normalizeEmail(row.email)] || []).join(', ')
+      + ' and not default; this row was invented by the pre-fix roster backfill.';
+    await saveWorkspaceUser(row).catch(function(e) { console.error('[DB]', e.message); });
+    console.log('[Auth] retired an invented default roster row for', normalizeEmail(row.email),
+      '— their account says', JSON.stringify(stated[normalizeEmail(row.email)]));
+  }
+  if (rows.length) console.log('[Auth] retired', rows.length, 'invented default roster row(s)');
+}
+
 export async function ensureAuthReady() {
   await ensureWorkspacePasswords();
   await seedRoster();
+  // After the backfill, so a row it legitimately added this boot is already in
+  // memory and is judged by the same rule as everything else.
+  await retireInventedDefaultRows();
   await checkEmailIndex();
 }
 
