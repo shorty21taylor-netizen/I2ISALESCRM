@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, Calendar, List, Trash2, Clock, AlertTriangle, X } from 'lucide-react';
+import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, Calendar, List, Table2, Trash2, Clock, AlertTriangle, X, ChevronDown } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ExtraFields from '@/components/ExtraFields';
-import { toReportDay, calendarDay } from '@/lib/report-date';
+import { toReportDay, calendarDay, rangeForPreset } from '@/lib/report-date';
 import RepAvatar from '@/components/RepAvatar';
 import AnalyzeReport from '@/components/AnalyzeReport';
 import useRoster from '@/lib/use-roster';
+import EodAnalysisPanel from '@/components/EodAnalysisPanel';
+import { aggregateEod, businessDaysBetween } from '@/lib/eod-metrics';
 
 export default function EODLogsPage() {
   var roster = useRoster();
@@ -24,6 +26,15 @@ export default function EODLogsPage() {
   var [filterRep, setFilterRep] = useState('');
   var [confirmDelete, setConfirmDelete] = useState(null);
   var [deleteError, setDeleteError] = useState('');
+  // The All EODs table: its own date range, independent of the month the tracker
+  // is showing, because "this fortnight" is not a month.
+  var [range, setRange] = useState('30');
+  var [customStart, setCustomStart] = useState('');
+  var [customEnd, setCustomEnd] = useState('');
+  var [sortKey, setSortKey] = useState('date');
+  var [sortDir, setSortDir] = useState('desc');
+  var [openPlan, setOpenPlan] = useState(null);
+  var [onlyMissing, setOnlyMissing] = useState(false);
 
   var user = getUser();
   var isAdmin = user && user.email === 'shorty21taylor@gmail.com';
@@ -246,6 +257,84 @@ export default function EODLogsPage() {
     };
   }
 
+  // ---- ALL EODs: the whole team's reports over a date range ----
+  //
+  // Counted on the team's calendar through rangeForPreset, not on the browser's:
+  // building a range from midnight locally made "Today" start at 5pm Pacific the
+  // day before on a UTC host, and every figure under it was then off by a day.
+  var tableRange = rangeForPreset(range, customStart, customEnd);
+  var tableDays = businessDaysBetween(tableRange.start, tableRange.end);
+
+  var rangeEods = eods.filter(function(e) {
+    var date = toReportDay(e.date) || toReportDay(e.submittedAt) || '';
+    if (!date) return false;
+    if (tableRange.start && date < tableRange.start) return false;
+    if (tableRange.end && date > tableRange.end) return false;
+    return true;
+  });
+
+  // The same aggregate the analysis reads, so the footer and the AI can never
+  // disagree about what the range contains.
+  var tableAgg = aggregateEod(rangeEods, tableDays);
+
+  // Who is missing a weekday in the range. Reps only — an orphan row has no
+  // roster entry and nothing is expected of it.
+  var missingByRep = {};
+  (tableAgg.reportingGaps || []).forEach(function(g) { missingByRep[g.rep] = g.missingCount; });
+
+  var TABLE_COLUMNS = [
+    { key: 'date', label: 'Date', get: function(e) { return toReportDay(e.date) || ''; }, text: true },
+    { key: 'rep', label: 'Rep', get: function(e) { return (e.salesRep || e.closerName || 'Unknown'); }, text: true },
+    { key: 'dials', label: 'Dials', get: function(e) { return (parseInt(e.outboundDials) || parseInt(e.totalDials) || 0); } },
+    { key: 'booked', label: 'Booked', get: function(e) { return (parseInt(e.netNewCallsBooked) || parseInt(e.callsBooked) || 0); } },
+    { key: 'onCal', label: 'On Cal', get: function(e) { return parseInt(e.callsOnCalendar) || 0; } },
+    { key: 'taken', label: 'Taken', get: function(e) { return parseInt(e.callsTaken) || 0; } },
+    { key: 'pitched', label: 'Pitched', get: function(e) { return (parseInt(e.callsTakenAndPitched) || parseInt(e.callsTaken) || 0); } },
+    { key: 'noShow', label: 'No-Show', get: function(e) { return (parseInt(e.callsNoShowed) || parseInt(e.noShowed) || 0); } },
+    { key: 'cxl', label: 'Cxl', get: function(e) { return (parseInt(e.callsCanceled) || parseInt(e.canceled) || 0); } },
+    { key: 'resch', label: 'Resch', get: function(e) { return (parseInt(e.callsRescheduled) || parseInt(e.rescheduled) || 0); } },
+    { key: 'closes', label: 'Closes', get: function(e) { return parseInt(e.closes) || 0; } },
+    { key: 'cashM', label: 'Cash MYFM', get: function(e) { return (parseFloat(e.cashCollectedMYFM) || parseFloat(e.cashMYFM) || 0); }, money: true },
+    { key: 'cashI', label: 'Cash I2I', get: function(e) { return (parseFloat(e.cashCollectedI2I) || parseFloat(e.cashI2I) || 0); }, money: true },
+    { key: 'revenue', label: 'Revenue', get: function(e) { return parseFloat(e.revenueOnDay) || 0; }, money: true },
+  ];
+
+  var columnByKey = {};
+  TABLE_COLUMNS.forEach(function(c) { columnByKey[c.key] = c; });
+
+  var tableRows = rangeEods.filter(function(e) {
+    if (filterRep && (e.salesRep || e.closerName || '') !== filterRep) return false;
+    if (onlyMissing && !missingByRep[(e.salesRep || e.closerName || 'Unknown')]) return false;
+    return true;
+  }).slice().sort(function(a, b) {
+    var col = columnByKey[sortKey] || columnByKey.date;
+    var av = col.get(a), bv = col.get(b);
+    var cmp = col.text ? String(av).localeCompare(String(bv)) : (av - bv);
+    // A stable tiebreak on the date, so equal numbers don't shuffle on re-render.
+    if (cmp === 0) cmp = String(toReportDay(a.date)).localeCompare(String(toReportDay(b.date)));
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  // Totals over exactly the rows on screen, and averages per report — not per
+  // day, which would be a different question wearing the same word.
+  var tableTotals = {};
+  TABLE_COLUMNS.forEach(function(c) {
+    if (c.text) return;
+    tableTotals[c.key] = tableRows.reduce(function(sum, e) { return sum + c.get(e); }, 0);
+  });
+
+  function sortBy(key) {
+    if (sortKey === key) { setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); return; }
+    setSortKey(key);
+    // Text reads best A-Z; a number is nearly always being asked "who is highest".
+    setSortDir((columnByKey[key] && columnByKey[key].text) ? 'asc' : 'desc');
+  }
+
+  function cellText(col, value) {
+    if (col.money) return formatCurrency(value);
+    return Number(value || 0).toLocaleString('en-US');
+  }
+
   // List view filter
   var filteredEods = eods.filter(function(e) {
     var date = e.date || '';
@@ -426,6 +515,10 @@ export default function EODLogsPage() {
               <button onClick={function() { setView('list'); setSelectedDay(null); }}
                 className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display ' + (view === 'list' ? 'bg-crm-accent/15 text-crm-accent font-bold' : 'text-crm-muted')}>
                 <List className="w-3.5 h-3.5" /> Details
+              </button>
+              <button onClick={function() { setView('table'); setSelectedDay(null); }}
+                className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display ' + (view === 'table' ? 'bg-crm-accent/15 text-crm-accent font-bold' : 'text-crm-muted')}>
+                <Table2 className="w-3.5 h-3.5" /> All EODs
               </button>
             </div>
             <div className="glass-surface inline-flex items-center rounded-xl px-2 py-1 gap-2">
@@ -638,6 +731,147 @@ export default function EODLogsPage() {
                     <p className="text-sm" style={{ color: 'var(--crm-text-muted)' }}>No one submitted an EOD this day</p>
                   </div>
                 )}
+              </div>
+            )}
+          </>
+        )}
+
+        {view === 'table' && (
+          <>
+            {/* Summit Sales AI over exactly the range the table below is showing,
+                so the button and the rows can never describe different weeks. */}
+            <EodAnalysisPanel from={tableRange.start} to={tableRange.end} isAdmin={isAdmin} />
+
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {[
+                { label: 'Today', value: 'today' },
+                { label: 'Yesterday', value: 'yesterday' },
+                { label: '7 Days', value: '7' },
+                { label: '14 Days', value: '14' },
+                { label: '30 Days', value: '30' },
+                { label: '90 Days', value: '90' },
+                { label: 'Custom', value: 'custom' },
+              ].map(function(opt) {
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={function() { setRange(opt.value); setOpenPlan(null); }}
+                    className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (range === opt.value ? 'text-crm-accent font-bold' : 'text-crm-muted')}
+                    style={range === opt.value ? { background: 'rgba(var(--accent-rgb),0.1)' } : {}}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {range === 'custom' && (
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <input type="date" value={customStart} onChange={function(e) { setCustomStart(e.target.value); }} className="input-field w-auto text-sm" />
+                <span className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>to</span>
+                <input type="date" value={customEnd} onChange={function(e) { setCustomEnd(e.target.value); }} className="input-field w-auto text-sm" />
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <select value={filterRep} onChange={function(e) { setFilterRep(e.target.value); }} className="input-field w-auto text-sm">
+                <option value="">All Reps</option>
+                {dedupedClosers.map(function(c) { return <option key={c.email || c.name} value={c.name}>{c.name}</option>; })}
+              </select>
+              <button
+                onClick={function() { setOnlyMissing(!onlyMissing); }}
+                className={'px-3 py-1.5 rounded-lg text-xs font-mono transition-all ' + (onlyMissing ? 'font-bold' : '')}
+                style={onlyMissing
+                  ? { background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.4)' }
+                  : { color: 'var(--crm-text-muted)', border: '0.5px solid var(--crm-divider)' }}
+              >
+                Missing EOD{Object.keys(missingByRep).length ? ' (' + Object.keys(missingByRep).length + ')' : ''}
+              </button>
+              <span className="text-xs font-mono ml-auto" style={{ color: 'var(--crm-text-muted)' }}>
+                {tableRange.start} → {tableRange.end} · {tableDays.length} business day{tableDays.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {tableRows.length === 0 ? (
+              <div className="glass-card p-12 text-center">
+                <p className="text-sm" style={{ color: 'var(--crm-text-muted)' }}>
+                  {onlyMissing ? 'Nobody is missing an EOD in this range' : 'No EOD reports in this range'}
+                </p>
+              </div>
+            ) : (
+              <div className="glass-card eodt-wrap">
+                <table className="eodt">
+                  <thead>
+                    <tr>
+                      {TABLE_COLUMNS.map(function(col) {
+                        return (
+                          <th key={col.key} onClick={function() { sortBy(col.key); }}
+                            className={sortKey === col.key ? 'eodt-sort' : ''}>
+                            {col.label}{sortKey === col.key ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ''}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map(function(e) {
+                      var plan = String(e.improvementPlan || '').trim();
+                      var isOpen = openPlan === e.id;
+                      return [
+                        <tr key={e.id} className={isOpen ? 'eodt-open' : ''}
+                          onClick={function() { if (plan) setOpenPlan(isOpen ? null : e.id); }}
+                          style={plan ? { cursor: 'pointer' } : {}}>
+                          {TABLE_COLUMNS.map(function(col) {
+                            var raw = col.get(e);
+                            return (
+                              <td key={col.key}>
+                                {col.key === 'date' && plan
+                                  ? <span className="inline-flex items-center gap-1">
+                                      <ChevronDown className="w-3 h-3"
+                                        style={{ color: 'var(--crm-accent)', transform: isOpen ? 'none' : 'rotate(-90deg)' }} />
+                                      {raw}
+                                    </span>
+                                  : col.text ? raw : cellText(col, raw)}
+                              </td>
+                            );
+                          })}
+                        </tr>,
+                        isOpen ? (
+                          <tr key={e.id + '-plan'} className="eodt-plan">
+                            <td colSpan={TABLE_COLUMNS.length}>
+                              <span className="text-[9px] font-mono uppercase block mb-1" style={{ color: 'var(--crm-text-muted)' }}>Improvement plan</span>
+                              <span style={{ whiteSpace: 'pre-wrap', color: 'var(--crm-text-bright)' }}>{plan}</span>
+                            </td>
+                          </tr>
+                        ) : null,
+                      ];
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Total</td>
+                      <td>{tableRows.length} report{tableRows.length === 1 ? '' : 's'}</td>
+                      {TABLE_COLUMNS.slice(2).map(function(col) {
+                        return <td key={col.key}>{cellText(col, tableTotals[col.key])}</td>;
+                      })}
+                    </tr>
+                    <tr className="eodt-avg">
+                      <td>Average</td>
+                      <td>per report</td>
+                      {TABLE_COLUMNS.slice(2).map(function(col) {
+                        // Guarded, like every other division in this feature: an
+                        // empty table shows a dash, never NaN.
+                        return (
+                          <td key={col.key}>
+                            {tableRows.length
+                              ? cellText(col, Math.round((tableTotals[col.key] / tableRows.length) * 10) / 10)
+                              : '\u2014'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
           </>

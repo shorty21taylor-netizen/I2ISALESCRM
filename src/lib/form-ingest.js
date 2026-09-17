@@ -319,8 +319,14 @@ function resolveRole(position, sets, dials, callsTaken) {
   var p = String(position || '').toLowerCase();
   if (p.indexOf('setter') !== -1) return 'setter';
   if (p.indexOf('closer') !== -1) return 'closer';
-  if (sets > 0 || dials > 0) return 'setter';
+  // Evidence of closing outranks evidence of dialling, and the order here is the
+  // whole point. Dials came first, which made every closer who picks up a phone a
+  // "setter" — and a setter's report is rendered through setter tiles, so their
+  // closes and cash vanished off the card. Closers dial. Setters do not take
+  // calls, so a call taken is the one unambiguous signal.
   if (callsTaken > 0) return 'closer';
+  if (sets > 0) return 'setter';
+  if (dials > 0) return 'setter';
   return '';
 }
 
