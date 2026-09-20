@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
+import CashProvenance from '@/components/CashProvenance';
 import { formatCurrency } from '@/lib/utils';
 import { toReportDay } from '@/lib/report-date';
 import RepAvatar from '@/components/RepAvatar';
@@ -335,6 +336,10 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      {/* The two money tiles above are the HIGHEST of three measures, not a sum.
+          This says which one is being shown and whose books it came out of. */}
+      <CashProvenance start={getDateParams().start} end={getDateParams().end} workspaceId={workspaceId} />
 
       {/* ===== CLOSER METRICS ===== */}
       <MetricSection
