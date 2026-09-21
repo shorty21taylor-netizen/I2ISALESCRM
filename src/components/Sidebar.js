@@ -17,12 +17,17 @@ var navGroups = [
     id: 'mine',
     label: 'My Work',
     icon: UserCircle,
+    // The dashboards, in the order somebody actually reads them: their own
+    // numbers, then the floor's, then each half of the funnel, then where they
+    // stand. The three team boards are gated, so a rep opening this sees their
+    // dashboard and the leaderboard and nothing that is not theirs.
     items: [
       { href: '/onboarding', label: 'Onboarding', icon: GraduationCap, onboardingOnly: true },
       { href: '/me', label: 'My Dashboard', icon: UserCircle },
-      { href: '/submit', label: 'Submit a Form', icon: ClipboardList },
+      { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
+      { href: '/closer-dashboard', label: 'Closer Dashboard', icon: Users, teamOnly: true },
+      { href: '/setter-dashboard', label: 'Setter Dashboard', icon: Phone, teamOnly: true },
       { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, needsOnboarding: true },
-      { href: '/aios', label: 'Summit AIOS', icon: Sparkles, needsOnboarding: true },
     ],
   },
   {
@@ -31,6 +36,9 @@ var navGroups = [
     icon: Phone,
     items: [
       { href: '/pipeline', label: 'My Pipeline', icon: GitBranch },
+      // Moved out of My Work when that section became the dashboards. It sits
+      // with the pipeline it feeds: every booking and every deal starts here.
+      { href: '/submit', label: 'Submit a Form', icon: ClipboardList },
       { href: '/skool', label: 'Skool Community', icon: GraduationCap },
     ],
   },
@@ -46,6 +54,9 @@ var navGroups = [
     items: [
       { href: '/records', label: 'Records', icon: FileText },
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+      // Also moved out of My Work. It answers questions about these same
+      // records, so it belongs beside them rather than above them.
+      { href: '/aios', label: 'Summit AIOS', icon: Sparkles, needsOnboarding: true },
       { href: '/commissions', label: 'Commissions', icon: CreditCard },
     ],
   },
@@ -55,9 +66,6 @@ var navGroups = [
     icon: Users,
     teamOnly: true,
     items: [
-      { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
-      { href: '/closer-dashboard', label: 'Closer Dashboard', icon: Users, teamOnly: true },
-      { href: '/setter-dashboard', label: 'Setter Dashboard', icon: Phone, teamOnly: true },
       { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
       { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
       { href: '/admin/workspace', label: 'Access & Sign-ins', icon: KeyRound, teamOnly: true },
