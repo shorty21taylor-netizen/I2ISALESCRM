@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initStore, getStore, getWorkspaces } from '@/lib/store';
+import { initStore, getStore, getWorkspaces, classifyOffer } from '@/lib/store';
 import { effectiveReadWorkspace, matchesWorkspace } from '@/lib/access';
 import { repScope } from '@/lib/rep-scope';
 import { cashProvenance } from '@/lib/cash-provenance';
@@ -41,6 +41,8 @@ export async function GET(req) {
       start: start || null,
       end: end || null,
       workspaceNames: names,
+      // The same line the dashboard tile draws, from the same classifier.
+      isPartner: function(deal) { return classifyOffer(deal && deal.program) === 'partner'; },
       // Reported, never applied — see cash-provenance.js.
       dedupe: dedupeDeals(deals),
     });

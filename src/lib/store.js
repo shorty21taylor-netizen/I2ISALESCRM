@@ -465,6 +465,18 @@ function computeOverviewForRange(startDate, endDate, workspaceId) {
     return s + (parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0);
   }, 0);
 
+  // Partner business is somebody else's offer sold through this floor. It has
+  // its own board and its own tile; counting it inside the team's cash made the
+  // headline describe two different businesses at once. Split out here, never
+  // subtracted from the existing totals below — getLeaderboard has drawn the
+  // same line since the partner board was built, and this mirrors it exactly so
+  // the two can never disagree about what counts as partner money.
+  var partnerDeals = rangeDeals.filter(function(d) { return classifyOffer(d.program) === 'partner'; });
+  var partnerCash = partnerDeals.reduce(function(s, d) {
+    return s + (parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0);
+  }, 0);
+  var offerDealCash = Math.max(0, dealCashTotal - partnerCash);
+
   // REVENUE from EOD revenueOnDay field
   var eodRevenue = rangeEODs.reduce(function(s, e) {
     return s + (parseFloat(e.revenueOnDay) || 0);
@@ -473,6 +485,25 @@ function computeOverviewForRange(startDate, endDate, workspaceId) {
   // Canonical cash: highest of the three sources (EOD MYFM+I2I, closed deals, EOD revenueOnDay)
   var totalCash = Math.max(dealCashTotal, eodCashTotal, eodRevenue);
   var totalRevenue = totalCash;
+
+  // The same three sources with partner money taken out.
+  //
+  // An EOD carries no program, so its cash cannot be attributed to an offer —
+  // partner cash is subtracted from it on the assumption that a rep reporting
+  // their day's cash included the partner deal they filed. Floored at zero, so
+  // a rep who did NOT include it still leaves the offer total standing on the
+  // deal forms. This is the rule getLeaderboard already applies per rep-day.
+  var offerCash = Math.max(
+    offerDealCash,
+    Math.max(0, eodCashTotal - partnerCash),
+    Math.max(0, eodRevenue - partnerCash)
+  );
+
+  // Closes, split the same way: an EOD's close count carries no program either,
+  // so the partner deals filed in the range come off the top and the result is
+  // floored at zero. getLeaderboard does exactly this per rep.
+  var partnerCloses = partnerDeals.length;
+  var offerCloses = Math.max(0, totalCloses - partnerCloses);
 
   // RATES
   var closeRate = totalCallsTaken > 0 ? Math.round((totalCloses / totalCallsTaken) * 1000) / 10 : 0;
@@ -567,6 +598,14 @@ function computeOverviewForRange(startDate, endDate, workspaceId) {
     cashMYFM: Math.round(cashMYFM * 100) / 100,
     cashI2I: Math.round(cashI2I * 100) / 100,
     totalCash: Math.round(totalCash * 100) / 100,
+    // Additive, and deliberately so: totalCash/totalCloses above keep meaning
+    // exactly what they always meant, so nothing that already reads them
+    // changes. The dashboard shows the offer figures and gives partner business
+    // its own tile; anything that wants the combined number still has it.
+    offerCash: Math.round(offerCash * 100) / 100,
+    offerCloses: offerCloses,
+    partnerCash: Math.round(partnerCash * 100) / 100,
+    partnerCloses: partnerCloses,
     dealCashTotal: Math.round(dealCashTotal * 100) / 100,
     eodCashTotal: Math.round(eodCashTotal * 100) / 100,
     eodRevenueOnDay: Math.round(eodRevenue * 100) / 100,
@@ -602,7 +641,7 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   var closerMap = {};
 
   function dayCash(c, date) {
-    if (!c.days[date]) c.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0 };
+    if (!c.days[date]) c.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0, partnerCash: 0 };
     return c.days[date];
   }
 
@@ -613,7 +652,7 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
     var name = eod.salesRep || eod.closerName;
     if (!name) return;
     if (!closerMap[name]) {
-      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, partnerCash: 0, partnerDeals: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
     }
     var c = closerMap[name];
     c.dials += (parseInt(eod.outboundDials) || parseInt(eod.totalDials) || 0);
@@ -643,9 +682,22 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
     var name = deal.closer || deal.closerName;
     if (!name) return;
     if (!closerMap[name]) {
-      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
+      closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, partnerCash: 0, partnerDeals: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
     }
-    dayCash(closerMap[name], toReportDay(deal.submittedAt)).dealCash += (parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0);
+    var dealValue = parseFloat(deal.cashCollected) || parseFloat(deal.dealValue) || 0;
+    var day = dayCash(closerMap[name], toReportDay(deal.submittedAt));
+
+    // Partner business is somebody else's offer sold through this floor. It is
+    // kept off the closer's cash and closes — it has its own board and its own
+    // tile — and tallied here only so the EOD figure can be corrected below,
+    // exactly as getLeaderboard does it.
+    if (classifyOffer(deal.program) === 'partner') {
+      day.partnerCash += dealValue;
+      closerMap[name].partnerCash += dealValue;
+      closerMap[name].partnerDeals++;
+      return;
+    }
+    day.dealCash += dealValue;
   });
 
   var closers = Object.values(closerMap);
@@ -654,7 +706,12 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
     c.revenue = 0;
     Object.keys(c.days).forEach(function(d) {
       var day = c.days[d];
-      var settledCash = Math.max(day.dealCash, day.eodCash);
+      // The EOD carries no program, so partner cash comes off it on the
+      // assumption the rep's day total included the partner deal they filed.
+      // Floored at zero for the rep who did not include it.
+      var eodCash = Math.max(0, day.eodCash - day.partnerCash);
+      var eodRevenue = Math.max(0, day.eodRevenue - day.partnerCash);
+      var settledCash = Math.max(day.dealCash, eodCash);
       c.cash += settledCash;
       // Revenue can never be less than the cash collected against it.
       //
@@ -663,10 +720,13 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
       // impossible — and it was being printed because "Revenue on Day" is an
       // optional box that most reps skip. The day's cash is the floor, which is
       // the same rule getLeaderboard() has always applied.
-      c.revenue += Math.max(day.eodRevenue, settledCash);
+      c.revenue += Math.max(eodRevenue, settledCash);
     });
     c.cash = Math.round(c.cash * 100) / 100;
     c.revenue = Math.round(c.revenue * 100) / 100;
+    c.partnerCash = Math.round(c.partnerCash * 100) / 100;
+    // An EOD's close count carries no program either.
+    c.closes = Math.max(0, c.closes - c.partnerDeals);
     delete c.days;
   });
 

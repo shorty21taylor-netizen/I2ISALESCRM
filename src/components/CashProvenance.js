@@ -123,6 +123,38 @@ export default function CashProvenance({ start, end, workspaceId }) {
                 ) : null}
               </div>
 
+              {/* Partner business, named so nobody has to wonder where it went. */}
+              {data.partner && data.partner.cash > 0 ? (
+                <div className="cpv-sec">
+                  <h4 className="cpv-h">Partner business, kept out of the figures above</h4>
+                  <p className="cpv-note">
+                    {formatCurrency(data.partner.cash)} across {data.partner.deals}{' '}
+                    deal{data.partner.deals === 1 ? '' : 's'} — somebody else&rsquo;s offer sold through
+                    this floor. It has its own tile on the dashboard and its own leaderboard.
+                  </p>
+                  <div className="cpv-scroll">
+                    <table className="cpv-table">
+                      <thead>
+                        <tr><th>Date</th><th>Client</th><th>Closer</th><th>Partner</th><th>Cash</th></tr>
+                      </thead>
+                      <tbody>
+                        {(data.partner.rows || []).filter(Boolean).map(function(d) {
+                          return (
+                            <tr key={d.id}>
+                              <td>{d.date}</td>
+                              <td>{d.client}</td>
+                              <td>{d.rep}</td>
+                              <td>{d.program || '—'}</td>
+                              <td>{formatCurrency(d.cash)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+
               {/* The combined view can read lower than its parts. Said first,
                   because it changes what every figure below it means. */}
               {data.understatedBy > 0 && (

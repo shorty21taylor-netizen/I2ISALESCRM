@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, getSetterExclusions, ALL_WORKSPACES } from '@/lib/store';
+import { getOverview, getFilteredOverview, getCloserBreakdown, getRecentActivity, getStore, initStore, getWorkspaces, getSetterExclusions, classifyOffer, ALL_WORKSPACES } from '@/lib/store';
 import { initScheduler } from '@/lib/scheduler';
 import { effectiveReadWorkspace, matchesWorkspace, ALL_WORKSPACES as ACCESS_ALL } from '@/lib/access';
 import { repScope } from '@/lib/rep-scope';
@@ -49,9 +49,18 @@ export async function GET(req) {
     // The two boards the team dashboard is actually read for. Both come out of
     // the same engine the printed report uses, so a number here can never
     // disagree with the same number on the report or on a rep's own page.
+    // Partner business is left out of the closer metrics for the same reason it
+    // is left out of the tiles above them: it is somebody else's offer sold
+    // through this floor, it has its own box, and a Cash Collected tile reading
+    // $50,000 above a Cash collected metric reading $125,000 is the confusion
+    // this split exists to end.
+    var ourDeals = store.closedDeals.filter(function(r) {
+      return matchesWorkspace(r, workspaceId) && classifyOffer(r.program) !== 'partner';
+    });
+
     var report = computeSalesReport({
       eods: store.eodReports.filter(function(r) { return matchesWorkspace(r, workspaceId); }),
-      deals: store.closedDeals.filter(function(r) { return matchesWorkspace(r, workspaceId); }),
+      deals: ourDeals,
       booked: store.bookedCalls.filter(function(r) { return matchesWorkspace(r, workspaceId); }),
       afterCalls: (store.afterCallReports || []).filter(function(r) { return matchesWorkspace(r, workspaceId); }),
       start: start || null,

@@ -98,9 +98,19 @@ export function cashProvenance(opts) {
   var eods = (options.eods || []).filter(Boolean).filter(function(e) {
     return inRange(recordDay(e), start, end);
   });
-  var deals = (options.deals || []).filter(Boolean).filter(function(d) {
+  var allDeals = (options.deals || []).filter(Boolean).filter(function(d) {
     return inRange(toReportDay(d.submittedAt), start, end);
   });
+
+  // Partner business is somebody else's offer sold through this floor. The
+  // dashboard tile shows our offers alone and gives partner its own box, so the
+  // explanation has to draw the line in the same place — a breakdown that
+  // included partner cash would not add up to the figure it is explaining.
+  // The caller supplies the test, so this file stays free of the store.
+  var isPartner = options.isPartner || function() { return false; };
+  var partnerDeals = allDeals.filter(function(d) { return isPartner(d); });
+  var deals = allDeals.filter(function(d) { return !isPartner(d); });
+  var partnerTotal = round(partnerDeals.reduce(function(t, d) { return t + dealCash(d); }, 0));
 
   var byWorkspace = {};
   var byRep = {};
@@ -128,8 +138,11 @@ export function cashProvenance(opts) {
   });
 
   totals.deals = round(totals.deals);
-  totals.eodSplit = round(totals.eodSplit);
-  totals.eodRevenue = round(totals.eodRevenue);
+  // An EOD carries no program, so its cash cannot be attributed to an offer.
+  // Partner cash comes off it on the assumption the rep's day total included
+  // the partner deal they filed, floored at zero for the rep who did not.
+  totals.eodSplit = round(Math.max(0, totals.eodSplit - partnerTotal));
+  totals.eodRevenue = round(Math.max(0, totals.eodRevenue - partnerTotal));
 
   // Which measure the tile is showing. Ties resolve to the earlier source in
   // SOURCES order, which is the same way Math.max leaves them — and when all
@@ -250,6 +263,23 @@ export function cashProvenance(opts) {
     deals: dealRows,
     eods: eodRows,
     counts: { deals: deals.length, eods: eods.length, eodsWithCash: eodRows.length },
+    partner: {
+      cash: partnerTotal,
+      deals: partnerDeals.length,
+      rows: partnerDeals.slice().sort(function(a, b) {
+        return String(b.submittedAt || '').localeCompare(String(a.submittedAt || ''));
+      }).map(function(d) {
+        return {
+          id: d.id,
+          date: toReportDay(d.submittedAt) || '',
+          client: String(d.leadsName || d.clientName || '').trim() || 'Unnamed',
+          rep: repOf(d, 'closer'),
+          program: String(d.program || '').trim(),
+          cash: round(dealCash(d)),
+          workspace: names[wsOf(d)] || wsOf(d),
+        };
+      }),
+    },
     duplicates: { count: duplicateCount, cash: round(duplicateCash) },
     // Only ever non-zero on a combined, multi-workspace view.
     perWorkspaceHeadlines: workspaceHeadlines,

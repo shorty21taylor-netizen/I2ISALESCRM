@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy } from 'lucide-react';
+import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy, Handshake } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import CashProvenance from '@/components/CashProvenance';
 import { formatCurrency } from '@/lib/utils';
@@ -122,9 +122,31 @@ export default function DashboardPage() {
   // No mock fallback — before live data arrives the dashboard shows real zeros
   // rather than invented numbers.
   var displayOverview = (liveData && liveData.overview) ? liveData.overview : {};
+
+  // The headline figures are our own offers. Partner business is somebody
+  // else's product sold through this floor — real money, but not this
+  // company's revenue — and it has its own tile. The overview carries both
+  // splits, so nothing here recomputes anything.
+  var partnerCash = displayOverview.partnerCash || 0;
+  var partnerCloses = displayOverview.partnerCloses || 0;
+  var offerCash = displayOverview.offerCash !== undefined
+    ? displayOverview.offerCash
+    : (displayOverview.totalCash || displayOverview.totalRevenue || 0);
+  var offerCloses = displayOverview.offerCloses !== undefined
+    ? displayOverview.offerCloses
+    : (displayOverview.totalCloses || 0);
+  // Revenue is floored at the cash collected against it, the same rule the
+  // closer dashboard follows: revenue is the contract, cash is what was paid.
+  var offerRevenue = Math.max(
+    offerCash,
+    Math.max(0, (displayOverview.totalRevenue || 0) - partnerCash)
+  );
   var t = displayOverview;
-  var todayCash = t.todayCash || t.totalCash || 0;
-  var todayCloses = t.todayCloses || t.totalCloses || 0;
+  // The summary pill says the same thing as the tiles under it. It used to read
+  // the combined total, so the header claimed cash the Cash Collected tile did
+  // not — the two halves of one screen describing different businesses.
+  var todayCash = offerCash;
+  var todayCloses = offerCloses;
   var todayDials = t.todayDials || t.totalDials || 0;
 
 
@@ -268,10 +290,13 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
-            {formatCurrency(displayOverview.totalCash || displayOverview.totalRevenue || 0)}
+            {formatCurrency(offerCash)}
           </p>
           <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Cash Collected
+          </p>
+          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            our offers only
           </p>
         </div>
 
@@ -283,10 +308,13 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
-            {formatCurrency(displayOverview.totalRevenue || 0)}
+            {formatCurrency(offerRevenue)}
           </p>
           <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Revenue
+          </p>
+          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            our offers only
           </p>
         </div>
 
@@ -328,12 +356,39 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
-            {displayOverview.totalCloses || 0}
+            {offerCloses}
           </p>
           <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
             Deals Closed
           </p>
+          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+            our offers only
+          </p>
         </div>
+
+        {/* Partner business, on its own. Somebody else's offer sold through this
+            floor: real money, but not this company's revenue, and mixing the two
+            made the headline describe two businesses at once. Rendered only when
+            there is some, so a workspace that sells no partner offers is not
+            given a permanent zero to explain. */}
+        {partnerCash > 0 || partnerCloses > 0 ? (
+          <div className="glass-card p-6 md:p-8">
+            <div className="flex items-start justify-between mb-3 md:mb-4">
+              <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(168,85,247,0.1)' }}>
+                <Handshake className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#a855f7' }} />
+              </div>
+            </div>
+            <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#a855f7' }}>
+              {formatCurrency(partnerCash)}
+            </p>
+            <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
+              Partner Sales
+            </p>
+            <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
+              {partnerCloses} close{partnerCloses === 1 ? '' : 's'} · not in the totals above
+            </p>
+          </div>
+        ) : null}
 
       </div>
 
