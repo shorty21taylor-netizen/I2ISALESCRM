@@ -5,6 +5,7 @@ import { effectiveReadWorkspace, matchesWorkspace, ALL_WORKSPACES as ACCESS_ALL 
 import { repScope } from '@/lib/rep-scope';
 import { computeSalesReport } from '@/lib/sales-report';
 import { computeSetterBoard, dedupeDeals } from '@/lib/dedupe-deals';
+import { setterBreakdown } from '@/lib/setter-breakdown';
 import { toReportDay } from '@/lib/report-date';
 
 export var dynamic = 'force-dynamic';
@@ -168,6 +169,20 @@ export async function GET(req) {
       },
       overview: overview,
       closers: closers,
+      // The same ranged, deduped board the setter tiles are totalled from, so a
+      // per-setter page and the team dashboard can never disagree about a row —
+      // joined to the EOD side, which is the only place dials and conversations
+      // are recorded.
+      setters: setterBreakdown(
+        store.eodReports.filter(function(r) {
+          if (!matchesWorkspace(r, workspaceId)) return false;
+          var day = r.date || '';
+          if (start && day && day < start) return false;
+          if (end && day && day > end) return false;
+          return true;
+        }),
+        setterBoard
+      ),
       activity: activity,
       workspaceId: workspaceId,
       workspaces: getWorkspaces(),

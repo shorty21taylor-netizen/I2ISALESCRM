@@ -31,18 +31,20 @@ var navGroups = [
     icon: Phone,
     items: [
       { href: '/pipeline', label: 'My Pipeline', icon: GitBranch },
-      { href: '/booked-calls', label: 'Booked Calls', icon: Phone },
-      { href: '/closed-deals', label: 'Closed Deals', icon: DollarSign },
       { href: '/skool', label: 'Skool Community', icon: GraduationCap },
     ],
   },
   {
+    // Booked calls, closed deals, EOD logs and after-call reports were four
+    // separate entries and four round trips to compare a booking against the
+    // EOD that reported it. They are tabs on one page now. Analytics stays
+    // beside them rather than inside: reading a trend and looking a record up
+    // are different jobs.
     id: 'reporting',
     label: 'Reporting',
     icon: FileText,
     items: [
-      { href: '/eod-logs', label: 'EOD Logs', icon: FileText },
-      { href: '/after-call', label: 'After-Call', icon: PhoneCall },
+      { href: '/records', label: 'Records', icon: FileText },
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/commissions', label: 'Commissions', icon: CreditCard },
     ],
@@ -54,6 +56,8 @@ var navGroups = [
     teamOnly: true,
     items: [
       { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
+      { href: '/closer-dashboard', label: 'Closer Dashboard', icon: Users, teamOnly: true },
+      { href: '/setter-dashboard', label: 'Setter Dashboard', icon: Phone, teamOnly: true },
       { href: '/closers', label: 'Closers', icon: Users, teamOnly: true },
       { href: '/message-log', label: 'Message Log', icon: MessageSquare, teamOnly: true },
       { href: '/admin/workspace', label: 'Access & Sign-ins', icon: KeyRound, teamOnly: true },
