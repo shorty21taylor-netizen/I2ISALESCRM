@@ -602,7 +602,7 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   var closerMap = {};
 
   function dayCash(c, date) {
-    if (!c.days[date]) c.days[date] = { dealCash: 0, eodCash: 0 };
+    if (!c.days[date]) c.days[date] = { dealCash: 0, eodCash: 0, eodRevenue: 0 };
     return c.days[date];
   }
 
@@ -627,7 +627,10 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
     // Adding both here counted the same money twice for anyone who logged a deal
     // and then reported that same cash in their EOD.
     dayCash(c, recordDay(eod)).eodCash += (parseFloat(eod.cashCollectedMYFM) || 0) + (parseFloat(eod.cashCollectedI2I) || 0);
-    c.revenue += (parseFloat(eod.revenueOnDay) || 0);
+    // Revenue is settled per day too, for the same reason and with one more:
+    // "Revenue on Day" is an optional box, and a rep who closes $20k and leaves
+    // it blank was reporting $0 of revenue against $20k of cash. See below.
+    dayCash(c, recordDay(eod)).eodRevenue += (parseFloat(eod.revenueOnDay) || 0);
     c.noShows += (parseInt(eod.callsNoShowed) || 0);
     c.eodCount++;
     if (eod.confidenceScore) c.confidence = parseInt(eod.confidenceScore) || 0;
@@ -648,10 +651,22 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   var closers = Object.values(closerMap);
   closers.forEach(function(c) {
     c.cash = 0;
+    c.revenue = 0;
     Object.keys(c.days).forEach(function(d) {
-      c.cash += Math.max(c.days[d].dealCash, c.days[d].eodCash);
+      var day = c.days[d];
+      var settledCash = Math.max(day.dealCash, day.eodCash);
+      c.cash += settledCash;
+      // Revenue can never be less than the cash collected against it.
+      //
+      // Revenue is the contract; cash is what has been paid toward it. A figure
+      // where revenue sits below cash is not a small discrepancy, it is
+      // impossible — and it was being printed because "Revenue on Day" is an
+      // optional box that most reps skip. The day's cash is the floor, which is
+      // the same rule getLeaderboard() has always applied.
+      c.revenue += Math.max(day.eodRevenue, settledCash);
     });
     c.cash = Math.round(c.cash * 100) / 100;
+    c.revenue = Math.round(c.revenue * 100) / 100;
     delete c.days;
   });
 

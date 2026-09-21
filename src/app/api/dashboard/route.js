@@ -85,25 +85,34 @@ export async function GET(req) {
       return acc;
     }, { booked: 0, closed: 0, cash: 0 });
 
-    // Revenue is what reps report as booked on the day, which is a different
-    // figure from cash collected and is not something the report engine rolls
-    // up — so it is summed here from the same EODs, over the same range.
-    var reportedRevenue = store.eodReports
-      .filter(function(r) { return matchesWorkspace(r, workspaceId); })
-      .filter(function(e) {
-        var day = e.date || '';
-        if (start && day && day < start) return false;
-        if (end && day && day > end) return false;
-        return true;
-      })
-      .reduce(function(sum, e) {
-        var x = parseFloat(e.revenueOnDay);
-        return sum + (isFinite(x) ? x : 0);
-      }, 0);
+    // Revenue, summed from the per-closer rows rather than straight off the EODs.
+    //
+    // A raw sum of revenueOnDay is what put "$209,056 cash collected" next to
+    // "$42,595 revenue" on this page — revenue below the cash paid against it,
+    // which is impossible. "Revenue on Day" is an optional box on the EOD form
+    // and most reps skip it, so summing it raw measures how many people filled
+    // in a box, not what the floor sold.
+    //
+    // getCloserBreakdown settles each rep-day at the larger of the revenue they
+    // reported and the cash they actually collected, so taking the total from
+    // there both fixes the floor and makes this tile equal the sum of the Revenue
+    // column underneath it.
+    var rowRevenue = (closers || []).reduce(function(sum, row) {
+      var x = parseFloat(row && row.revenue);
+      return sum + (isFinite(x) ? x : 0);
+    }, 0);
 
     var v = report.volume;
     var r = report.rates;
     var c = report.cash;
+
+    // One last floor, against the cash figure actually printed beside it.
+    //
+    // The per-closer rows skip a deal filed with no closer name, and the cash
+    // tile does not, so an unattributed deal could still leave revenue reading
+    // below cash. Whatever else is true, the tile must never claim the floor
+    // sold less than it was paid.
+    var reportedRevenue = Math.max(rowRevenue, c.collected || 0);
     // Booked-call forms filed in the range. Already range-filtered by the report
     // engine, so it describes the same period as every other figure here.
     var bookedFormsFiled = (report.reporting && report.reporting.bookedForms
