@@ -44,6 +44,23 @@ export var ROLES = [
     grants: false,
   },
   {
+    // DM setting is a different job from phone setting: the funnel starts at a
+    // new lead in the inbox rather than a dial, and ends when the call they
+    // booked is sat. Same access as any other rep — the distinction is what
+    // they are measured on, not what they can see.
+    id: 'dm-setter',
+    label: 'DM Setter',
+    summary: 'Books calls out of the inbox. Measured on leads, conversations and sets.',
+    can: [
+      'My Dashboard, their own DM numbers and EODs',
+      'The team leaderboard',
+      'Submit forms',
+    ],
+    cannot: ['See another rep’s figures or the team dashboard'],
+    seesTeam: false,
+    grants: false,
+  },
+  {
     id: 'setter',
     label: 'Setter',
     summary: 'Same as a closer, framed around booking calls.',

@@ -14,7 +14,7 @@ import { roleLabel } from '@/lib/roles';
 
 export var dynamic = 'force-dynamic';
 
-var ROLES = ['setter', 'closer', 'manager', 'admin'];
+var ROLES = ['setter', 'dm-setter', 'closer', 'manager', 'admin'];
 
 // Managers and admins run their own workspace. The operator can run any of them.
 async function gate(req) {

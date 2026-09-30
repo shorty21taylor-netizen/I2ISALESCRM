@@ -11,6 +11,7 @@
 // Pure: everything is passed in.
 
 import { recordDay } from '@/lib/report-date';
+import { eodRole } from '@/lib/eod-role';
 
 function n(v) {
   var f = parseFloat(v);
@@ -42,6 +43,16 @@ function blank(name) {
 export function setterBreakdown(eods, board) {
   var rows = {};
 
+  // DM setters have their own board. Their sets come out of the inbox, not the
+  // phone, and letting them appear on both would count the same booked call on
+  // two boards — the thing the higher-of-two rule exists to prevent.
+  var isDm = {};
+  (eods || []).filter(Boolean).forEach(function(e) {
+    if (eodRole(e) !== 'dm-setter') return;
+    var n = key(e.salesRep || e.closerName);
+    if (n) isDm[n] = true;
+  });
+
   function rowFor(name) {
     var clean = String(name || '').trim();
     if (!clean) return null;
@@ -51,6 +62,7 @@ export function setterBreakdown(eods, board) {
   }
 
   (eods || []).filter(Boolean).forEach(function(e) {
+    if (eodRole(e) === 'dm-setter') return;
     var row = rowFor(e.salesRep || e.closerName);
     if (!row) return;
     row.dials += n(e.outboundDials) || n(e.totalDials);
@@ -63,6 +75,7 @@ export function setterBreakdown(eods, board) {
   });
 
   (board || []).filter(Boolean).forEach(function(b) {
+    if (isDm[key(b.name)]) return;
     var row = rowFor(b.name);
     if (!row) return;
     row.setsFromForms += n(b.booked);

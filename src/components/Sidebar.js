@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap, Sparkles, KeyRound, GitBranch } from 'lucide-react';
+import { Activity, MessageCircle, LayoutDashboard, UserCircle, Users, FileText, ClipboardList, BarChart3, Settings, ChevronLeft, ChevronDown, UserPlus, LogOut, CreditCard, MessageSquare, Building2, DollarSign, Trophy, Phone, PhoneCall, GraduationCap, Sparkles, KeyRound, GitBranch } from 'lucide-react';
 import { getUser, logout } from '@/lib/auth';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { useAccess } from '@/lib/workspace-client';
@@ -27,6 +27,7 @@ var navGroups = [
       { href: '/', label: 'Team Dashboard', icon: LayoutDashboard, teamOnly: true },
       { href: '/closer-dashboard', label: 'Closer Dashboard', icon: Users, teamOnly: true },
       { href: '/setter-dashboard', label: 'Setter Dashboard', icon: Phone, teamOnly: true },
+      { href: '/dm-setter-dashboard', label: 'DM Setter Dashboard', icon: MessageCircle, teamOnly: true },
       { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, needsOnboarding: true },
     ],
   },

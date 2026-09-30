@@ -11,6 +11,7 @@
 // eod-analyst.js asks the model to add, divide or work out a rate.
 
 import { recordDay, shiftReportDay } from '@/lib/report-date';
+import { eodRole } from '@/lib/eod-role';
 
 
 var MAX_PLANS = 200;
@@ -43,25 +44,15 @@ function repOf(e) { return String(e.salesRep || e.closerName || '').trim() || 'U
 // those rows into a closing funnel manufactures a collapse at the pitch stage
 // that nobody on the floor would recognise, so they are counted separately and
 // the aggregate says how many there were.
+// Delegated to eod-role.js, which is the one place that decides which funnel a
+// report belongs to — the closer board, the phone-setter board and the DM board
+// all have to agree, or somebody's day is counted twice.
+//
+// A DM setter reports the closes and cash their booked calls produced without
+// having taken any of them, so folding those into the closing funnel would put
+// closes against nobody's pitches.
 function isSetterReport(e) {
-  // The stored `role` cannot be trusted on its own. Until recently the ingest
-  // decided it from dials before calls taken, so a great many closers' reports
-  // are sitting in the database labelled 'setter'. Those records are history and
-  // history is not rewritten here, so the label is read alongside the numbers and
-  // the numbers win: anything showing a call taken, a pitch, a close, a booked
-  // calendar or cash is a closing day, whatever it was labelled.
-  var closingActivity = num(e.callsTaken) > 0
-    || num(e.callsTakenAndPitched) > 0
-    || num(e.closes) > 0
-    || num(e.callsOnCalendar) > 0
-    || cashMYFM(e) > 0 || cashI2I(e) > 0;
-  if (closingActivity) return false;
-
-  var labelled = String(e.role || '').toLowerCase() === 'setter'
-    || String(e.position || '').toLowerCase() === 'setter';
-  // A day with sets or conversations and nothing closing on it is setter work
-  // whether or not anyone filled the Position box in.
-  return labelled || num(e.sets) > 0 || num(e.conversations) > 0;
+  return eodRole(e) !== 'closer';
 }
 
 // Every division in this file goes through one of these two, and both answer

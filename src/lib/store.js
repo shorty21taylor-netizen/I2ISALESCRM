@@ -3,6 +3,7 @@
 // Graceful fallback: works without DATABASE_URL in memory-only mode.
 
 import { recordDay, toReportDay, todayInReportTimezone } from '@/lib/report-date';
+import { eodRole } from '@/lib/eod-role';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
 import { DEFAULT_STAGE as PIPE_DEFAULT_STAGE, isStage as isPipeStage, money as pipeMoney } from '@/lib/pipeline';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
@@ -297,6 +298,14 @@ export function addEODReport(data) {
     role: data.role || '',
     conversations: parseInt(data.conversations) || 0,
     liveCalls: parseInt(data.liveCalls) || 0,
+    // DM setter branch. Additive, like every other column here — the table is
+    // JSONB, so a report filed before these existed simply has none of them.
+    newLeads: parseInt(data.newLeads) || 0,
+    setsShowed: parseInt(data.setsShowed) || 0,
+    leadsGhosted: parseInt(data.leadsGhosted) || 0,
+    leadsReactivated: parseInt(data.leadsReactivated) || 0,
+    commonThemes: data.commonThemes || '',
+    biggestBottleneck: data.biggestBottleneck || '',
     talkTime: data.talkTime || '',
     sets: parseInt(data.sets) || 0,
     followUpsScheduled: parseInt(data.followUpsScheduled) || 0,
@@ -651,6 +660,10 @@ export function getCloserBreakdown(startDate, endDate, workspaceId) {
   }).forEach(function(eod) {
     var name = eod.salesRep || eod.closerName;
     if (!name) return;
+    // A DM setter reports the closes and cash their booked calls produced
+    // without having taken one. They have their own board; counting them here
+    // would put a closer's row against nobody's pitches.
+    if (eodRole(eod) === 'dm-setter') return;
     if (!closerMap[name]) {
       closerMap[name] = { name: name, dials: 0, connects: 0, callsBooked: 0, callsTaken: 0, pitched: 0, closes: 0, cash: 0, cashMYFM: 0, cashI2I: 0, revenue: 0, partnerCash: 0, partnerDeals: 0, noShows: 0, confidence: 0, eodCount: 0, days: {} };
     }

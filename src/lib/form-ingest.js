@@ -243,6 +243,23 @@ var EOD_KEYS = {
   sets: ['sets', 'Sets', 'Appointments Set'],
   followUpsScheduled: ['followUpsScheduled', 'Follow-Ups Scheduled', 'Follow Ups Scheduled', 'Followups'],
 
+  // DM setter branch. The inbox funnel: a new lead becomes a conversation,
+  // a conversation becomes a booked call, a booked call is sat, and a sat call
+  // closes. `conversations`, `netNewCallsBooked`, `closes` and the cash fields
+  // are shared with the other branches — they mean the same thing there, and
+  // duplicating them would give one rep two of every number.
+  newLeads: ['newLeads', 'New Leads', 'new leads', 'Leads'],
+  conversationsStarted: ['conversationsStarted', 'Conversations Started', 'conversations started'],
+  callsBooked: ['callsBooked', 'Calls Booked', 'calls booked'],
+  setsShowed: ['setsShowed', 'Booked Calls That Showed', 'Booked Calls Showed',
+    'Calls That Showed', 'Showed', 'booked calls that showed to their closing call'],
+  leadsGhosted: ['leadsGhosted', 'Leads That Went Ghost', 'Leads Ghosted', 'Ghosted', 'leads that went ghost'],
+  leadsReactivated: ['leadsReactivated', 'Dead Leads Reactivated', 'Leads Reactivated',
+    'Reactivated', 'dead leads reactivated'],
+  commonThemes: ['commonThemes', 'Common Themes Or Patterns', 'Common Themes', 'Themes',
+    'Patterns', 'common themes or patterns'],
+  biggestBottleneck: ['biggestBottleneck', 'Biggest Bottleneck', 'Bottleneck', 'biggest bottleneck'],
+
   // Both branches
   closes: ['closes', 'Deals Closed', 'Closes', 'Sales'],
   cashCollectedMYFM: ['cashCollectedMYFM', 'Cash Collected MYFM'],
@@ -315,8 +332,11 @@ function normalizeCloseDeal(flat, labels) {
 
 // Setter | Closer, from the form's Position dropdown. Falls back to reading the
 // shape of the answers when Position is missing (older submissions, in-app form).
-function resolveRole(position, sets, dials, callsTaken) {
+function resolveRole(position, sets, dials, callsTaken, newLeads) {
   var p = String(position || '').toLowerCase();
+  // Checked before plain 'setter', because "DM Setter" contains "setter" and
+  // would otherwise be filed as a phone setter — whose funnel starts at a dial.
+  if (p.indexOf('dm') !== -1) return 'dm-setter';
   if (p.indexOf('setter') !== -1) return 'setter';
   if (p.indexOf('closer') !== -1) return 'closer';
   // Evidence of closing outranks evidence of dialling, and the order here is the
@@ -325,6 +345,8 @@ function resolveRole(position, sets, dials, callsTaken) {
   // closes and cash vanished off the card. Closers dial. Setters do not take
   // calls, so a call taken is the one unambiguous signal.
   if (callsTaken > 0) return 'closer';
+  // Leads worked with no dial behind them is the DM inbox, not the phone.
+  if (newLeads > 0 && !dials) return 'dm-setter';
   if (sets > 0) return 'setter';
   if (dials > 0) return 'setter';
   return '';
@@ -346,16 +368,27 @@ function normalizeEOD(flat, labels) {
   var callsTaken = toInt(g('callsTaken'));
   var position = g('position');
 
+  // The DM branch. "Conversations started" is the same quantity the phone form
+  // calls conversations, so it lands in the shared field rather than a second
+  // one that would have to be added up everywhere.
+  var newLeads = toInt(g('newLeads'));
+  var conversations = toInt(g('conversationsStarted')) || toInt(g('conversations'));
+  var setsShowed = toInt(g('setsShowed'));
+  var leadsGhosted = toInt(g('leadsGhosted'));
+  var leadsReactivated = toInt(g('leadsReactivated'));
+
   // A setter's sets ARE the net-new calls booked, and the CRM already reports on
   // that column. Only fill it from Sets when the closer-only field is absent, so a
   // closer's own number is never overwritten.
   var bookedRaw = g('netNewCallsBooked');
-  var netNewCallsBooked = bookedRaw !== '' ? toInt(bookedRaw) : sets;
+  var dmBookedRaw = g('callsBooked');
+  var netNewCallsBooked = bookedRaw !== '' ? toInt(bookedRaw)
+    : (dmBookedRaw !== '' ? toInt(dmBookedRaw) : sets);
 
   return {
     salesRep: g('salesRep') || g('closerName'),
     position: position,
-    role: resolveRole(position, sets, dials, callsTaken),
+    role: resolveRole(position, sets, dials, callsTaken, newLeads),
     closerName: g('closerName'),
     closerEmail: g('closerEmail').toLowerCase(),
     date: g('date') || todayInReportTimezone(),
@@ -370,7 +403,13 @@ function normalizeEOD(flat, labels) {
     closes: toInt(g('closes')),
 
     outboundDials: dials,
-    conversations: toInt(g('conversations')),
+    conversations: conversations,
+    newLeads: newLeads,
+    setsShowed: setsShowed,
+    leadsGhosted: leadsGhosted,
+    leadsReactivated: leadsReactivated,
+    commonThemes: g('commonThemes'),
+    biggestBottleneck: g('biggestBottleneck'),
     liveCalls: toInt(g('liveCalls')),
     talkTime: g('talkTime'),
     sets: sets,
