@@ -117,13 +117,22 @@ export async function initDatabase() {
     //
     // workspace_id is TEXT here because that is what workspaces.id is in this
     // schema ('default', 'ws-...'), not a SERIAL integer.
-    await p.query("CREATE TABLE IF NOT EXISTS workspace_forms (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, form_key TEXT NOT NULL, label TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('all','setter','closer','manager')), form_url TEXT, icon TEXT NOT NULL DEFAULT 'clipboard', accent TEXT NOT NULL DEFAULT 'neutral', destination_label TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, form_key))").catch(function() {});
+    await p.query("CREATE TABLE IF NOT EXISTS workspace_forms (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, form_key TEXT NOT NULL, label TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('all','setter','dm-setter','closer','manager')), form_url TEXT, icon TEXT NOT NULL DEFAULT 'clipboard', accent TEXT NOT NULL DEFAULT 'neutral', destination_label TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, form_key))").catch(function() {});
 
     await p.query("CREATE TABLE IF NOT EXISTS workspace_integrations (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL, config_key TEXT NOT NULL, config_value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, provider, config_key))").catch(function() {});
 
     await p.query("CREATE TABLE IF NOT EXISTS workspace_routes (id SERIAL PRIMARY KEY, workspace_id TEXT NOT NULL, form_key TEXT NOT NULL, channel TEXT NOT NULL CHECK (channel IN ('whatsapp','slack','email','none')), target TEXT NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), deleted_at TIMESTAMPTZ, UNIQUE (workspace_id, form_key, channel))").catch(function() {});
 
     await p.query('CREATE INDEX IF NOT EXISTS idx_forms_ws ON workspace_forms (workspace_id, sort_order) WHERE deleted_at IS NULL').catch(function() {});
+    // Widening a CHECK is the one schema change CREATE TABLE IF NOT EXISTS cannot
+    // make: the table already exists, so it keeps the constraint it was born
+    // with, and a form aimed at DM setters would be refused by the database.
+    // Dropped and re-added by name — idempotent, and it touches no column and no
+    // row. Both statements swallow their errors, like every other statement here:
+    // a constraint is not worth failing a boot over.
+    await p.query('ALTER TABLE workspace_forms DROP CONSTRAINT IF EXISTS workspace_forms_audience_check').catch(function() {});
+    await p.query("ALTER TABLE workspace_forms ADD CONSTRAINT workspace_forms_audience_check CHECK (audience IN ('all','setter','dm-setter','closer','manager'))").catch(function() {});
+
     await p.query('CREATE INDEX IF NOT EXISTS idx_routes_ws ON workspace_routes (workspace_id, form_key) WHERE deleted_at IS NULL').catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_integrations_ws ON workspace_integrations (workspace_id, provider) WHERE deleted_at IS NULL').catch(function() {});
 

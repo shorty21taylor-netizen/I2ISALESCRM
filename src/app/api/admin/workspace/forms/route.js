@@ -7,7 +7,7 @@ import {
   upsertRoute, removeRoute, copySetupFrom,
   ICONS, AUDIENCES, CHANNELS, suggestedTargets, knownGroupIds,
 } from '@/lib/workspace-config';
-import { ensureLegacyForms, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
+import { ensureLegacyForms, ensureDmSetterForm, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
 import { INGEST_PROVIDER, INGEST_KEY_NAME, defaultIngestWorkspace } from '@/lib/ingest-auth';
 import crypto from 'crypto';
 
@@ -40,6 +40,7 @@ export async function GET(req) {
   if (g.denied) return g.denied;
 
   await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
+  await ensureDmSetterForm().catch(function(e) { console.error('[DM setter form]', e.message); });
   var missing = await formsMissingRoutes(g.workspaceId);
   var wc = getWhatsappConfig() || {};
   var allWorkspaces = getWorkspaces();

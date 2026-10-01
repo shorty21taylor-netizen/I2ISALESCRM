@@ -5,7 +5,7 @@ import { saveAppConfig, loadAppConfig } from '@/lib/db';
 import { resolveAccess, effectiveReadWorkspace, OWNER_EMAIL } from '@/lib/access';
 import { getIngestKey } from '@/lib/ingest-auth';
 import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
-import { ensureLegacyForms } from '@/lib/legacy-forms';
+import { ensureLegacyForms, ensureDmSetterForm } from '@/lib/legacy-forms';
 
 export var dynamic = 'force-dynamic';
 
@@ -44,6 +44,7 @@ export async function GET(req) {
     // its four are restored from what the install shipped with. Every other
     // workspace is untouched and still starts empty.
     await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
+  await ensureDmSetterForm().catch(function(e) { console.error('[DM setter form]', e.message); });
 
     var forms = await listForms(workspaceId);
     var booking = await bookingLinkFor(workspaceId);

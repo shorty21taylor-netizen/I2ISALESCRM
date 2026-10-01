@@ -36,6 +36,25 @@ export var LEGACY_FORMS = [
     formUrl: 'https://summitsales.app.n8n.cloud/form/after-call-report' },
 ];
 
+// The DM setters' EOD, added after the original four. It is not part of
+// LEGACY_FORMS: that list only ever seeds a workspace that has NO forms at all,
+// and the workspace this belongs to has had four since the start — adding it
+// there would have meant nobody ever saw it.
+//
+// It posts as an ordinary EOD (`?type=eod-report`) carrying Position: DM Setter,
+// which is what puts it on the DM board rather than the phone one.
+export var DM_SETTER_FORM = {
+  formKey: 'dm-setter-eod',
+  label: 'DM Setter EOD Report',
+  icon: 'clipboard-check',
+  accent: 'accent',
+  sortOrder: 35,
+  audience: 'dm-setter',
+  description: 'DM setters — leads, conversations and the calls they booked',
+  destinationLabel: 'Logs to the CRM + posts to WhatsApp',
+  formUrl: 'https://summitsales.app.n8n.cloud/form/dm-setter-eod',
+};
+
 export var LEGACY_BOOKING = {
   url: 'https://api.leadconnectorhq.com/widget/booking/YtuohtkrLHiQ1MRZQmXo',
   label: 'Round Robin Booking Link',
@@ -92,6 +111,62 @@ export async function workspaceNeedingRestore() {
     if (!best || records > best.records) best = { ws: ws, records: records };
   }
   return best;
+}
+
+// Adding one form to a workspace that is already set up.
+//
+// ensureLegacyForms only touches a workspace with nothing in it, which is right
+// for restoring a Submit page and useless for adding to one. This does the
+// narrower job: find the workspace that is plainly the original install — it
+// holds this install's history AND already has the EOD form — and give it the DM
+// form if it does not have one.
+//
+// Idempotent, and deliberately timid. It adds nothing to a workspace that has no
+// EOD form of its own (which is every client workspace stood up since), it never
+// edits a dm-setter-eod row that already exists, so an operator who changes the
+// label or the URL keeps their change, and it adds exactly one row.
+var dmDone = false;
+
+export async function ensureDmSetterForm() {
+  if (dmDone) return { skipped: 'already checked' };
+
+  var counts = recordCountsByWorkspace();
+  var all = getWorkspaces();
+  var target = null;
+
+  for (var i = 0; i < all.length; i++) {
+    var ws = all[i];
+    if ((counts[ws.id] || 0) < MIN_RECORDS) continue;
+    var forms = await listForms(ws.id, { includeInactive: true });
+    var hasEod = forms.some(function(f) { return f.formKey === 'eod-report'; });
+    if (!hasEod) continue;
+    if (forms.some(function(f) { return f.formKey === DM_SETTER_FORM.formKey; })) {
+      // Already there. Settled, and nothing is overwritten.
+      dmDone = true;
+      return { skipped: 'already present', workspaceId: ws.id };
+    }
+    if (!target || (counts[ws.id] || 0) > (counts[target.id] || 0)) target = ws;
+  }
+
+  if (!target) { dmDone = true; return { skipped: 'no workspace needs it' }; }
+
+  await upsertForm(target.id, DM_SETTER_FORM);
+
+  // A destination, mirroring the one the workspace already uses for EODs.
+  // Without it the Submit page would warn that this form has nowhere to send —
+  // which would be false, since the form posts as an EOD and is routed as one.
+  var routes = await listRoutes(target.id);
+  var already = routes.some(function(r) { return r.formKey === DM_SETTER_FORM.formKey; });
+  if (!already) {
+    var eod = routes.filter(function(r) { return r.formKey === 'eod-report'; })[0];
+    if (eod && eod.channel && eod.target) {
+      await upsertRoute(target.id, DM_SETTER_FORM.formKey, eod.channel, eod.target, true);
+    }
+  }
+
+  dmDone = true;
+  console.log('[DM setter form] added the DM Setter EOD to ' + target.name + ' (' + target.id + ')');
+  return { added: true, workspaceId: target.id, workspace: target.name };
 }
 
 var done = false;

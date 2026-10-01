@@ -20,7 +20,7 @@ import {
 import crypto from 'crypto';
 
 export var ICONS = ['phone', 'dollar', 'clipboard-check', 'document', 'calendar'];
-export var AUDIENCES = ['all', 'setter', 'closer', 'manager'];
+export var AUDIENCES = ['all', 'setter', 'dm-setter', 'closer', 'manager'];
 export var CHANNELS = ['whatsapp', 'slack', 'email', 'none'];
 
 // The message a rep sees when their workspace was never finished. It names what
