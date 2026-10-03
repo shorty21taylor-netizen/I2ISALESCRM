@@ -4214,6 +4214,24 @@ html, body { overflow-x: clip; }
 }
 .eodt thead th:first-child, .eodt thead th:nth-child(2) { text-align: left; }
 .eodt thead th:hover { color: var(--crm-text-bright); }
+/* The sort control is a real button now, so it can be reached with Tab. It
+   inherits the header cell's type so the table looks exactly as it did. */
+.eodt-sort-btn {
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap;
+}
+/* Same for expanding a row's written notes: it used to be an onClick on the
+   <tr>, which the keyboard could not reach at all. */
+.eodt-expand {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.eodt-expand:hover { color: var(--crm-text-bright); }
+.eodt-caret { color: var(--crm-accent); font-size: 9px; }
+.eodt-plan-h {
+  display: block; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--crm-text-muted);
+}
 .eodt tbody td {
   padding: 8px 10px; text-align: right; white-space: nowrap;
   border-bottom: 0.5px solid var(--crm-divider);
