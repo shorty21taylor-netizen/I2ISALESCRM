@@ -442,6 +442,9 @@ export default function MyDashboardPage() {
               {canEdit ? (
                 <div className="me-id-actions">
                   <button className="an-chip" onClick={function() { setEditing(!editing); }}>Edit profile</button>
+                  <button className="an-chip" onClick={function() { router.push('/me/card?style=kpi'); }}>
+                    <Target size={12} /> KPI card
+                  </button>
                   <button className="an-chip" onClick={function() { router.push('/me/card'); }}>
                     <Share2 size={12} /> Stat card
                   </button>

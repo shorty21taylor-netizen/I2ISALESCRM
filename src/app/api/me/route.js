@@ -4,6 +4,9 @@ import {
   getCommissionsForCloser, canonicalRep, getWorkspace, getWorkspaces,
 } from '@/lib/store';
 import { callerEmail, effectiveReadWorkspace, matchesWorkspace, resolveAccess } from '@/lib/access';
+import { computeKpiProgress, kpiSetFor } from '@/lib/kpi-card';
+import { getUserWorkspace } from '@/lib/store';
+import { eodRole } from '@/lib/eod-role';
 import { getUser } from '@/lib/users';
 import { dedupeDeals } from '@/lib/dedupe-deals';
 import { toReportDay, todayInReportTimezone } from '@/lib/report-date';
@@ -125,6 +128,32 @@ export async function GET(req) {
     var myDeals = deduped.filter(function(d) { return identity.owns(d, 'closerEmail', 'closer'); });
     var goal = computeGoalPace(profile && profile.monthlyGoal, myDeals, todayInReportTimezone());
 
+    // Which KPIs this person is measured on.
+    //
+    // The roster row is the authority — it is what an admin actually set. When
+    // somebody has no row, their own EODs are asked instead: a rep filing DM
+    // reports is a DM setter whether or not anyone got round to saying so.
+    var myEods = mine(store.eodReports).filter(function(e) {
+      return identity.owns(e, 'closerEmail', 'salesRep');
+    });
+    var membership = await getUserWorkspace(email).catch(function() { return null; });
+    var rosterRole = (membership && membership.role) || '';
+    var kpiRole = kpiSetFor(rosterRole) && String(rosterRole || '').toLowerCase();
+    if (!kpiRole || !['closer', 'setter', 'dm-setter'].includes(kpiRole)) {
+      var recent = myEods.slice(-20).map(eodRole).filter(Boolean);
+      var tally = {};
+      recent.forEach(function(r) { tally[r] = (tally[r] || 0) + 1; });
+      kpiRole = Object.keys(tally).sort(function(a, b) { return tally[b] - tally[a]; })[0] || 'closer';
+    }
+
+    var kpis = computeKpiProgress({
+      role: kpiRole,
+      eods: myEods,
+      today: todayInReportTimezone(),
+      targets: (profile && profile.kpiTargets) || {},
+      goal: goal,
+    });
+
     // Today's calendar, from the bookings filed against this closer.
     var myBookings = mine(store.bookedCalls).filter(function(b) {
       return identity.owns(b, 'closerEmail', 'closer');
@@ -150,6 +179,7 @@ export async function GET(req) {
         bannerUrl: (profile && profile.bannerUrl) || '',
         status: effectiveStatus(profile),
         monthlyGoal: (profile && profile.monthlyGoal) || 0,
+        kpiTargets: (profile && profile.kpiTargets) || {},
         onboarded: !!(profile && profile.onboardedAt),
         // True when the only name we have came off a closer profile, which is
         // created by whichever form first carried this email and is often wrong.
@@ -167,6 +197,7 @@ export async function GET(req) {
         };
       })(),
       goal: goal,
+      kpis: kpis,
       today: today,
       pnl: computePnl(myDeals, start, end),
       stats: stats,
@@ -238,6 +269,24 @@ export async function POST(req) {
         : '';
     }
     if (typeof body.displayName === 'string') patch.displayName = body.displayName.trim().slice(0, 60);
+    if (body.kpiTargets !== undefined && body.kpiTargets !== null) {
+      // Only keys this role is actually measured on, and only sane numbers. A
+      // target typed into the wrong box, or a negative one, is dropped rather
+      // than stored and then rendered as a goal nobody can hit.
+      var allowed = {};
+      ['closer', 'setter', 'dm-setter'].forEach(function(r) {
+        kpiSetFor(r).forEach(function(k) { allowed[k.key] = true; });
+      });
+      var cleanTargets = {};
+      Object.keys(body.kpiTargets || {}).forEach(function(k) {
+        if (!allowed[k]) return;
+        var value = parseFloat(body.kpiTargets[k]);
+        if (!isFinite(value) || value <= 0) return;
+        cleanTargets[k] = Math.round(value * 100) / 100;
+      });
+      patch.kpiTargets = cleanTargets;
+    }
+
     if (body.monthlyGoal !== undefined) {
       var goalValue = Math.max(0, Math.round(parseFloat(body.monthlyGoal) || 0));
       if (goalValue > 100000000) {
@@ -251,11 +300,16 @@ export async function POST(req) {
       // A manager sets targets. Someone's photo, their banner, their bio, and
       // whether they are marked as in a meeting are theirs alone — a presence
       // light nobody but its owner can flip is the only kind worth trusting.
-      patch = Object.prototype.hasOwnProperty.call(patch, 'monthlyGoal')
-        ? { monthlyGoal: patch.monthlyGoal }
-        : {};
+      // Targets, now plural: the cash goal and the per-KPI ones are the same
+      // kind of thing and a manager may set either. Everything else is still
+      // the rep's alone.
+      var allowedByManager = {};
+      ['monthlyGoal', 'kpiTargets'].forEach(function(k) {
+        if (Object.prototype.hasOwnProperty.call(patch, k)) allowedByManager[k] = patch[k];
+      });
+      patch = allowedByManager;
       if (!Object.keys(patch).length) {
-        return NextResponse.json({ error: 'You can only set this rep\'s target' }, { status: 403 });
+        return NextResponse.json({ error: 'You can only set this rep\'s targets' }, { status: 403 });
       }
     }
 

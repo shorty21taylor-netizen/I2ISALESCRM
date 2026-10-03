@@ -120,7 +120,7 @@ function eodStreak(eods) {
 
 // Weekdays are the unit a sales month is actually paced in; a target divided by
 // calendar days is wrong by a third.
-function weekdaysBetween(startDay, endDay) {
+export function weekdaysBetween(startDay, endDay) {
   if (!startDay || !endDay || startDay > endDay) return 0;
   var cursor = new Date(startDay + 'T12:00:00');
   var stop = new Date(endDay + 'T12:00:00');

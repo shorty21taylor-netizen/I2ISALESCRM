@@ -12,6 +12,110 @@ import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
 function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
 
+// One KPI: the number, the target, and a bar that is honest about pace.
+//
+// Green is "where you should be TODAY", not "you finished". Halfway through the
+// month on half the target is on track, and colouring that amber because it is
+// not 100% yet is how a board stops being read.
+function KpiRow({ row }) {
+  function shown(v) {
+    if (v === null || v === undefined) return '—';
+    if (row.kind === 'money') return formatCurrency(v);
+    if (row.kind === 'rate') return v + '%';
+    return Number(v).toLocaleString('en-US');
+  }
+
+  var width = row.percent === null ? 0 : Math.max(0, Math.min(100, row.percent));
+  var tone = row.onTrack === null ? 'none' : (row.onTrack ? 'good' : 'behind');
+  // Where the month says they should be, drawn as a notch on the bar.
+  var pace = (row.target && row.expectedByNow !== null && row.target > 0)
+    ? Math.max(0, Math.min(100, Math.round((row.expectedByNow / row.target) * 100)))
+    : null;
+
+  return (
+    <div className="kpi-row">
+      <div className="kpi-row-top">
+        <span className="kpi-row-label">{row.label}</span>
+        <span className="kpi-row-value">
+          {shown(row.actual)}
+          {row.target !== null ? <span className="kpi-row-target"> / {shown(row.target)}</span> : null}
+        </span>
+      </div>
+      <div className="kpi-bar">
+        <div className={'kpi-bar-fill ' + tone} style={{ width: width + '%' }} />
+        {pace !== null && pace > 0 && pace < 100 ? (
+          <div className="kpi-bar-pace" style={{ left: pace + '%' }} />
+        ) : null}
+      </div>
+      <div className="kpi-row-foot">
+        {row.target === null ? (
+          <span>No target set</span>
+        ) : row.percent !== null && row.percent >= 100 ? (
+          <span className="kpi-hit">Hit</span>
+        ) : row.kind === 'rate' ? (
+          <span>{row.percent === null ? 'Nothing to measure yet' : row.percent + '% of target'}</span>
+        ) : (
+          <span>
+            {row.percent === null ? '—' : row.percent + '%'}
+            {row.neededPerDay ? ' · ' + shown(row.neededPerDay) + ' a day to finish' : ''}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ data, initials }) {
+  var p = data.profile;
+  var k = data.kpis;
+  if (!k) {
+    return (
+      <div className="kpi-card">
+        <p className="kpi-empty">No KPIs to show yet — file an EOD and they appear here.</p>
+      </div>
+    );
+  }
+  var rows = (k.kpis || []).filter(Boolean);
+  var ROLE_LABEL = { closer: 'Closer', setter: 'Setter', 'dm-setter': 'DM Setter' };
+
+  return (
+    <div className="kpi-card">
+      <div className="kpi-top">
+        <div className="stat-card-avatar">
+          {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
+        </div>
+        <div className="min-w-0">
+          <h1 className="stat-card-name">{p.name}</h1>
+          <p className="stat-card-sub">{(ROLE_LABEL[k.role] || 'Sales floor') + ' · ' + k.month}</p>
+        </div>
+        <div className="kpi-score">
+          {k.completion === null ? (
+            <>
+              <span className="kpi-score-v">—</span>
+              <span className="kpi-score-l">no targets</span>
+            </>
+          ) : (
+            <>
+              <span className="kpi-score-v">{k.hitCount}<span className="kpi-score-of">/{k.targetsSet}</span></span>
+              <span className="kpi-score-l">targets hit</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="kpi-rows">
+        {rows.map(function(row) { return <KpiRow key={row.key} row={row} />; })}
+      </div>
+
+      <div className="kpi-foot">
+        {k.weekdaysLeft > 0
+          ? k.weekdaysLeft + ' working ' + (k.weekdaysLeft === 1 ? 'day' : 'days') + ' left this month'
+          : 'Last working day of the month'}
+      </div>
+    </div>
+  );
+}
+
 export default function StatCardPage() {
   var workspaceId = useWorkspace();
   var router = useRouter();
@@ -19,6 +123,14 @@ export default function StatCardPage() {
   var [copied, setCopied] = useState(false);
   var [style, setStyle] = useState('pnl');
   var [days, setDays] = useState('30');
+
+  // ?style=kpi so the button on the dashboard can land straight on this card.
+  useEffect(function() {
+    try {
+      var wanted = new URLSearchParams(window.location.search).get('style');
+      if (wanted === 'kpi' || wanted === 'stat' || wanted === 'pnl') setStyle(wanted);
+    } catch (e) { /* nothing worth breaking a card over */ }
+  }, []);
 
   useEffect(function() {
     if (!workspaceId) return;
@@ -45,6 +157,28 @@ export default function StatCardPage() {
   var up = pnl && pnl.direction !== 'down';
 
   function copyText() {
+    if (style === 'kpi' && data.kpis) {
+      var k = data.kpis;
+      var kpiLines = [p.name + ' — ' + k.month + ' KPIs'];
+      (k.kpis || []).forEach(function(row) {
+        if (row.actual === null && row.target === null) return;
+        var shown = row.kind === 'money' ? formatCurrency(row.actual)
+          : row.kind === 'rate' ? pct(row.actual) : (row.actual || 0);
+        var of = row.target === null ? ''
+          : ' / ' + (row.kind === 'money' ? formatCurrency(row.target)
+            : row.kind === 'rate' ? pct(row.target) : row.target)
+            + (row.percent === null ? '' : ' (' + row.percent + '%)');
+        kpiLines.push(row.label + ': ' + shown + of);
+      });
+      if (k.completion !== null) kpiLines.push(k.hitCount + ' of ' + k.targetsSet + ' targets hit');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(kpiLines.join('\n')).then(function() {
+          setCopied(true);
+          setTimeout(function() { setCopied(false); }, 2200);
+        });
+      }
+      return;
+    }
     if (style === 'pnl' && pnl) {
       var pnlLines = [
         p.name + ' — last ' + pnl.days + ' days',
@@ -83,7 +217,11 @@ export default function StatCardPage() {
             onClick={function() { setStyle('pnl'); }}>P&L</button>
           <button className={'card-switch-i' + (style === 'stat' ? ' on' : '')}
             onClick={function() { setStyle('stat'); }}>Career</button>
+          <button className={'card-switch-i' + (style === 'kpi' ? ' on' : '')}
+            onClick={function() { setStyle('kpi'); }}>KPIs</button>
         </div>
+
+        {style === 'kpi' ? <KpiCard data={data} initials={initials} /> : null}
 
         {style === 'pnl' && pnl ? (
           <div className={'pnl-card ' + (up ? 'up' : 'down')}>
