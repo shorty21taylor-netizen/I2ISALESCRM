@@ -15,24 +15,55 @@
     --crm-card: #161616;
     --crm-border: #1f1f1f;
     --crm-border-hover: #2a2a2a;
-    --crm-muted: #ffffff;
+    /* Secondary text sits BEHIND --crm-text, never in front of it. This was
+       #ffffff, which painted every label, caption and timestamp brighter than
+       the figure it was labelling and flattened the whole hierarchy. */
+    --crm-muted: #9a9a9a;
     --crm-text: #e5e5e5;
     --crm-text-bright: #fafafa;
+    /* Referenced in 50-odd rules and declared nowhere until now. An undefined
+       custom property does not fall back: `color: var(--crm-text-muted)`
+       resolved to `inherit` (so "muted" text rendered at full body strength)
+       and `border: 0.5px solid var(--crm-divider)` was invalid at
+       computed-value time, which drops the whole declaration — that is why the
+       KPI card, the AI panels, the cash-provenance panel and the sticky table
+       headers on the role dashboards all rendered with no border at all. */
+    --crm-text-muted: #9a9a9a;
+    --crm-divider: #1f1f1f;
+    /* Same story: used in raw CSS, never declared. The Tailwind `font-display`
+       and `font-mono` classes were fine; these var() references were not, so
+       those cards fell through to the generic sans and mono stacks. */
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
     /* The default accent. A workspace that picks its own overrides these at
-       runtime; this is what the sign-in page and any unbranded workspace wear. */
-    --accent-rgb: 239,68,68;
-    --crm-accent: #ef4444;
-    --crm-accent-glow: #f87171;
-    --crm-accent-muted: #7f1d1d;
-    --btn-primary-bg: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-    --btn-primary-bg-hover: linear-gradient(135deg, #fca5a5 0%, #f87171 100%);
-    --btn-primary-fg: #ffffff;
+       runtime; this is what the sign-in page and any unbranded workspace wear.
+       It used to be #ef4444 — the same hex as --crm-negative below — so on an
+       unbranded workspace "Submit EOD" and "Delete" were the same button, and
+       the brand colour of a product about money going up was the colour of a
+       loss. Brass carries the brand; red now means one thing only. */
+    --accent-rgb: 200,169,81;
+    --crm-accent: #c8a951;
+    --crm-accent-glow: #ddc27a;
+    --crm-accent-muted: #6b5518;
+    /* The default primary action is neutral, not accent-coloured, so it cannot
+       collide with any semantic colour. A branded workspace still overrides
+       these with its own brand gradient (brand-theme.js), which is the one
+       place a brand colour belongs on a button. */
+    --btn-primary-bg: #fafafa;
+    --btn-primary-bg-hover: #ffffff;
+    --btn-primary-fg: #0a0a0a;
     --crm-positive: #22c55e;
     --crm-positive-muted: #166534;
     --crm-negative: #ef4444;
     --crm-negative-muted: #991b1b;
     --crm-warning: #f59e0b;
     --crm-warning-muted: #92400e;
+    /* Triplets so a tint can be mixed at a chosen alpha. The badge and chip
+       rules used to hardcode the dark values, which left them at roughly
+       2.2:1 on a white card once light mode shipped. */
+    --positive-rgb: 34,197,94;
+    --negative-rgb: 239,68,68;
+    --warning-rgb: 245,158,11;
     --glass-card-bg: linear-gradient(135deg, rgba(26,26,26,0.8) 0%, rgba(18,18,18,0.6) 100%);
     --glass-card-border: rgba(255,255,255,0.06);
     --glass-card-border-hover: rgba(255,255,255,0.1);
@@ -79,16 +110,20 @@
     --crm-card: #ffffff;
     --crm-border: #e5e5e5;
     --crm-border-hover: #d4d4d4;
-    --crm-muted: #0f172a;
+    --crm-muted: #6b7280;
     --crm-text: #262626;
     --crm-text-bright: #0a0a0a;
-    /* Red darkened until it holds on white; same default, other ground. */
-    --accent-rgb: 185,28,28;
-    --crm-accent: #b91c1c;
-    --crm-accent-glow: #991b1b;
-    --crm-accent-muted: #fecaca;
-    --btn-primary-bg: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    --btn-primary-bg-hover: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --crm-text-muted: #6b7280;
+    --crm-divider: #e5e7eb;
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    /* Brass darkened until it holds 4.5:1 on white; same default, other ground. */
+    --accent-rgb: 138,106,22;
+    --crm-accent: #8a6a16;
+    --crm-accent-glow: #6f5512;
+    --crm-accent-muted: #efe3bd;
+    --btn-primary-bg: #111827;
+    --btn-primary-bg-hover: #1f2937;
     --btn-primary-fg: #ffffff;
     --crm-positive: #16a34a;
     --crm-positive-muted: #bbf7d0;
@@ -96,6 +131,9 @@
     --crm-negative-muted: #fecaca;
     --crm-warning: #d97706;
     --crm-warning-muted: #fef3c7;
+    --positive-rgb: 22,163,74;
+    --negative-rgb: 220,38,38;
+    --warning-rgb: 217,119,6;
     --glass-card-bg: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(250,250,250,0.8) 100%);
     --glass-card-border: rgba(0,0,0,0.08);
     --glass-card-border-hover: rgba(0,0,0,0.14);
@@ -135,6 +173,18 @@
     --tooltip-border: rgba(0,0,0,0.12);
     --shadow-strength: 0.4;
   }
+
+  /* One keyboard focus ring for the whole app. Before this, .input-field was the
+     only thing that showed focus at all — it kills the outline and replaces it
+     with its own glow — while every button, nav link, tab and clickable tile
+     showed nothing, so tabbing through the product was invisible. :focus-visible
+     means a mouse click never draws it. */
+  :focus-visible {
+    outline: 2px solid var(--crm-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .input-field:focus-visible { outline: none; }
 
   body {
     background-color: var(--crm-bg);
@@ -411,10 +461,12 @@
     -webkit-backdrop-filter: blur(8px);
     transition: all 0.2s ease;
   }
-  .badge-positive { @apply badge; background: rgba(34,197,94,0.12); color: #22c55e; border: 0.5px solid rgba(34,197,94,0.25); box-shadow: 0 0 12px rgba(34,197,94,0.1), inset 0 0 8px rgba(34,197,94,0.05); }
-  .badge-negative { @apply badge; background: rgba(239,68,68,0.12); color: #ef4444; border: 0.5px solid rgba(239,68,68,0.25); box-shadow: 0 0 12px rgba(239,68,68,0.1), inset 0 0 8px rgba(239,68,68,0.05); }
-  .badge-warning { @apply badge; background: rgba(245,158,11,0.12); color: #f59e0b; border: 0.5px solid rgba(245,158,11,0.25); box-shadow: 0 0 12px rgba(245,158,11,0.1), inset 0 0 8px rgba(245,158,11,0.05); }
-  .badge-neutral { @apply badge; background: rgba(255,255,255,0.04); color: #6b6b6b; border: 0.5px solid rgba(255,255,255,0.08); }
+  /* Tinted from the triplets and coloured from the theme's own token, so each
+     badge is legible on whichever ground it lands on. */
+  .badge-positive { @apply badge; background: rgba(var(--positive-rgb),0.12); color: var(--crm-positive); border: 0.5px solid rgba(var(--positive-rgb),0.25); box-shadow: 0 0 12px rgba(var(--positive-rgb),0.1), inset 0 0 8px rgba(var(--positive-rgb),0.05); }
+  .badge-negative { @apply badge; background: rgba(var(--negative-rgb),0.12); color: var(--crm-negative); border: 0.5px solid rgba(var(--negative-rgb),0.25); box-shadow: 0 0 12px rgba(var(--negative-rgb),0.1), inset 0 0 8px rgba(var(--negative-rgb),0.05); }
+  .badge-warning { @apply badge; background: rgba(var(--warning-rgb),0.12); color: var(--crm-warning); border: 0.5px solid rgba(var(--warning-rgb),0.25); box-shadow: 0 0 12px rgba(var(--warning-rgb),0.1), inset 0 0 8px rgba(var(--warning-rgb),0.05); }
+  .badge-neutral { @apply badge; background: var(--glass-surface-bg); color: var(--crm-text-muted); border: 0.5px solid var(--glass-surface-border); }
 
   /* ============================================ */
   /* GLOW EFFECTS — Actually visible this time     */
@@ -1517,6 +1569,11 @@ html.light body::after {
    every time the pointer crosses a row. */
 .glass-card:has(table):hover,
 .an-card:has(table):hover { transform: none; }
+/* Same reasoning, opted into by hand: a figure tile that does nothing when you
+   click it should not promise that it will. The lift stays on cards that are
+   genuinely interactive. */
+.glass-card.no-lift:hover,
+.an-card.no-lift:hover { transform: none; }
 
 .glass-card-accent, .glass-card-green { border-radius: var(--r-card); }
 .glass-card-accent::before, .glass-card-green::before { display: none; }
@@ -1740,10 +1797,15 @@ html.light .nav-link.active .nav-icon { filter: none; }
 
 .td-section { margin-top: 22px; }
 .td-section-h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+/* Sentence case, and a hairline that runs out to the right so a section reads as
+   a band rather than a floating caption. The uppercase-mono treatment that used
+   to be on every label in the product is now reserved for nothing: mono is for
+   digits, where tabular figures line up in a column. */
 .td-section-t {
-  margin: 0; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700;
-  letter-spacing: 0.11em; text-transform: uppercase; color: var(--crm-text-bright);
+  margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  letter-spacing: 0.005em; color: var(--crm-text-bright);
 }
+.td-section-rule { flex: 1; height: 1px; background: var(--crm-divider); }
 .td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 12px; }
 .td-tile {
   padding: 15px 16px; border-radius: var(--r-card);
@@ -1752,20 +1814,85 @@ html.light .nav-link.active .nav-icon { filter: none; }
   box-shadow: var(--sheen), var(--ring), var(--e2);
 }
 .td-tile-l {
-  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--crm-muted);
+  margin: 0; font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted);
 }
 .td-tile-v {
-  margin: 7px 0 0; font-family: 'Outfit', sans-serif; font-size: 27px; font-weight: 700;
-  letter-spacing: -0.035em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+  margin: 0 0 6px; font-family: var(--font-mono); font-size: 26px; font-weight: 500;
+  letter-spacing: -0.01em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
 .td-tile-v.good { color: var(--crm-positive); }
 .td-tile-v.warn { color: var(--crm-warning); }
-.td-tile-s { margin: 4px 0 0; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--crm-muted); }
+.td-tile-s { margin: 6px 0 0; font-size: 11.5px; color: var(--crm-text-muted); }
 .td-missing {
-  margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--crm-muted);
+  margin: 10px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--crm-text-muted);
   max-width: 78ch;
+}
+
+/* ---------- the dashboard's one number ---------- */
+/* Cash and Revenue used to be identical twins: same green, same size, same
+   subtitle, side by side, with nothing to say which one the floor is judged on.
+   Cash gets the hero slot; revenue drops to a secondary figure and changes form
+   as well as size, so the two can never be mistaken for each other again. */
+.dh-band {
+  display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start;
+  padding: 28px 30px; border-radius: var(--r-card);
+  border: 1px solid var(--crm-divider);
+  background: var(--lift), var(--glass-card-bg);
+  box-shadow: var(--sheen), var(--ring), var(--e2);
+}
+.dh-main { flex: 3 1 420px; min-width: 0; }
+.dh-side {
+  flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 20px;
+  border-left: 1px solid var(--crm-divider); padding-left: 30px;
+}
+/* The side column loses its rule rather than its content when it wraps under. */
+@media (max-width: 720px) {
+  .dh-side { border-left: 0; padding-left: 0; flex-direction: row; flex-wrap: wrap; gap: 28px; }
+}
+.dh-l { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted); }
+.dh-fig {
+  margin: 0; font-family: var(--font-display); font-size: clamp(42px, 6vw, 70px);
+  font-weight: 700; line-height: 1; letter-spacing: -0.025em;
+  color: var(--crm-positive); font-variant-numeric: tabular-nums;
+}
+.dh-sub { margin: 10px 0 0; font-size: 12.5px; color: var(--crm-text-muted); }
+.dh-sec-fig {
+  margin: 5px 0 0; font-family: var(--font-mono); font-size: 29px; font-weight: 500;
+  color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+/* Provenance is the most defensible thing this product does — three measures of
+   the same money, reconciled in public. It now sits directly under the headline
+   figure rather than below the tiles it explains, and it reads as a control
+   rather than as a faint caption nobody clicks. */
+.dh-prov-slot { margin-top: 14px; }
+.dh-prov-slot .cpv-toggle {
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--crm-text);
+  background: var(--glass-surface-bg); border: 1px solid var(--crm-divider);
+  border-radius: 9px; padding: 8px 12px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.dh-prov-slot .cpv-toggle:hover {
+  background: var(--glass-surface-hover); border-color: var(--crm-border-hover);
+  color: var(--crm-text-bright);
+}
+.dh-prov-slot .cpv-toggle-note { font-size: 11.5px; }
+.dh-delta {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px;
+  border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: rgba(var(--positive-rgb),0.12); color: var(--crm-positive);
+}
+.dh-delta.down { background: rgba(var(--negative-rgb),0.12); color: var(--crm-negative); }
+/* Partner business: real money, somebody else's product. Dashed, so it reads as
+   outside the totals rather than as one more tile among them. */
+.dh-partner {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  justify-content: space-between; padding: 16px 22px; border-radius: var(--r-card);
+  border: 1px dashed var(--crm-border-hover); background: var(--glass-surface-bg);
+}
+.dh-partner-fig {
+  margin: 0; font-family: var(--font-mono); font-size: 24px; font-weight: 500;
+  color: var(--crm-text); font-variant-numeric: tabular-nums;
 }
 
 /* ============================================ */

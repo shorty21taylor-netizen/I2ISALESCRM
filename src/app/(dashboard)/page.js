@@ -1,13 +1,10 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, Phone, PhoneIncoming, Trophy, Handshake } from 'lucide-react';
-import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
 import CashProvenance from '@/components/CashProvenance';
 import { formatCurrency } from '@/lib/utils';
-import { toReportDay } from '@/lib/report-date';
-import RepAvatar from '@/components/RepAvatar';
-import useRoster from '@/lib/use-roster';
+import { toReportDay, REPORT_TIMEZONE } from '@/lib/report-date';
 
 // A block of plain numbers. No sparklines, no toggles — this page is read at a
 // glance before a call, and anything that needs interpreting does not belong.
@@ -15,19 +12,39 @@ function num(v) { return (v === null || v === undefined) ? '\u2014' : Number(v).
 function money(v) { return (v === null || v === undefined) ? '\u2014' : formatCurrency(v); }
 function pct(v) { return (v === null || v === undefined) ? '\u2014' : v + '%'; }
 
+// The greeting used to read "Good afternoon, Anthony" — a hardcoded name and a
+// hardcoded time of day on the first screen of a multi-tenant CRM, so every
+// client was greeted by the operator's name at six in the morning. The hour is
+// bucketed in the team's timezone like every other time in this product: a rep
+// in London opening the Pacific floor's dashboard should read the floor's hour.
+function greeting(name) {
+  var hour = 12;
+  try {
+    hour = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: REPORT_TIMEZONE, hour: 'numeric', hour12: false,
+    }).format(new Date()), 10);
+  } catch (e) { /* a browser without the zone data keeps the neutral default */ }
+  var part = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+  // No name confirmed yet is not a reason to invent one.
+  return name ? (part + ', ' + name) : part;
+}
+
 function MetricSection({ title, note, tiles, missing }) {
   return (
     <div className="td-section relative z-10">
       <div className="td-section-h">
         <h3 className="td-section-t">{title}</h3>
+        <span className="td-section-rule" />
         {note ? <span className="section-tag">{note}</span> : null}
       </div>
       <div className="td-grid">
         {tiles.map(function(t) {
+          /* Figure first, label under it. A tile is read for its number; the
+             label is what the number turns out to mean. */
           return (
             <div key={t.label} className="td-tile">
-              <p className="td-tile-l">{t.label}</p>
               <p className={'td-tile-v' + (t.tone ? ' ' + t.tone : '')}>{t.value}</p>
+              <p className="td-tile-l">{t.label}</p>
               {t.sub ? <p className="td-tile-s">{t.sub}</p> : null}
             </div>
           );
@@ -44,8 +61,8 @@ function MetricSection({ title, note, tiles, missing }) {
 }
 
 export default function DashboardPage() {
-  var roster = useRoster();
   var workspaceId = useWorkspace();
+  var access = useAccess();
   var s2 = useState(null), liveData = s2[0], setLiveData = s2[1];
   var s3 = useState('today'), dateRange = s3[0], setDateRange = s3[1];
   var s4 = useState(''), customStart = s4[0], setCustomStart = s4[1];
@@ -202,8 +219,14 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between stagger-1 relative z-10">
         <div>
-          <h1 className="font-display text-2xl font-bold text-crm-text-bright">Good afternoon, Anthony</h1>
-          <p className="text-sm text-crm-muted mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <h1 className="font-display text-2xl font-bold text-crm-text-bright">
+            {greeting(access && access.name)}
+          </h1>
+          <p className="text-sm text-crm-text-muted mt-1">
+            {new Date().toLocaleDateString('en-US', {
+              month: 'long', day: 'numeric', year: 'numeric', timeZone: REPORT_TIMEZONE,
+            })}
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="live-indicator">
@@ -253,148 +276,97 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Custom date inputs */}
+      {/* Custom date inputs. The labels carry htmlFor so tapping one focuses its
+          field — on a phone the label was previously dead space. The inline
+          fontSize is gone too: it fought the deliberate 16px !important rule that
+          stops mobile Safari zooming the page on focus. */}
       {dateRange === 'custom' && (
-        <div className="flex items-center gap-3 relative z-10">
+        <div className="flex flex-wrap items-center gap-3 relative z-10">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-mono text-crm-muted">From</label>
+            <label htmlFor="dash-from" className="text-xs text-crm-text-muted">From</label>
             <input
+              id="dash-from"
               type="date"
               value={customStart}
               onChange={function(e) { setCustomStart(e.target.value); }}
               className="input-field"
-              style={{ width: '160px', fontSize: '12px', padding: '6px 10px' }}
+              style={{ maxWidth: '170px', padding: '6px 10px' }}
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-mono text-crm-muted">To</label>
+            <label htmlFor="dash-to" className="text-xs text-crm-text-muted">To</label>
             <input
+              id="dash-to"
               type="date"
               value={customEnd}
               onChange={function(e) { setCustomEnd(e.target.value); }}
               className="input-field"
-              style={{ width: '160px', fontSize: '12px', padding: '6px 10px' }}
+              style={{ maxWidth: '170px', padding: '6px 10px' }}
             />
           </div>
         </div>
       )}
 
-      {/* 5 Core KPIs — no toggle, no pages */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5 mb-6 relative z-10">
-
-        {/* Cash Collected */}
-        <div className="glass-card p-6 md:p-8">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
-              <DollarSign className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#22c55e' }} />
-            </div>
+      {/* ===== THE ONE NUMBER =====
+          Cash collected is what the floor is judged on, so it takes the hero slot
+          and everything else steps down from it. Revenue sits beside it as a
+          secondary figure in a different face and a smaller size: the two used to
+          be the same green at the same size with the same subtitle, side by side,
+          which left the page with no answer to "which of these two matters". */}
+      <div className="dh-band relative z-10 stagger-3">
+        <div className="dh-main">
+          <p className="dh-l">Cash collected</p>
+          <p className="dh-fig mt-2">{money(offerCash)}</p>
+          <p className="dh-sub">
+            Our offers only &middot; {num(offerCloses)} close{offerCloses === 1 ? '' : 's'} &middot; {rangeLabel.toLowerCase()}
+          </p>
+          {/* Three measures of this money disagree and the highest wins. Saying so
+              directly under the figure is the whole product in one line; it used to
+              sit below the fold, under the tiles it was explaining. */}
+          <div className="dh-prov-slot">
+            <CashProvenance
+              start={getDateParams().start}
+              end={getDateParams().end}
+              workspaceId={workspaceId}
+            />
           </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
-            {formatCurrency(offerCash)}
-          </p>
-          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-            Cash Collected
-          </p>
-          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
-            our offers only
-          </p>
         </div>
 
-        {/* Revenue */}
-        <div className="glass-card p-6 md:p-8">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
-              <TrendingUp className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#22c55e' }} />
-            </div>
+        <div className="dh-side">
+          <div>
+            <p className="dh-l">Revenue booked</p>
+            <p className="dh-sec-fig">{money(offerRevenue)}</p>
+            <p className="dh-sub" style={{ marginTop: '4px' }}>Contracted, cash or not</p>
           </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#22c55e' }}>
-            {formatCurrency(offerRevenue)}
-          </p>
-          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-            Revenue
-          </p>
-          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
-            our offers only
-          </p>
+          <div>
+            <p className="dh-l">Outbound dials</p>
+            <p className="dh-sec-fig">{num(todayDials)}</p>
+            <p className="dh-sub" style={{ marginTop: '4px' }}>{num(t.activeClosers || 0)} reps active</p>
+          </div>
         </div>
-
-        {/* Outbound Dials */}
-        <div className="glass-card p-6 md:p-8">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(var(--accent-rgb),0.1)' }}>
-              <Phone className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#a3a3a3' }} />
-            </div>
-          </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
-            {(displayOverview.totalDials || 0).toLocaleString()}
-          </p>
-          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-            Outbound Dials
-          </p>
-        </div>
-
-        {/* Calls Taken */}
-        <div className="glass-card p-6 md:p-8">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(59,130,246,0.1)' }}>
-              <PhoneIncoming className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#fafafa' }} />
-            </div>
-          </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
-            {displayOverview.totalCallsTaken || 0}
-          </p>
-          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-            Calls Taken
-          </p>
-        </div>
-
-        {/* Deals Closed */}
-        <div className="glass-card p-6 md:p-8 col-span-2 md:col-span-1">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)' }}>
-              <Trophy className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--crm-text-bright)' }} />
-            </div>
-          </div>
-          <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: 'var(--crm-text-bright)' }}>
-            {offerCloses}
-          </p>
-          <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-            Deals Closed
-          </p>
-          <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
-            our offers only
-          </p>
-        </div>
-
-        {/* Partner business, on its own. Somebody else's offer sold through this
-            floor: real money, but not this company's revenue, and mixing the two
-            made the headline describe two businesses at once. Rendered only when
-            there is some, so a workspace that sells no partner offers is not
-            given a permanent zero to explain. */}
-        {partnerCash > 0 || partnerCloses > 0 ? (
-          <div className="glass-card p-6 md:p-8">
-            <div className="flex items-start justify-between mb-3 md:mb-4">
-              <div className="p-2.5 md:p-3 rounded-xl" style={{ background: 'rgba(168,85,247,0.1)' }}>
-                <Handshake className="w-5 h-5 md:w-6 md:h-6" style={{ color: '#a855f7' }} />
-              </div>
-            </div>
-            <p className="text-3xl md:text-4xl font-display font-bold" style={{ color: '#a855f7' }}>
-              {formatCurrency(partnerCash)}
-            </p>
-            <p className="text-xs md:text-sm font-mono uppercase tracking-wider mt-2" style={{ color: 'var(--crm-text-muted)' }}>
-              Partner Sales
-            </p>
-            <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--crm-text-muted)' }}>
-              {partnerCloses} close{partnerCloses === 1 ? '' : 's'} · not in the totals above
-            </p>
-          </div>
-        ) : null}
-
       </div>
 
-      {/* The two money tiles above are the HIGHEST of three measures, not a sum.
-          This says which one is being shown and whose books it came out of. */}
-      <CashProvenance start={getDateParams().start} end={getDateParams().end} workspaceId={workspaceId} />
+      {/* Partner business is somebody else's product sold through this floor: real
+          money, but not this company's revenue. It gets its own strip, outside the
+          totals, dashed so it cannot be mistaken for one more tile among them.
+          Rendered only when there is some, so a workspace that sells no partner
+          offers is not handed a permanent zero to explain. */}
+      {partnerCash > 0 || partnerCloses > 0 ? (
+        <div className="dh-partner relative z-10">
+          <div>
+            <p className="dh-l">Partner sales</p>
+            <p className="dh-sub" style={{ marginTop: '3px' }}>
+              Not our offers &mdash; excluded from every figure above
+            </p>
+          </div>
+          <div className="flex gap-8 items-baseline">
+            <p className="dh-partner-fig">{money(partnerCash)}</p>
+            <p className="dh-partner-fig">
+              {num(partnerCloses)} <span className="dh-l" style={{ display: 'inline' }}>close{partnerCloses === 1 ? '' : 's'}</span>
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* ===== CLOSER METRICS ===== */}
       <MetricSection

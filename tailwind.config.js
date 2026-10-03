@@ -13,6 +13,10 @@ module.exports = {
           muted: 'var(--crm-muted)',
           text: 'var(--crm-text)',
           'text-bright': 'var(--crm-text-bright)',
+          // Both of these were already referenced as raw var() in CSS and in
+          // inline styles; they now have values, so give them class forms too.
+          'text-muted': 'var(--crm-text-muted)',
+          divider: 'var(--crm-divider)',
           accent: 'var(--crm-accent)',
           'accent-glow': 'var(--crm-accent-glow)',
           'accent-muted': 'var(--crm-accent-muted)',
