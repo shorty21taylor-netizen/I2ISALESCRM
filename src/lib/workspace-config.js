@@ -191,32 +191,44 @@ export async function sealWorkspace(workspaceId, opts) {
   return { key: key, created: true };
 }
 
-// ---- which Submit page a workspace gets ----
+// ---- the forms this product ships ----
 //
-// Whether a workspace leads with the hosted n8n forms or with the ones built into
-// this product. This used to be a single install-wide switch, so flipping one
-// client over to the in-app forms flipped every other client at the same moment —
-// which is not a thing anyone would choose to do during a cutover.
+// The five record types a rep can file, defined here rather than seeded as rows
+// in a table. They used to be rows because each one was a link to a hosted n8n
+// form, so a workspace with no rows had no Submit page — and a workspace created
+// today has no rows deliberately, since form rows are never copied across a
+// workspace boundary. Now that every form lives in this codebase, the list is
+// code: a new workspace can file on its first day, and there is no row anywhere
+// pointing at a workflow somebody switched off.
 //
-// Unset means "not decided for this workspace", which falls back to the
-// install-wide setting, which now defaults to the in-app forms. The hosted forms
-// stay one click away either way, so a workspace mid-migration can still use them.
+// A workspace still needs a DESTINATION per form. That is the one thing that
+// cannot be defaulted — see requireRoute, which refuses the write rather than
+// filing a record nobody was told about.
 
-export var EXTERNAL_FORMS_KEY = 'use_external_forms';
+export var INTERNAL_FORMS = [
+  { formKey: 'book-call', label: 'Book a Call', icon: 'phone', accent: 'accent', sortOrder: 10,
+    blurb: 'A call booked onto a closer’s calendar.' },
+  { formKey: 'close-deal', label: 'Close a Deal', icon: 'dollar', accent: 'positive', sortOrder: 20,
+    blurb: 'Cash collected and the contract behind it.' },
+  { formKey: 'after-call', label: 'After-Call Report', icon: 'document', accent: 'accent', sortOrder: 30,
+    blurb: 'What happened on the call and what happens next.' },
+  { formKey: 'eod-report', label: 'End-of-Day', icon: 'clipboard', accent: 'muted', sortOrder: 40,
+    blurb: 'A closer’s or phone setter’s day in numbers.' },
+  { formKey: 'dm-eod', label: 'DM End-of-Day', icon: 'message', accent: 'muted', sortOrder: 50,
+    blurb: 'The inbox funnel: leads, conversations, ghosts and revivals.',
+    // Files an eod-report record, so it is told about through that destination.
+    routeKey: 'eod-report' },
+];
 
-export async function getUseExternalForms(workspaceId) {
-  var raw = await getIntegration(workspaceId, INGEST_PROVIDER, EXTERNAL_FORMS_KEY)
-    .catch(function() { return ''; });
-  if (raw === 'true') return true;
-  if (raw === 'false') return false;
-  return null; // never decided here — the caller falls back
-}
-
-export async function setUseExternalForms(workspaceId, value) {
-  // Deliberately stored as a string: the integrations table holds text values, and
-  // a boolean coerced on the way out of JSONB is how 'false' becomes truthy.
-  return upsertIntegration(workspaceId, INGEST_PROVIDER, EXTERNAL_FORMS_KEY,
-    value ? 'true' : 'false');
+// Which destination a form's submissions are announced through. All but the DM
+// end-of-day announce through their own key.
+export function routeKeyFor(formKey) {
+  for (var i = 0; i < INTERNAL_FORMS.length; i++) {
+    if (INTERNAL_FORMS[i].formKey === formKey) {
+      return INTERNAL_FORMS[i].routeKey || INTERNAL_FORMS[i].formKey;
+    }
+  }
+  return formKey;
 }
 
 // ---- integrations ----
@@ -377,15 +389,23 @@ export async function resolveRoute(workspaceId, formKey) {
 
 // Active forms whose submissions would be refused. The admin screen leads with
 // this, because a live form with no destination is a trap for whoever uses it.
+// Which of this product's forms have nowhere to send a submission.
+//
+// This used to iterate the workspace's stored form rows, which meant a workspace
+// with no rows reported no missing destinations — and then refused every
+// submission at requireRoute, with nothing on screen having warned anybody. The
+// list of forms is code now, so the answer is complete for every workspace
+// including one created a minute ago.
 export async function formsMissingRoutes(workspaceId) {
-  var forms = await listForms(workspaceId);
   var routes = await listRoutes(workspaceId);
-  return forms.filter(function(f) {
+  var needed = {};
+  INTERNAL_FORMS.forEach(function(f) { needed[routeKeyFor(f.formKey)] = true; });
+  return Object.keys(needed).filter(function(key) {
     for (var i = 0; i < routes.length; i++) {
-      if (routes[i].formKey === f.formKey && routes[i].isActive) return false;
+      if (routes[i].formKey === key && routes[i].isActive) return false;
     }
     return true;
-  }).map(function(f) { return f.formKey; });
+  });
 }
 
 // The one way config crosses a workspace boundary: an admin asks for it, by name,

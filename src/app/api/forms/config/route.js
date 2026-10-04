@@ -4,8 +4,7 @@ import { initStore } from '@/lib/store';
 import { saveAppConfig, loadAppConfig } from '@/lib/db';
 import { resolveAccess, effectiveReadWorkspace, OWNER_EMAIL } from '@/lib/access';
 import { getIngestKey } from '@/lib/ingest-auth';
-import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE, getUseExternalForms } from '@/lib/workspace-config';
-import { ensureLegacyForms, ensureDmSetterForm } from '@/lib/legacy-forms';
+import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
 
 export var dynamic = 'force-dynamic';
 
@@ -40,18 +39,18 @@ export async function GET(req) {
     var workspaceId = await effectiveReadWorkspace(req, url.searchParams.get('workspace'));
     if (Array.isArray(workspaceId) || workspaceId === '__all__') workspaceId = access.workspaceIds[0] || 'default';
 
-    // Self-healing, once per boot: if the original workspace has no forms at all,
-    // its four are restored from what the install shipped with. Every other
-    // workspace is untouched and still starts empty.
-    await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
-  await ensureDmSetterForm().catch(function(e) { console.error('[DM setter form]', e.message); });
+    // The self-healing seed that restored the original workspace's hosted forms is
+    // deliberately no longer called. Every form lives in this codebase now, so
+    // re-creating rows that point at hosted workflows would only put dead links in
+    // front of a manager. legacy-forms.js is left in place rather than deleted —
+    // it is the record of what those forms were, and of where their destinations
+    // were recovered from.
 
     var forms = await listForms(workspaceId);
     var booking = await bookingLinkFor(workspaceId);
     var key = await getIngestKey();
     var cfg = (await loadAppConfig('forms')) || {};
     var owner = await isOwner(req);
-    var perWorkspaceExternal = await getUseExternalForms(workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -67,13 +66,6 @@ export async function GET(req) {
       // Live forms that would refuse a submission, so the page can warn the
       // people who can fix it rather than letting a rep find out.
       missingRoutes: access.canSeeTeam ? await formsMissingRoutes(workspaceId) : [],
-      // This workspace's own answer wins. Only where it has never been asked does
-      // the install-wide setting apply, and that now defaults to the in-app forms:
-      // every record type can be filed in the product, so a hosted form is a
-      // fallback during a cutover rather than the way the product works.
-      useExternalForms: perWorkspaceExternal !== null
-        ? perWorkspaceExternal
-        : cfg.useExternalForms === true,
       ingestKeyConfigured: !!key,
       ingestKeySource: process.env.FORM_INGEST_KEY ? 'env' : (cfg.ingestKey ? 'settings' : 'none'),
       ingestKeyMasked: owner ? maskKey(key) : '',
@@ -96,7 +88,6 @@ export async function POST(req) {
     var body = await req.json();
     var cfg = (await loadAppConfig('forms')) || {};
 
-    if (body.useExternalForms !== undefined) cfg.useExternalForms = !!body.useExternalForms;
 
     var generated = '';
     if (body.generateKey) {
@@ -110,7 +101,6 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      useExternalForms: cfg.useExternalForms !== false,
       ingestKey: generated || undefined,
       ingestKeyConfigured: !!(process.env.FORM_INGEST_KEY || cfg.ingestKey),
       movedNote: 'Forms, booking links and destinations are per workspace now — '

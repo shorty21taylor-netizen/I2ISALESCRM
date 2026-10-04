@@ -19,7 +19,6 @@ export default function FormsIntegrationCard() {
   var [cfg, setCfg] = useState(null);
   var [forms, setForms] = useState({});
   var [bookingLink, setBookingLink] = useState({ label: '', blurb: '', url: '' });
-  var [useExternal, setUseExternal] = useState(true);
   var [newKey, setNewKey] = useState('');
   var [copied, setCopied] = useState('');
   var [saved, setSaved] = useState(false);
@@ -53,7 +52,6 @@ export default function FormsIntegrationCard() {
         setCfg(d);
         setForms(d.forms || {});
         if (d.bookingLink) setBookingLink(d.bookingLink);
-        setUseExternal(d.useExternalForms !== false);
       })
       .catch(function() { setCfg({ error: true }); });
   }, []);
@@ -69,7 +67,7 @@ export default function FormsIntegrationCard() {
     return apiFetch('/api/forms/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ forms: forms, bookingLink: bookingLink, useExternalForms: useExternal }, extra || {})),
+      body: JSON.stringify(Object.assign({ forms: forms, bookingLink: bookingLink }, extra || {})),
     })
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -160,11 +158,6 @@ export default function FormsIntegrationCard() {
             Shown as its own box on the Submit page. Clear the field to hide it.
           </p>
         </div>
-
-        <label className="flex items-center gap-2 text-xs text-crm-muted">
-          <input type="checkbox" checked={useExternal} onChange={function(e) { setUseExternal(e.target.checked); }} />
-          Show these forms as the default on the Submit page
-        </label>
 
         {isOwner && (
           <div className="space-y-2">

@@ -112,13 +112,6 @@ export default function SubmitPage() {
 
   // The hosted (n8n) forms are the default way to submit. The built-in forms below
   // stay available as a fallback for anyone who is already inside the CRM.
-  var f1 = useState(null), formLinks = f1[0], setFormLinks = f1[1];
-  var f2 = useState(true), useExternal = f2[0], setUseExternal = f2[1];
-  var f3 = useState(false), showBuiltIn = f3[0], setShowBuiltIn = f3[1];
-  // The hosted forms stay reachable even once a workspace has switched over, so a
-  // rep is never stuck mid-cutover if something in the product misbehaves. They
-  // are a fallback behind a disclosure, not the way the page opens.
-  var f4 = useState(false), showHosted = f4[0], setShowHosted = f4[1];
   var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
@@ -139,10 +132,8 @@ export default function SubmitPage() {
       .then(function(d) {
         if (!d || !d.success) return;
         setFormsConfig(d);
-        setFormLinks(d.forms || []);
         // Null is a real answer: this workspace has no booking link, so no card.
         setBookingLink(d.bookingLink || null);
-        if (d.useExternalForms === false) setUseExternal(false);
       })
       .catch(function() { setFormsConfig({ forms: [], bookingLink: null }); });
   }, [workspaceId]);
@@ -543,31 +534,16 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {/* ===== THIS WORKSPACE'S FORMS ===== */}
-        {/* A workspace nobody has set up shows nothing, and says so. It used to
-            show the first workspace's four forms, which is how a closer on a new
-            offer could file a deal into another company's group. */}
-        {formsConfig && (formLinks || []).length === 0 && (
-          <div className="glass-card p-8 text-center">
-            <ClipboardCheck className="w-7 h-7 mx-auto mb-3 text-crm-muted" />
-            <p className="text-sm text-crm-text max-w-[520px] mx-auto leading-relaxed">
-              {formsConfig.emptyMessage || 'No forms set up for this workspace yet.'}
-            </p>
-            {formsConfig.canSetUp ? (
-              <button className="btn-primary mt-4 inline-flex items-center gap-2 text-xs"
-                onClick={function() { router.push('/admin/workspace/forms'); }}>
-                <Settings2 className="w-3.5 h-3.5" /> Open workspace settings
-              </button>
-            ) : null}
-          </div>
-        )}
-
+        {/* A form with no destination refuses the write rather than filing a record
+            nobody was told about, so this is the one thing that has to be set up
+            before a rep can file. It is now counted from the forms this product
+            ships, not from rows in a table, so a brand new workspace is warned too. */}
         {formsConfig && formsConfig.missingRoutes && formsConfig.missingRoutes.length > 0 && (
           <div className="sub-warn">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>
-              {formsConfig.missingRoutes.length} live {formsConfig.missingRoutes.length === 1 ? 'form has' : 'forms have'} no
-              destination. Submissions to {formsConfig.missingRoutes.length === 1 ? 'it' : 'them'} will be rejected.
+              {formsConfig.missingRoutes.length} {formsConfig.missingRoutes.length === 1 ? 'form has' : 'forms have'} no
+              destination set. {formsConfig.missingRoutes.length === 1 ? 'Submissions to it' : 'Submissions to them'} will be refused.
             </span>
             <button className="sub-warn-go" onClick={function() { router.push('/admin/workspace/forms'); }}>
               Fix it
@@ -575,55 +551,10 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {(formLinks || []).length > 0 && (useExternal || showHosted) && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              {formLinks.map(function(form) {
-                if (!form.formUrl) return null;
-                var CardIcon = ICON_FOR[form.icon] || ClipboardCheck;
-                return (
-                  <a
-                    key={form.formKey}
-                    href={form.formUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="glass-card p-5 flex flex-col gap-3 min-h-[112px] hover:-translate-y-0.5 transition-transform"
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardIcon className={'w-5 h-5 ' + (ACCENT_FOR[form.accent] || 'text-crm-muted')} />
-                      <ExternalLink className="w-4 h-4 text-crm-muted" />
-                    </div>
-                    <div>
-                      <div className="font-display font-semibold text-crm-text-bright">{form.label}</div>
-                      {form.description ? (
-                        <div className="text-xs text-crm-muted mt-1">{form.description}</div>
-                      ) : null}
-                    </div>
-                    <div className="text-[11px] font-mono text-crm-muted mt-auto">
-                      {form.destinationLabel || 'Logs to the CRM'}
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
 
-            {useExternal ? (
-              <button
-                onClick={function() { setShowBuiltIn(!showBuiltIn); }}
-                className="flex items-center gap-2 text-xs text-crm-text-muted hover:text-crm-text transition-colors"
-              >
-                {showBuiltIn ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {showBuiltIn ? 'Hide the in-CRM forms' : 'Or submit with the in-CRM forms'}
-              </button>
-            ) : null}
-          </div>
-        )}
-
-        {/* The in-CRM forms used to be hidden unless the workspace had at least one
-            hosted form row, so a brand new workspace — which has none — showed a
-            rep no way to file anything at all. They render whenever the hosted
-            forms are not being used, or the rep asked for them. */}
-        {(!useExternal || showBuiltIn || (formLinks || []).length === 0) && (
+        {/* The forms are the product now. Reps file every record type here, the
+            WhatsApp message goes out from the server, and nothing outside this
+            codebase has to be running for a rep to log a deal. */}
         <div className="space-y-6">
 
         {/* Tab Toggle */}
@@ -1209,20 +1140,7 @@ export default function SubmitPage() {
         )}
 
         </div>
-        )}
 
-        {/* Once a workspace leads with the in-CRM forms, the hosted ones do not
-            disappear — they sit behind this, so anybody mid-cutover can still file
-            the old way without an admin changing a setting back. */}
-        {!useExternal && (formLinks || []).length > 0 && (
-          <button
-            onClick={function() { setShowHosted(!showHosted); }}
-            className="flex items-center gap-2 text-xs text-crm-text-muted hover:text-crm-text transition-colors"
-          >
-            {showHosted ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            {showHosted ? 'Hide the hosted forms' : 'Or use a hosted form instead'}
-          </button>
-        )}
 
         {/* Recent Submissions */}
         <div>

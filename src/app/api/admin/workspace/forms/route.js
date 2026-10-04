@@ -3,12 +3,12 @@ import { initStore, getWorkspace, getWorkspaces, getWhatsappConfig, getMessageLo
 import { resolveAccess } from '@/lib/access';
 import {
   listForms, listIntegrations, listRoutes, formsMissingRoutes, getIntegration,
+  INTERNAL_FORMS, routeKeyFor,
   upsertForm, removeForm, upsertIntegration, removeIntegration,
   upsertRoute, removeRoute, copySetupFrom,
-  getUseExternalForms, setUseExternalForms,
   ICONS, AUDIENCES, CHANNELS, suggestedTargets, knownGroupIds,
 } from '@/lib/workspace-config';
-import { ensureLegacyForms, ensureDmSetterForm, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
+import { restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
 import { INGEST_PROVIDER, INGEST_KEY_NAME, defaultIngestWorkspace } from '@/lib/ingest-auth';
 import crypto from 'crypto';
 
@@ -17,6 +17,40 @@ export var dynamic = 'force-dynamic';
 // Setting up a workspace's Submit page: which forms it shows, what it integrates
 // with, and where each form's submissions go. Managers run their own workspace;
 // the operator can run any of them.
+
+// What a manager can set a destination for: the forms this product ships, plus
+// anything the workspace added by hand. Driven by code rather than by stored rows,
+// because a workspace with no rows previously had nothing to route — and then
+// refused every submission at requireRoute with no way to fix it on screen.
+async function routableForms(workspaceId) {
+  var stored = await listForms(workspaceId, { includeInactive: true });
+  var byRouteKey = {};
+  var out = [];
+  INTERNAL_FORMS.forEach(function(f) {
+    var key = routeKeyFor(f.formKey);
+    // DM end-of-day announces through the end-of-day destination, so it is not a
+    // second row to set: one destination, both forms.
+    if (byRouteKey[key]) return;
+    byRouteKey[key] = true;
+    var existing = stored.filter(function(r) { return r.formKey === key; })[0] || {};
+    out.push({
+      formKey: key,
+      label: existing.label || f.label,
+      icon: existing.icon || f.icon,
+      accent: existing.accent || f.accent,
+      blurb: existing.blurb || f.blurb,
+      sortOrder: f.sortOrder,
+      isActive: true,
+      internal: true,
+    });
+  });
+  stored.forEach(function(r) {
+    if (byRouteKey[r.formKey]) return;
+    byRouteKey[r.formKey] = true;
+    out.push(Object.assign({}, r, { internal: false }));
+  });
+  return out.sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+}
 
 async function gate(req) {
   var access = await resolveAccess(req);
@@ -40,8 +74,9 @@ export async function GET(req) {
   var g = await gate(req);
   if (g.denied) return g.denied;
 
-  await ensureLegacyForms().catch(function(e) { console.error('[Legacy forms]', e.message); });
-  await ensureDmSetterForm().catch(function(e) { console.error('[DM setter form]', e.message); });
+  // No longer self-heals the hosted form rows: the forms are in this codebase and
+  // the workflows behind those URLs are switched off, so re-creating them would
+  // only put dead links in front of a manager.
   var missing = await formsMissingRoutes(g.workspaceId);
   var wc = getWhatsappConfig() || {};
   var allWorkspaces = getWorkspaces();
@@ -53,7 +88,7 @@ export async function GET(req) {
   return NextResponse.json({
     success: true,
     workspace: { id: g.ws.id, name: g.ws.name, slug: g.ws.slug },
-    forms: await listForms(g.workspaceId, { includeInactive: true }),
+    forms: await routableForms(g.workspaceId),
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: missing,
@@ -121,9 +156,6 @@ export async function GET(req) {
     testSendBlockedReason: wc.assistroApiUrl ? '' :
       'No WhatsApp sender is configured for this install yet, so there is nothing to send through. '
       + 'An operator sets it in Settings → WhatsApp.',
-    // Whether this workspace leads with the hosted forms or the in-app ones.
-    // null means it has never been set here and the install-wide default applies.
-    useExternalForms: await getUseExternalForms(g.workspaceId),
     // Only offered to the operator: copying setup between two clients' workspaces
     // is not a manager's call to make.
     copyableFrom: g.access.canSeeAll
@@ -171,11 +203,6 @@ export async function POST(req) {
     // Unsealing. The workspace goes back to being reachable by the shared key, so
     // this is only ever right while migrating a workflow over.
     result = await removeIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME);
-  } else if (action === 'set-external-forms') {
-    // A manager's call for their own workspace, and only their own: gate() has
-    // already pinned g.workspaceId to the one this session is standing in.
-    result = await setUseExternalForms(g.workspaceId, !!body.useExternalForms);
-    if (!result || !result.error) result = { success: true, useExternalForms: !!body.useExternalForms };
   } else if (action === 'save-route') {
     result = await upsertRoute(g.workspaceId, body.formKey, body.channel, body.target, body.isActive);
   } else if (action === 'delete-route') {
@@ -208,7 +235,7 @@ export async function POST(req) {
   if (result && result.error) return NextResponse.json({ error: result.error }, { status: 400 });
 
   return NextResponse.json(Object.assign({ success: true }, result, {
-    forms: await listForms(g.workspaceId, { includeInactive: true }),
+    forms: await routableForms(g.workspaceId),
     integrations: await listIntegrations(g.workspaceId),
     routes: await listRoutes(g.workspaceId),
     missingRoutes: await formsMissingRoutes(g.workspaceId),
