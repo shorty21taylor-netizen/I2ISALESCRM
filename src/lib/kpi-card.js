@@ -13,7 +13,7 @@
 //
 // Pure: no store, no database. Everything is passed in.
 
-import { recordDay } from '@/lib/report-date';
+import { recordDay, toReportDay } from '@/lib/report-date';
 import { weekdaysBetween } from '@/lib/rep-stats';
 
 function n(v) {
@@ -39,6 +39,11 @@ export var KPI_SETS = {
     { key: 'sets', label: 'Calls set', kind: 'count',
       eod: function(e) { return n(e.sets) || n(e.netNewCallsBooked); } },
     { key: 'setRate', label: 'Conversation to set', kind: 'rate', over: ['sets', 'conversations'] },
+    // Not an EOD field. A Skool sale is already a record: a lead the setter moved
+    // into the paid community, stamped with joinedPaidAt the moment it happened.
+    // Counting the records rather than adding a box to the EOD means it cannot
+    // disagree with the Skool board, and a setter never types the same sale twice.
+    { key: 'skoolSales', label: 'Skool sales', kind: 'count', from: 'skool' },
   ],
   'dm-setter': [
     { key: 'cash', label: 'Cash collected', kind: 'money', from: 'goal' },
@@ -70,7 +75,7 @@ function monthBounds(today) {
   };
 }
 
-// opts: { role, eods, today, targets, goal }
+// opts: { role, eods, today, targets, goal, skool }
 //
 // `goal` is the object computeGoalPace already returns for the cash target, so
 // the KPI card and the goal tile on the dashboard can never disagree about how
@@ -101,6 +106,16 @@ export function computeKpiProgress(opts) {
     actuals[kpi.key] = mine.reduce(function(sum, e) { return sum + kpi.eod(e); }, 0);
   });
 
+  // Skool sales: leads this rep moved into the paid community inside the month so
+  // far. joinedPaidAt is stamped once, when the stage first reaches
+  // paid-community, so a lead that later books high ticket is still counted on the
+  // day they upgraded rather than being double-counted or moved.
+  var skoolSales = (options.skool || []).filter(function(lead) {
+    if (!lead || !lead.joinedPaidAt) return false;
+    var day = toReportDay(lead.joinedPaidAt);
+    return day >= bounds.start && day <= today;
+  }).length;
+
   var rows = set.map(function(kpi) {
     var target = n(targets[kpi.key]);
     var actual;
@@ -109,6 +124,8 @@ export function computeKpiProgress(opts) {
       var goal = options.goal || {};
       actual = n(goal.collected);
       if (!target) target = n(goal.goal);
+    } else if (kpi.from === 'skool') {
+      actual = skoolSales;
     } else if (kpi.kind === 'rate') {
       var num = n(actuals[kpi.over[0]]);
       var den = n(actuals[kpi.over[1]]);
@@ -129,6 +146,9 @@ export function computeKpiProgress(opts) {
     // against the calendar would be nonsense: 50% of the month gone does not
     // mean half a close rate.
     var paced = kpi.kind !== 'rate' && hasTarget && elapsed > 0;
+    var perDay = (paced && left > 0 && actual < target)
+      ? Math.round((target - actual) / left)
+      : null;
     var projected = paced ? Math.round((actual / elapsed) * total) : null;
 
     return {
@@ -146,9 +166,12 @@ export function computeKpiProgress(opts) {
         : (paced ? actual >= (target / total) * elapsed : null),
       projected: projected,
       remaining: (hasTarget && actual !== null) ? Math.max(0, Math.round(target - actual)) : null,
-      neededPerDay: (paced && left > 0 && actual < target)
-        ? Math.max(0, Math.round((target - actual) / left))
-        : null,
+      // Null rather than 0 when the daily need rounds below one. A low-volume
+      // target — 10 Skool sales across 20 working days — is genuinely less than
+      // one a day, and "0 a day to finish" reads as "nothing left to do" while 7
+      // are still outstanding. Both surfaces drop the line when this is null, and
+      // "7 to go · should be at 1 by today" says the true thing on its own.
+      neededPerDay: perDay >= 1 ? perDay : null,
     };
   });
 

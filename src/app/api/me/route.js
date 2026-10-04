@@ -146,12 +146,20 @@ export async function GET(req) {
       kpiRole = Object.keys(tally).sort(function(a, b) { return tally[b] - tally[a]; })[0] || 'closer';
     }
 
+    // The Skool leads this person set. A Skool lead carries a setter NAME and no
+    // email at all, so there is no email field to fall back to — which is right:
+    // a lead nobody is named on belongs to nobody, not to whoever is looking.
+    var mySkool = mine(store.skoolLeads).filter(function(lead) {
+      return identity.owns(lead, '', 'setter');
+    });
+
     var kpis = computeKpiProgress({
       role: kpiRole,
       eods: myEods,
       today: todayInReportTimezone(),
       targets: (profile && profile.kpiTargets) || {},
       goal: goal,
+      skool: mySkool,
     });
 
     // Today's calendar, from the bookings filed against this closer.
