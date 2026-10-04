@@ -6,6 +6,7 @@ import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, Externa
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
+import SubmitCelebration from '@/components/SubmitCelebration';
 import { toReportDay } from '@/lib/report-date';
 
 // The icon set an admin picks from. Stored as a name on the form row so the
@@ -107,6 +108,9 @@ export default function SubmitPage() {
   var s2 = useState([]), submissions = s2[0], setSubmissions = s2[1];
   var s3 = useState(false), submitting = s3[0], setSubmitting = s3[1];
   var s4 = useState(null), successMsg = s4[0], setSuccessMsg = s4[1];
+  // Only the two forms that score get one. An end-of-day is reporting, not a win,
+  // and a celebration on every submit is a celebration on none of them.
+  var s9 = useState(null), celebrate = s9[0], setCelebrate = s9[1];
   var s5 = useState(''), error = s5[0], setError = s5[1];
   var s6 = useState(null), user = s6[0], setUser = s6[1];
 
@@ -333,6 +337,7 @@ export default function SubmitPage() {
       var data = await res.json();
       if (data.success) {
         setSuccessMsg('Call booked! WhatsApp notification sent.');
+        setCelebrate({ variant: 'dart' });
         clearBookCall();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -365,6 +370,7 @@ export default function SubmitPage() {
       var data = await res.json();
       if (data.success) {
         setSuccessMsg('Deal closed! Celebration sent to WhatsApp!');
+        setCelebrate({ variant: 'cash', amount: cdCashCollected });
         clearCloseDeal();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -493,6 +499,12 @@ export default function SubmitPage() {
           </div>
         </div>
       </header>
+
+      <SubmitCelebration
+        variant={celebrate && celebrate.variant}
+        amount={celebrate && celebrate.amount}
+        onDone={function() { setCelebrate(null); }}
+      />
 
       <div className="px-8 py-8 space-y-6">
 
