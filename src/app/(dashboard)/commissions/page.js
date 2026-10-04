@@ -4,6 +4,7 @@ import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'luci
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
+import { todayInReportTimezone } from '@/lib/report-date';
 import EmptyState from '@/components/EmptyState';
 
 var statusBadge = {
@@ -11,6 +12,13 @@ var statusBadge = {
   approved: 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20',
   paid: 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20',
 };
+
+function formatMonthShort(key) {
+  if (!key || key === 'unknown') return '—';
+  var parts = key.split('-');
+  var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1);
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
 
 function formatMonth(key) {
   if (!key || key === 'unknown') return 'Unknown';
@@ -26,13 +34,16 @@ export default function CommissionsPage() {
   var s3 = useState(true), loading = s3[0], setLoading = s3[1];
   var s4 = useState('personal'), view = s4[0], setView = s4[1];
   var s5 = useState(null), user = s5[0], setUser = s5[1];
+  // The month the team is standing in, not the browser's — the same bucketing
+  // every other figure in this product uses.
+  var s6 = useState(todayInReportTimezone().slice(0, 7)), month = s6[0], setMonth = s6[1];
 
   useEffect(function() {
     var u = getUser();
     setUser(u);
     if (!u) { setLoading(false); return; }
 
-    apiFetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(u.name), workspaceId))
+    apiFetch(withWorkspace('/api/commissions?month=' + encodeURIComponent(month), workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) setCommData(data);
@@ -46,7 +57,7 @@ export default function CommissionsPage() {
         if (data.success) setAllData(data);
       })
       .catch(function() {});
-  }, [workspaceId]);
+  }, [workspaceId, month]);
 
   function handleStatusUpdate(dealId, newStatus) {
     apiFetch('/api/commissions/status', {
@@ -107,6 +118,7 @@ export default function CommissionsPage() {
 
   var summary = commData ? commData.summary : null;
   var deals = commData ? commData.deals || [] : [];
+  var lifetime = commData ? commData.lifetime : null;
   var monthlyBreakdown = commData ? commData.monthlyBreakdown || [] : [];
 
   return (
@@ -129,126 +141,170 @@ export default function CommissionsPage() {
       </header>
 
       <div className="px-8 py-6 space-y-6">
-        {view === 'personal' ? renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate) : renderTeamView(allData, handleBulkStatusUpdate)}
+        {view === 'personal' ? renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate) : renderTeamView(allData, handleBulkStatusUpdate)}
       </div>
     </div>
   );
 }
 
-function renderPersonalView(summary, deals, monthlyBreakdown, handleStatusUpdate) {
-  if (!summary || summary.totalDeals === 0) {
+function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate) {
+  // Nothing loaded yet, or nothing ever earned. Without this the figures below
+  // read straight off a null summary and the page renders blank.
+  if (!summary) {
+    return <p className="cl-hint p-8 text-center">Loading your commissions…</p>;
+  }
+  if (!lifetime || lifetime.totalDeals === 0) {
     return (
-      <div className="glass-card overflow-hidden">
-        <EmptyState icon={CreditCard} title="No commissions yet" subtitle="Close your first deal to start earning commissions" />
+      <div className="glass-card no-lift overflow-hidden">
+        <EmptyState icon={CreditCard} title="No commissions yet"
+          subtitle="Close your first deal and it appears here with what it earned you." />
       </div>
     );
   }
 
+  // Every month this rep has ever earned in, plus the one being viewed even when
+  // it is empty — so the picker never hides the month somebody is standing in.
+  var monthKeys = (monthlyBreakdown || []).map(function(m) { return m.month; })
+    .filter(function(m) { return m && m !== 'unknown'; });
+  if (monthKeys.indexOf(month) === -1) monthKeys = [month].concat(monthKeys);
+  monthKeys = monthKeys.sort().reverse().slice(0, 13);
+
+  var picker = (
+    <div className="cm-months">
+      {monthKeys.map(function(k) {
+        return (
+          <button key={k} type="button"
+            className={'cm-month' + (k === month ? ' on' : '')}
+            onClick={function() { setMonth(k); }}>
+            {formatMonthShort(k)}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <>
-      {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="glass-card p-5 stagger-1">
-          <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-green"><DollarSign className="w-5 h-5" /></div>
-          </div>
-          <div className="metric-value-green text-2xl mb-1">{formatCurrency(summary.totalCommission)}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Earned</div>
+      {picker}
+
+      {/* What this month has earned, and what is still owed on it. */}
+      <div className="dh-band">
+        <div className="dh-main">
+          <p className="dh-l">Earned in {formatMonth(month)}</p>
+          <p className="dh-fig mt-2">{formatCurrency(summary.totalCommission)}</p>
+          <p className="dh-sub">
+            {summary.totalDeals} deal{summary.totalDeals === 1 ? '' : 's'} closed
+            {' · '}{formatCurrency(summary.totalRevenue)} collected
+            {' · '}{(summary.commissionRate * 100).toFixed(0)}% rate
+          </p>
         </div>
-        <div className="glass-card p-5 stagger-2">
-          <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-default"><Clock className="w-5 h-5" /></div>
+        <div className="dh-side">
+          <div>
+            <p className="dh-l">Still owed</p>
+            <p className="dh-sec-fig" style={{ color: summary.pendingCommission > 0 ? 'var(--crm-warning)' : 'var(--crm-text-bright)' }}>
+              {formatCurrency(summary.pendingCommission)}
+            </p>
+            <p className="dh-sub" style={{ marginTop: '4px' }}>
+              {formatCurrency(summary.paidCommission)} paid out
+            </p>
           </div>
-          <div className="text-2xl font-display font-bold text-crm-warning mb-1">{formatCurrency(summary.pendingCommission)}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Pending Payout</div>
-        </div>
-        <div className="glass-card p-5 stagger-3">
-          <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-default"><CheckCircle className="w-5 h-5" /></div>
+          <div>
+            <p className="dh-l">Earned all time</p>
+            <p className="dh-sec-fig">{formatCurrency(lifetime ? lifetime.totalCommission : 0)}</p>
+            <p className="dh-sub" style={{ marginTop: '4px' }}>
+              across {lifetime ? lifetime.totalDeals : 0} deal{(lifetime && lifetime.totalDeals === 1) ? '' : 's'}
+            </p>
           </div>
-          <div className="text-2xl font-display font-bold text-crm-text-bright mb-1">{summary.totalDeals}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Total Deals</div>
-        </div>
-        <div className="glass-card p-5 stagger-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="icon-box-accent"><Percent className="w-5 h-5" /></div>
-          </div>
-          <div className="metric-value-accent text-2xl mb-1">{(summary.commissionRate * 100).toFixed(0) + '%'}</div>
-          <div className="text-xs font-mono text-crm-muted uppercase tracking-wider">Commission Rate</div>
         </div>
       </div>
 
-      {/* Deals Table */}
-      <div className="glass-card overflow-hidden stagger-5">
-        <div className="section-header">
-          <h3>Your closed deals</h3>
-          <span className="section-tag">{deals.length} deals</span>
+      <div className="td-section">
+        <div className="td-section-h">
+          <h3 className="td-section-t">Deals closed in {formatMonth(month)}</h3>
+          <span className="td-section-rule" />
+          <span className="section-tag">{deals.length} {deals.length === 1 ? 'deal' : 'deals'}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Lead</th>
-                <th>Deal Value</th>
-                <th>Source</th>
-                <th>Payment</th>
-                <th>Commission</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deals.map(function(deal) {
-                return (
-                  <tr key={deal.id}>
-                    <td className="text-xs font-mono text-crm-muted whitespace-nowrap">
-                      {new Date(deal.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="text-sm text-crm-text-bright">{deal.leadName}</td>
-                    <td className="text-sm font-mono text-crm-text-bright">{formatCurrency(deal.dealValue)}</td>
-                    <td>
-                      <span className={'inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium ' + (deal.leadSource === 'inbound' ? 'bg-crm-positive/10 text-crm-positive border border-crm-positive/20' : 'bg-white/5 text-crm-muted border border-crm-border')}>
-                        {deal.leadSource}
-                      </span>
-                    </td>
-                    <td className="text-xs font-mono text-crm-muted capitalize">{deal.paymentMethod}</td>
-                    <td className="text-sm font-mono metric-positive font-bold">{formatCurrency(deal.commissionAmount)}</td>
-                    <td>
-                      <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium ' + (statusBadge[deal.status] || statusBadge.pending)}>
-                        {deal.status === 'paid' && <CheckCircle className="w-3 h-3" />}
-                        {deal.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+
+        {deals.length === 0 ? (
+          <div className="glass-card no-lift p-10 text-center">
+            <p className="text-sm" style={{ color: 'var(--crm-text-muted)' }}>
+              Nothing closed in {formatMonth(month)} yet.
+            </p>
+            <p className="text-xs mt-2" style={{ color: 'var(--crm-text-muted)' }}>
+              Earlier months are above — this page opens on the month the floor is in.
+            </p>
+          </div>
+        ) : (
+          <div className="glass-card eodt-wrap">
+            <table className="eodt cm-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Lead</th>
+                  <th scope="col">Collected</th>
+                  <th scope="col">Rate</th>
+                  <th scope="col">Commission</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deals.map(function(deal) {
+                  return (
+                    <tr key={deal.id}>
+                      <td>{deal.day
+                        ? new Date(deal.day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        : '—'}</td>
+                      <th scope="row" className="cm-lead">{deal.leadName || 'Unnamed'}</th>
+                      <td>{formatCurrency(deal.dealValue)}</td>
+                      <td>{(deal.commissionRate * 100).toFixed(0)}%</td>
+                      <td className="cm-earned">{formatCurrency(deal.commissionAmount)}</td>
+                      <td>
+                        <span className={'cm-status ' + (deal.status || 'pending')}>
+                          {deal.status === 'paid' ? <CheckCircle className="w-3 h-3" /> : null}
+                          {deal.status || 'pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td />
+                  <td>{formatCurrency(summary.totalRevenue)}</td>
+                  <td>—</td>
+                  <td>{formatCurrency(summary.totalCommission)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Monthly Breakdown */}
-      {monthlyBreakdown.length > 0 && (
-        <div className="glass-card overflow-hidden stagger-6">
-          <div className="section-header">
-            <h3>Monthly breakdown</h3>
+      {monthlyBreakdown && monthlyBreakdown.length > 0 ? (
+        <div className="td-section">
+          <div className="td-section-h">
+            <h3 className="td-section-t">Every month</h3>
+            <span className="td-section-rule" />
           </div>
-          <div className="p-5 space-y-2">
+          <div className="glass-card no-lift cm-history">
             {monthlyBreakdown.map(function(m) {
               return (
-                <div key={m.month} className="flex items-center justify-between p-3 glass-surface">
-                  <div className="text-sm font-medium text-crm-text-bright">{formatMonth(m.month)}</div>
-                  <div className="flex items-center gap-6 text-xs font-mono">
-                    <span className="text-crm-muted">{m.deals} deals</span>
-                    <span className="text-crm-text-bright">{formatCurrency(m.revenue)} revenue</span>
-                    <span className="metric-positive font-bold">{formatCurrency(m.commission)} earned</span>
-                  </div>
-                </div>
+                <button key={m.month} type="button"
+                  className={'cm-hist-row' + (m.month === month ? ' on' : '')}
+                  onClick={function() { setMonth(m.month); }}>
+                  <span className="cm-hist-m">{formatMonth(m.month)}</span>
+                  <span className="cm-hist-n">{m.deals} {m.deals === 1 ? 'deal' : 'deals'}</span>
+                  <span className="cm-hist-r">{formatCurrency(m.revenue)}</span>
+                  <span className="cm-hist-c">{formatCurrency(m.commission)}</span>
+                </button>
               );
             })}
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

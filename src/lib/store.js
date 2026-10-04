@@ -1412,8 +1412,11 @@ export function getCloserCommissionRate(closerName) {
   return 0.10;
 }
 
-export function getCommissionsForCloser(closerName, workspaceId) {
-  if (!closerName) return { deals: [], summary: getEmptyCommissionSummary() };
+// A month, when asked for, narrows the deals and the summary together. Handing a
+// page lifetime totals above a table of one month's rows is how a figure and the
+// rows under it end up describing different things.
+export function getCommissionsForCloser(closerName, workspaceId, month) {
+  if (!closerName) return { deals: [], summary: getEmptyCommissionSummary(), lifetime: getEmptyCommissionSummary() };
 
   var closerDeals = scoped(store.closedDeals, workspaceId).filter(function(d) {
     return d.closer && d.closer.toLowerCase() === closerName.toLowerCase();
@@ -1433,19 +1436,38 @@ export function getCommissionsForCloser(closerName, workspaceId) {
       program: deal.program,
       status: deal.commissionStatus || 'pending',
       closedAt: deal.submittedAt,
+      // The team's day, not the server's. The month used to come off a UTC
+      // timestamp, so a deal closed at 9pm Pacific on the last of the month was
+      // counted in the next one.
+      day: recordDay(deal),
+      month: recordDay(deal).slice(0, 7),
     };
   });
 
-  var totalDeals = deals.length;
-  var totalRevenue = deals.reduce(function(s, d) { return s + d.dealValue; }, 0);
-  var totalCommission = deals.reduce(function(s, d) { return s + d.commissionAmount; }, 0);
-  var pendingCommission = deals.filter(function(d) { return d.status === 'pending'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
-  var approvedCommission = deals.filter(function(d) { return d.status === 'approved'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
-  var paidCommission = deals.filter(function(d) { return d.status === 'paid'; }).reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+  function summarise(rows) {
+    var n = rows.length;
+    var revenue = rows.reduce(function(s, d) { return s + d.dealValue; }, 0);
+    var commission = rows.reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+    function byStatus(st) {
+      return rows.filter(function(d) { return d.status === st; })
+        .reduce(function(s, d) { return s + d.commissionAmount; }, 0);
+    }
+    return {
+      totalDeals: n,
+      totalRevenue: Math.round(revenue * 100) / 100,
+      totalCommission: Math.round(commission * 100) / 100,
+      pendingCommission: Math.round(byStatus('pending') * 100) / 100,
+      approvedCommission: Math.round(byStatus('approved') * 100) / 100,
+      paidCommission: Math.round(byStatus('paid') * 100) / 100,
+      commissionRate: rate,
+      avgDealValue: n > 0 ? Math.round(revenue / n) : 0,
+      avgCommission: n > 0 ? Math.round(commission / n) : 0,
+    };
+  }
 
   var months = {};
   deals.forEach(function(deal) {
-    var monthKey = deal.closedAt ? deal.closedAt.substring(0, 7) : 'unknown';
+    var monthKey = deal.month || 'unknown';
     if (!months[monthKey]) {
       months[monthKey] = { month: monthKey, deals: 0, revenue: 0, commission: 0 };
     }
@@ -1458,19 +1480,17 @@ export function getCommissionsForCloser(closerName, workspaceId) {
     return b.month.localeCompare(a.month);
   });
 
+  var shown = month
+    ? deals.filter(function(d) { return d.month === month; })
+    : deals;
+
   return {
-    deals: deals,
-    summary: {
-      totalDeals: totalDeals,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalCommission: Math.round(totalCommission * 100) / 100,
-      pendingCommission: Math.round(pendingCommission * 100) / 100,
-      approvedCommission: Math.round(approvedCommission * 100) / 100,
-      paidCommission: Math.round(paidCommission * 100) / 100,
-      commissionRate: rate,
-      avgDealValue: totalDeals > 0 ? Math.round(totalRevenue / totalDeals) : 0,
-      avgCommission: totalDeals > 0 ? Math.round(totalCommission / totalDeals) : 0,
-    },
+    month: month || '',
+    deals: shown,
+    summary: summarise(shown),
+    // Kept alongside, so a page can show what somebody has earned in total
+    // without the table under it having to mean the same thing.
+    lifetime: summarise(deals),
     monthlyBreakdown: monthlyBreakdown,
   };
 }
