@@ -21,6 +21,81 @@ export function stamp(timezone) {
   });
 }
 
+// The appointment, written the way somebody reads it rather than the way an
+// <input type="time"> stores it. "2026-10-05 at 17:00" is a database field posted
+// into a group chat; "Mon, Oct 5 at 5:00 PM ET" is an appointment.
+//
+// The zone is LABELLED, not converted. bookedDay and bookedTime are wall-clock
+// strings a setter typed, and nothing records which zone they typed them in — so
+// shifting the hours would be inventing a fact. The floor runs on Eastern, which
+// is what the timestamp at the bottom of every one of these messages has always
+// used, so the label says what the number already means.
+var ET = 'ET';
+var EASTERN = 'America/New_York';
+
+export function clockTime(raw) {
+  var value = String(raw === null || raw === undefined ? '' : raw).trim();
+  if (!value) return '';
+
+  // An ISO instant carrying its own zone — "…T17:00:00Z", "…T17:00-04:00" — is a
+  // real moment rather than a wall-clock string, so it is CONVERTED to Eastern.
+  // Reading 17:00Z off as "5:00 PM" would move the appointment four hours.
+  if (/\d{4}-\d{2}-\d{2}T/.test(value) && /(Z|[+-]\d{2}:?\d{2})$/.test(value)) {
+    var instant = new Date(value);
+    if (!isNaN(instant.getTime())) {
+      return instant.toLocaleTimeString('en-US', {
+        timeZone: EASTERN, hour: 'numeric', minute: '2-digit', hour12: true,
+      });
+    }
+  }
+
+  // Everything else is a wall-clock string in whatever shape the upstream form
+  // had: a bare time, a zoneless ISO stamp, or something a human already typed.
+  var iso = value.match(/[T ](\d{1,2}):(\d{2})/);
+  var bare = value.match(/^(\d{1,2}):(\d{2})/);
+  var parts = iso || bare;
+  if (!parts) return value;
+
+  var hour = parseInt(parts[1], 10);
+  var minute = parts[2];
+  if (!isFinite(hour) || hour < 0 || hour > 23) return value;
+
+  // Already carrying a meridiem — trust it rather than re-deriving one, or
+  // "5:00pm" comes back as "5:00 AM". No leading \b: in "5:00pm" there is no word
+  // boundary between the 0 and the p.
+  var meridiem = value.match(/(?:^|[^a-z])([ap])\.?\s*m\.?(?![a-z])/i);
+  if (meridiem) {
+    var suffix = meridiem[1].toLowerCase() === 'p' ? 'PM' : 'AM';
+    var shown = hour % 12;
+    return (shown === 0 ? 12 : shown) + ':' + minute + ' ' + suffix;
+  }
+
+  var h12 = hour % 12;
+  return (h12 === 0 ? 12 : h12) + ':' + minute + ' ' + (hour < 12 ? 'AM' : 'PM');
+}
+
+export function callDate(raw) {
+  var value = String(raw === null || raw === undefined ? '' : raw).trim();
+  if (!value) return '';
+  var m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return value;
+  // Built from the parts, never `new Date('2026-10-05')` — that is UTC midnight,
+  // which renders as the 4th anywhere west of Greenwich and would move somebody's
+  // appointment a day earlier in the message announcing it.
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+export function bookedFor(entry) {
+  var day = callDate(entry && entry.bookedDay);
+  var time = clockTime(entry && entry.bookedTime);
+  if (!day && !time) return 'TBD';
+  if (!time) return day;
+  if (!day) return time + ' ' + ET;
+  return day + ' at ' + time + ' ' + ET;
+}
+
 function money(n) {
   return '$' + Number(n || 0).toLocaleString();
 }
@@ -37,7 +112,7 @@ export function buildBookedCallMessage(entry, timezone) {
     + line('📧', 'Email', entry.leadsEmail)
     + '🎯 Program: ' + offerLabel(entry.program) + '\n'
     + '✅ Qualified: ' + (entry.qualified || 'N/A') + '\n'
-    + '📅 Booked For: ' + (entry.bookedDay || 'TBD') + ' at ' + (entry.bookedTime || 'TBD') + '\n'
+    + '📅 Booked For: ' + bookedFor(entry) + '\n'
     + '🔗 Source: ' + (entry.outboundInbound || 'N/A') + '\n\n'
     + '👥 Setter: ' + (entry.setter || 'N/A') + '\n'
     + '🎯 Closer: ' + (entry.closer || 'N/A') + '\n'

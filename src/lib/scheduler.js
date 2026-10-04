@@ -5,6 +5,7 @@
 import { getBookedCallsForDate, getStore, addMessageLog } from '@/lib/store';
 import { saveCustomMessage as saveCustomMessageDB, deleteCustomMessageDB } from '@/lib/db';
 import { toReportDay } from '@/lib/report-date';
+import { clockTime } from '@/lib/form-messages';
 
 var schedule = {
   eodReminder: { hour: 20, minute: 0, enabled: true, lastRun: null },
@@ -206,7 +207,7 @@ export async function runMorningDigest() {
     calls.forEach(function(call, i) {
       msg += (i + 1) + '. *' + call.leadsName + '*\n';
       msg += '   Closer: ' + (call.closer || 'TBD') + '\n';
-      msg += '   Time: ' + (call.bookedTime || 'TBD') + '\n';
+      msg += '   Time: ' + (clockTime(call.bookedTime) || 'TBD') + ' ET\n';
       msg += '   Program: ' + (call.program || 'N/A') + '\n';
       if (call.leadsPhone) msg += '   Phone: ' + call.leadsPhone + '\n';
       msg += '\n';
