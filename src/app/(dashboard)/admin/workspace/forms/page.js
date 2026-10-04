@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Send, AlertTriangle, GripVertical, Copy, Save,
-  Phone, DollarSign, ClipboardCheck, FileText, CalendarDays, Link2, KeyRound, ShieldCheck, ShieldAlert,
+  Phone, DollarSign, ClipboardCheck, FileText, CalendarDays, Link2, KeyRound, ShieldCheck, ShieldAlert, ClipboardList,
 } from 'lucide-react';
 import { apiFetch, withWorkspace, useWorkspace } from '@/lib/workspace-client';
 
@@ -247,6 +247,7 @@ export default function WorkspaceFormsPage() {
           return (
             <RouteRow key={f.formKey} form={f} route={route} channels={data.channels}
               busy={busy} canTestSend={data.canTestSend}
+              testSendBlockedReason={data.testSendBlockedReason}
               suggestions={(data.suggestions || {})[f.formKey] || []}
               externallyPosted={(data.externallyPosted || []).indexOf(f.formKey) !== -1}
               onSave={function(next) { act({ action: 'save-route', formKey: f.formKey, channel: next.channel, target: next.target, isActive: true }); }}
@@ -282,6 +283,63 @@ export default function WorkspaceFormsPage() {
           </div>
         </section>
       ) : null}
+
+      {/* ===== WHICH FORMS THIS WORKSPACE USES ===== */}
+      <section className="glass-card wsa-card">
+        <div className="wsa-head">
+          <ClipboardList className="w-4 h-4 text-crm-accent" />
+          <h2 className="wsa-title">Which forms your reps see</h2>
+        </div>
+        <p className="wsa-sub">
+          Every record this CRM reports on &mdash; booked calls, closed deals, end-of-day,
+          after-call reports and DM end-of-day &mdash; can now be filed in the product
+          itself, and the WhatsApp message goes out from here either way. This setting
+          is per workspace, so switching one client over leaves every other client
+          exactly as it was. The hosted forms stay one click away on the Submit page
+          whichever you pick.
+        </p>
+
+        <div className="wsa-list">
+          <label className="wf-row" style={{ cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="which-forms"
+              checked={data.useExternalForms !== true}
+              disabled={busy}
+              onChange={function() {
+                act({ action: 'set-external-forms', useExternalForms: false }, function() {
+                  setNotice('Reps now see the in-CRM forms first. The hosted forms are still available to them.');
+                });
+              }}
+            />
+            <div>
+              <div className="wf-name">The forms built into Summit OS</div>
+              <div className="wf-sub">Nothing outside this product has to be running for a rep to file.</div>
+            </div>
+          </label>
+
+          <label className="wf-row" style={{ cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="which-forms"
+              checked={data.useExternalForms === true}
+              disabled={busy}
+              onChange={function() {
+                act({ action: 'set-external-forms', useExternalForms: true }, function() {
+                  setNotice('Reps now see the hosted forms first.');
+                });
+              }}
+            />
+            <div>
+              <div className="wf-name">The hosted forms</div>
+              <div className="wf-sub">
+                Submissions arrive through the ingest key below. Keep this while a
+                workflow is still live.
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
 
       {/* ===== FORM INGEST KEY ===== */}
       <section className="glass-card wsa-card">
@@ -425,7 +483,7 @@ export default function WorkspaceFormsPage() {
   );
 }
 
-function RouteRow({ form, route, channels, busy, canTestSend, suggestions, externallyPosted, onSave, onTest }) {
+function RouteRow({ form, route, channels, busy, canTestSend, testSendBlockedReason, suggestions, externallyPosted, onSave, onTest }) {
   var s1 = useState(route.channel), channel = s1[0], setChannel = s1[1];
   var s2 = useState(route.target === 'none' ? '' : route.target), target = s2[0], setTarget = s2[1];
   var configured = !!routeTargetOf(route);
@@ -442,7 +500,8 @@ function RouteRow({ form, route, channels, busy, canTestSend, suggestions, exter
         placeholder={channel === 'none' ? 'nothing is sent' : 'group id / address'}
         onChange={function(e) { setTarget(e.target.value); }} />
       <button type="submit" className="btn-primary wsa-btn" disabled={busy}>Save</button>
-      <button type="button" className="wf-act" title={canTestSend ? 'Send a test message' : 'No sender configured'}
+      <button type="button" className="wf-act"
+        title={canTestSend ? 'Send a test message' : (testSendBlockedReason || 'No sender configured')}
         disabled={busy || !configured || !canTestSend} onClick={onTest}>
         <Send className="w-3.5 h-3.5" />
       </button>

@@ -115,6 +115,10 @@ export default function SubmitPage() {
   var f1 = useState(null), formLinks = f1[0], setFormLinks = f1[1];
   var f2 = useState(true), useExternal = f2[0], setUseExternal = f2[1];
   var f3 = useState(false), showBuiltIn = f3[0], setShowBuiltIn = f3[1];
+  // The hosted forms stay reachable even once a workspace has switched over, so a
+  // rep is never stuck mid-cutover if something in the product misbehaves. They
+  // are a fallback behind a disclosure, not the way the page opens.
+  var f4 = useState(false), showHosted = f4[0], setShowHosted = f4[1];
   var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
@@ -571,7 +575,7 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {useExternal && (formLinks || []).length > 0 && (
+        {(formLinks || []).length > 0 && (useExternal || showHosted) && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {formLinks.map(function(form) {
@@ -603,13 +607,15 @@ export default function SubmitPage() {
               })}
             </div>
 
-            <button
-              onClick={function() { setShowBuiltIn(!showBuiltIn); }}
-              className="flex items-center gap-2 text-xs font-mono text-crm-muted hover:text-crm-text transition-colors"
-            >
-              {showBuiltIn ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {showBuiltIn ? 'Hide the in-CRM forms' : 'Or submit with the in-CRM forms'}
-            </button>
+            {useExternal ? (
+              <button
+                onClick={function() { setShowBuiltIn(!showBuiltIn); }}
+                className="flex items-center gap-2 text-xs text-crm-text-muted hover:text-crm-text transition-colors"
+              >
+                {showBuiltIn ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showBuiltIn ? 'Hide the in-CRM forms' : 'Or submit with the in-CRM forms'}
+              </button>
+            ) : null}
           </div>
         )}
 
@@ -1203,6 +1209,19 @@ export default function SubmitPage() {
         )}
 
         </div>
+        )}
+
+        {/* Once a workspace leads with the in-CRM forms, the hosted ones do not
+            disappear — they sit behind this, so anybody mid-cutover can still file
+            the old way without an admin changing a setting back. */}
+        {!useExternal && (formLinks || []).length > 0 && (
+          <button
+            onClick={function() { setShowHosted(!showHosted); }}
+            className="flex items-center gap-2 text-xs text-crm-text-muted hover:text-crm-text transition-colors"
+          >
+            {showHosted ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showHosted ? 'Hide the hosted forms' : 'Or use a hosted form instead'}
+          </button>
         )}
 
         {/* Recent Submissions */}

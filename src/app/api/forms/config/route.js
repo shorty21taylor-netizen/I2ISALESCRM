@@ -4,7 +4,7 @@ import { initStore } from '@/lib/store';
 import { saveAppConfig, loadAppConfig } from '@/lib/db';
 import { resolveAccess, effectiveReadWorkspace, OWNER_EMAIL } from '@/lib/access';
 import { getIngestKey } from '@/lib/ingest-auth';
-import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
+import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE, getUseExternalForms } from '@/lib/workspace-config';
 import { ensureLegacyForms, ensureDmSetterForm } from '@/lib/legacy-forms';
 
 export var dynamic = 'force-dynamic';
@@ -51,6 +51,7 @@ export async function GET(req) {
     var key = await getIngestKey();
     var cfg = (await loadAppConfig('forms')) || {};
     var owner = await isOwner(req);
+    var perWorkspaceExternal = await getUseExternalForms(workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -66,7 +67,13 @@ export async function GET(req) {
       // Live forms that would refuse a submission, so the page can warn the
       // people who can fix it rather than letting a rep find out.
       missingRoutes: access.canSeeTeam ? await formsMissingRoutes(workspaceId) : [],
-      useExternalForms: cfg.useExternalForms !== false,
+      // This workspace's own answer wins. Only where it has never been asked does
+      // the install-wide setting apply, and that now defaults to the in-app forms:
+      // every record type can be filed in the product, so a hosted form is a
+      // fallback during a cutover rather than the way the product works.
+      useExternalForms: perWorkspaceExternal !== null
+        ? perWorkspaceExternal
+        : cfg.useExternalForms === true,
       ingestKeyConfigured: !!key,
       ingestKeySource: process.env.FORM_INGEST_KEY ? 'env' : (cfg.ingestKey ? 'settings' : 'none'),
       ingestKeyMasked: owner ? maskKey(key) : '',

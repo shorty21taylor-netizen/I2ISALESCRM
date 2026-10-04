@@ -5,6 +5,7 @@ import {
   listForms, listIntegrations, listRoutes, formsMissingRoutes, getIntegration,
   upsertForm, removeForm, upsertIntegration, removeIntegration,
   upsertRoute, removeRoute, copySetupFrom,
+  getUseExternalForms, setUseExternalForms,
   ICONS, AUDIENCES, CHANNELS, suggestedTargets, knownGroupIds,
 } from '@/lib/workspace-config';
 import { ensureLegacyForms, ensureDmSetterForm, restoreFormsInto, recordCountsByWorkspace, LEGACY_FORMS } from '@/lib/legacy-forms';
@@ -113,8 +114,16 @@ export async function GET(req) {
     icons: ICONS,
     audiences: AUDIENCES,
     channels: CHANNELS,
-    // A destination cannot be tested without a sender behind it.
+    // A destination cannot be tested without a sender behind it. Saying which of
+    // the two is missing beats a greyed-out button with no explanation — the
+    // manager can test, they just have nothing to send through yet.
     canTestSend: !!wc.assistroApiUrl,
+    testSendBlockedReason: wc.assistroApiUrl ? '' :
+      'No WhatsApp sender is configured for this install yet, so there is nothing to send through. '
+      + 'An operator sets it in Settings → WhatsApp.',
+    // Whether this workspace leads with the hosted forms or the in-app ones.
+    // null means it has never been set here and the install-wide default applies.
+    useExternalForms: await getUseExternalForms(g.workspaceId),
     // Only offered to the operator: copying setup between two clients' workspaces
     // is not a manager's call to make.
     copyableFrom: g.access.canSeeAll
@@ -162,6 +171,11 @@ export async function POST(req) {
     // Unsealing. The workspace goes back to being reachable by the shared key, so
     // this is only ever right while migrating a workflow over.
     result = await removeIntegration(g.workspaceId, INGEST_PROVIDER, INGEST_KEY_NAME);
+  } else if (action === 'set-external-forms') {
+    // A manager's call for their own workspace, and only their own: gate() has
+    // already pinned g.workspaceId to the one this session is standing in.
+    result = await setUseExternalForms(g.workspaceId, !!body.useExternalForms);
+    if (!result || !result.error) result = { success: true, useExternalForms: !!body.useExternalForms };
   } else if (action === 'save-route') {
     result = await upsertRoute(g.workspaceId, body.formKey, body.channel, body.target, body.isActive);
   } else if (action === 'delete-route') {

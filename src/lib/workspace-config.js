@@ -191,6 +191,34 @@ export async function sealWorkspace(workspaceId, opts) {
   return { key: key, created: true };
 }
 
+// ---- which Submit page a workspace gets ----
+//
+// Whether a workspace leads with the hosted n8n forms or with the ones built into
+// this product. This used to be a single install-wide switch, so flipping one
+// client over to the in-app forms flipped every other client at the same moment —
+// which is not a thing anyone would choose to do during a cutover.
+//
+// Unset means "not decided for this workspace", which falls back to the
+// install-wide setting, which now defaults to the in-app forms. The hosted forms
+// stay one click away either way, so a workspace mid-migration can still use them.
+
+export var EXTERNAL_FORMS_KEY = 'use_external_forms';
+
+export async function getUseExternalForms(workspaceId) {
+  var raw = await getIntegration(workspaceId, INGEST_PROVIDER, EXTERNAL_FORMS_KEY)
+    .catch(function() { return ''; });
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return null; // never decided here — the caller falls back
+}
+
+export async function setUseExternalForms(workspaceId, value) {
+  // Deliberately stored as a string: the integrations table holds text values, and
+  // a boolean coerced on the way out of JSONB is how 'false' becomes truthy.
+  return upsertIntegration(workspaceId, INGEST_PROVIDER, EXTERNAL_FORMS_KEY,
+    value ? 'true' : 'false');
+}
+
 // ---- integrations ----
 
 export async function listIntegrations(workspaceId) {
