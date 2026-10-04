@@ -10,6 +10,9 @@ import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 // The card a rep screenshots into the team chat. Deliberately one screen, no
 // scrolling, and nothing on it that belongs to anyone else.
 
+// The product's own brand, which every card carries alongside the client's.
+var PLATFORM = 'Summit Closing Group';
+
 function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
 
 // One KPI: the number, the target, and a bar that is honest about pace.
@@ -17,15 +20,33 @@ function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
 // Green is "where you should be TODAY", not "you finished". Halfway through the
 // month on half the target is on track, and colouring that amber because it is
 // not 100% yet is how a board stops being read.
-// The ridge, small, for the foot of every card. Same geometry as the sidebar mark.
-function FootMark({ label }) {
+// The crest every card wears at the top: the mark, whose floor it came off, and
+// which of the three cards this is. A workspace that uploaded its own logo gets
+// that file here, the same rule the sidebar mark follows — only a workspace with
+// none falls back to the Summit ridge.
+function CardCrest({ brand, label }) {
+  var logo = brand && brand.logoUrl;
+  // The workspace's own name, then the platform's. A workspace that IS the
+  // platform is named once rather than crossed with itself.
+  var company = (brand && brand.name) || '';
+  if (company.trim().toLowerCase() === PLATFORM.toLowerCase()) company = '';
   return (
-    <span className="sc-foot-mark">
-      <svg width="13" height="10" viewBox="0 0 384.3 285.7" fill="currentColor" aria-hidden="true">
-        <path d="M0 285.7L191.8 0L384.3 285.7L275.5 285.7L240.5 238.7L226.5 256.7L184.5 199.7L124.5 285.7Z" />
-      </svg>
-      {label}
-    </span>
+    <div className="sc-crest">
+      <span className="sc-crest-mark">
+        {logo ? (
+          <img src={logo} alt="" />
+        ) : (
+          <svg viewBox="0 0 384.3 285.7" fill="currentColor" aria-hidden="true">
+            <path d="M0 285.7L191.8 0L384.3 285.7L275.5 285.7L240.5 238.7L226.5 256.7L184.5 199.7L124.5 285.7Z" />
+          </svg>
+        )}
+      </span>
+      <span className="sc-crest-name">
+        {company ? <><b>{company}</b><i>&times;</i></> : null}
+        <em>{PLATFORM}</em>
+      </span>
+      <span className="sc-crest-kind">{label}</span>
+    </div>
   );
 }
 
@@ -92,6 +113,7 @@ function KpiCard({ data, initials }) {
 
   return (
     <div className="kpi-card sc-card">
+      <CardCrest brand={data.brand} label="KPIs" />
       <div className="kpi-top">
         <div className="stat-card-avatar">
           {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
@@ -120,7 +142,6 @@ function KpiCard({ data, initials }) {
       </div>
 
       <div className="kpi-foot">
-        <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
         <span>
           {k.weekdaysLeft > 0
             ? k.weekdaysLeft + ' working ' + (k.weekdaysLeft === 1 ? 'day' : 'days') + ' left this month'
@@ -241,6 +262,7 @@ export default function StatCardPage() {
         {style === 'pnl' && pnl ? (
           <div className={'pnl-card sc-card ' + (up ? 'up' : 'down')}>
             <div className="pnl-glow" />
+            <CardCrest brand={data.brand} label="P&L" />
             <div className="pnl-top">
               <div className="stat-card-avatar">
                 {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
@@ -281,7 +303,7 @@ export default function StatCardPage() {
             </div>
 
             <p className="stat-card-foot">
-              <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
+              <span>{p.email.split('@')[0]}</span>
               <b>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</b>
             </p>
           </div>
@@ -289,6 +311,7 @@ export default function StatCardPage() {
 
         {style === 'stat' ? (
         <div className="stat-card sc-card">
+          <CardCrest brand={data.brand} label="Career" />
           <div className="stat-card-top">
             <div className="stat-card-avatar">
               {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
@@ -322,7 +345,7 @@ export default function StatCardPage() {
           ) : null}
 
           <p className="stat-card-foot">
-            <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
+            <span>{data.stats.earnedCount} of {data.stats.totalAwards} awards earned</span>
             <b>{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</b>
           </p>
         </div>

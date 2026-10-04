@@ -4700,18 +4700,54 @@ html, body { overflow-x: clip; }
   color: var(--crm-positive);
 }
 
-/* A maker's mark in the footer, so a screenshot in a group chat says whose floor
-   it came off even when the banner is cropped out. */
-.sc-foot-mark {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: rgba(255,255,255,0.42);
+/* The crest at the top of every card, so a screenshot pasted into a group chat
+   says whose floor it came off and which card it is before anybody reads a
+   figure. The mark sits first because it is the thing people recognise. */
+.sc-crest {
+  display: flex; align-items: center; gap: 9px;
+  padding-bottom: 14px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--crm-divider);
 }
-.sc-foot-mark svg { opacity: 0.6; }
+.sc-crest-mark {
+  width: 26px; height: 20px; flex: none;
+  display: grid; place-items: center;
+  color: #ffffff;
+}
+.sc-crest-mark svg { width: 100%; height: 100%; }
+.sc-crest-mark img { width: 100%; height: 100%; object-fit: contain; }
+/* The client's name leads, the platform's follows it. Both uppercase, but the
+   client's is the brighter of the two — it is their floor, run on our software. */
+.sc-crest-name {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+  font-family: var(--font-display); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.085em; text-transform: uppercase;
+}
+.sc-crest-name b {
+  font-weight: 700; color: rgba(255,255,255,0.92);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.sc-crest-name i {
+  font-style: normal; font-weight: 400; color: rgba(255,255,255,0.3); flex: none;
+}
+.sc-crest-name em {
+  font-style: normal; font-weight: 600; color: rgba(255,255,255,0.55);
+  white-space: nowrap; flex: none;
+}
+/* On a narrow card the platform name is the half that gives way. */
+@media (max-width: 420px) {
+  .sc-crest-name em, .sc-crest-name i { display: none; }
+}
+.sc-crest-kind {
+  margin-left: auto; flex: none;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--crm-accent);
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: rgba(var(--accent-rgb),0.14);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+}
+/* The crest sits above the P&L bloom rather than under it. */
+.pnl-card.sc-card .sc-crest { position: relative; z-index: 2; }
 
-/* The KPI card's foot now carries the mark as well as the countdown. */
 .kpi-card.sc-card .kpi-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
   border-top: 1px solid var(--crm-divider); padding-top: 12px;
 }
-.sc-card .stat-card-foot { align-items: center; }
