@@ -97,7 +97,9 @@ function bestOf(list, valueOf) {
 }
 
 // Consecutive weekdays filed, counting back from the most recent report.
-function eodStreak(eods) {
+// Exported so the EOD submit can tell a rep what their streak is now without a
+// second implementation of the same count drifting away from this one.
+export function eodStreak(eods) {
   var filed = {};
   eods.forEach(function(e) { if (e.date) filed[e.date] = true; });
   var days = Object.keys(filed).sort();

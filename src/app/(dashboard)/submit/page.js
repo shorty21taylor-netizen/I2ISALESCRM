@@ -414,6 +414,7 @@ export default function SubmitPage() {
       var data = await res.json();
       if (data.success) {
         setSuccessMsg(filed('EOD report submitted.', data));
+        setCelebrate({ variant: 'eod', streak: data.streak || 0 });
         clearEOD();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -439,6 +440,7 @@ export default function SubmitPage() {
       var data = await res.json();
       if (data.success) {
         setSuccessMsg(filed('After-call report submitted.', data));
+        setCelebrate({ variant: 'aftercall' });
         clearAfterCall();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -475,6 +477,7 @@ export default function SubmitPage() {
       var data = await res.json();
       if (data.success) {
         setSuccessMsg(filed('DM end-of-day submitted.', data));
+        setCelebrate({ variant: 'dm', streak: data.streak || 0 });
         clearDmEod();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -513,6 +516,7 @@ export default function SubmitPage() {
       <SubmitCelebration
         variant={celebrate && celebrate.variant}
         amount={celebrate && celebrate.amount}
+        streak={celebrate && celebrate.streak}
         onDone={function() { setCelebrate(null); }}
       />
 

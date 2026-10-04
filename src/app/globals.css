@@ -4527,7 +4527,7 @@ html, body { overflow-x: clip; }
    moment, without dimming the page the way a dialog would. */
 .cel::before {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(42% 42% at 50% 50%, rgba(0,0,0,0.55), transparent 70%);
+  background: radial-gradient(48% 48% at 50% 50%, rgba(0,0,0,0.72), rgba(0,0,0,0.25) 70%, transparent 88%);
   animation: celFade 2100ms ease-out forwards;
 }
 
@@ -4937,3 +4937,94 @@ html, body { overflow-x: clip; }
 }
 .cm-status-pick:disabled { opacity: 0.5; cursor: wait; }
 .cm-status-pick option { color: var(--crm-text); background: var(--option-bg, var(--crm-surface)); }
+
+/* ---- the three that celebrate filing, not performance ---- */
+/* Quieter than the two that score, on purpose: a smaller stage, no rain, and a
+   caption that names the act rather than the result. */
+/* The two that score fill the screen; these three sit in a panel instead, so the
+   moment is contained and legible over a long form rather than floating across it. */
+.cel-stage-sm {
+  flex-direction: column; gap: 16px;
+  padding: 30px 44px 26px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(var(--accent-rgb),0.14), transparent 65%),
+    linear-gradient(165deg, #16181e 0%, #0c0e12 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 30px 70px -24px rgba(0,0,0,0.92);
+}
+.cel-caption {
+  margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 600;
+  color: #fafafa; text-align: center; letter-spacing: -0.01em;
+}
+.cel-caption b {
+  font-family: var(--font-mono); font-weight: 500; color: var(--crm-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The climb: the line draws, then a marker lands on each weekday filed. */
+.cel-climb { position: relative; color: var(--crm-accent); }
+.cel-climb-line {
+  stroke-dashoffset: 260;
+  animation: celDraw 760ms cubic-bezier(0.22, 1, 0.36, 1) 60ms forwards;
+}
+@keyframes celDraw { to { stroke-dashoffset: 0; } }
+.cel-climb-dot { fill: var(--crm-accent); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.cel-climb-dot { animation: celPlant 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes celPlant {
+  0% { opacity: 0; transform: scale(0.2); }
+  70% { opacity: 1; transform: scale(1.35); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.cel-flag {
+  position: absolute; right: 2px; top: -12px; color: var(--crm-accent);
+  animation: celPlant 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 680ms both;
+}
+
+/* The inbox: bubbles arrive and narrow, then the call lands on the calendar. */
+.cel-inbox { position: relative; width: 250px; height: 150px; color: var(--crm-accent); }
+.cel-bubble {
+  position: absolute; top: 0; opacity: 0;
+  animation: celArrive 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes celArrive {
+  0% { opacity: 0; transform: translate(0, -26px) scale(0.8); }
+  45% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(100px - var(--x, 0px)), 74px) scale(0.5); }
+}
+.cel-booked {
+  position: absolute; left: 50%; bottom: 0; margin-left: -31px; color: var(--crm-accent);
+  animation: celPlant 440ms cubic-bezier(0.34, 1.56, 0.64, 1) 620ms both;
+}
+.cel-tick {
+  stroke-dasharray: 44; stroke-dashoffset: 44;
+  animation: celDrawShort 320ms ease-out 980ms forwards;
+}
+@keyframes celDrawShort { to { stroke-dashoffset: 0; } }
+
+/* On the record: the call's waveform settles, the note files and seals. */
+.cel-filed { position: relative; display: flex; align-items: center; gap: 26px; color: var(--crm-accent); }
+.cel-bar { transform-box: fill-box; transform-origin: center; animation: celTalk 900ms ease-in-out both; }
+@keyframes celTalk {
+  0% { transform: scaleY(0.4); opacity: 0.4; }
+  35% { transform: scaleY(2.6); opacity: 1; }
+  70% { transform: scaleY(1.1); opacity: 0.8; }
+  100% { transform: scaleY(0.3); opacity: 0.25; }
+}
+.cel-card { animation: celFile 560ms cubic-bezier(0.22, 1, 0.36, 1) 520ms both; }
+@keyframes celFile {
+  0% { opacity: 0; transform: translateX(38px) rotate(7deg); }
+  100% { opacity: 1; transform: translateX(0) rotate(0); }
+}
+.cel-seal {
+  stroke-dasharray: 54; stroke-dashoffset: 54;
+  animation: celDrawShort 340ms ease-out 1060ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cel-climb-line { stroke-dashoffset: 0; animation: none; }
+  .cel-climb-dot, .cel-flag, .cel-booked, .cel-card { animation: none; opacity: 1; }
+  .cel-bubble { display: none; }
+  .cel-bar { animation: none; }
+  .cel-tick, .cel-seal { stroke-dashoffset: 0; animation: none; }
+}

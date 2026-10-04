@@ -5,6 +5,8 @@ import { addEODReport, getStore, registerCloser, initStore } from '@/lib/store';
 import { sendFormNotification } from '@/lib/notify-server';
 import { requireRoute } from '@/lib/submit-guard';
 import { checkEODSanity } from '@/lib/form-ingest';
+import { repIdentity, eodStreak } from '@/lib/rep-stats';
+import { getCloserProfile } from '@/lib/store';
 
 export async function POST(req) {
   await initStore();
@@ -52,7 +54,23 @@ export async function POST(req) {
       source: 'crm',
     });
 
-    return NextResponse.json({ success: true, submission: entry, whatsapp: waResult });
+    // How many weekdays in a row they have now filed. The page uses it to say
+    // "day 7 logged" rather than to claim anything about the numbers inside the
+    // report — somebody filing after a bad day is still showing up.
+    var streak = 0;
+    try {
+      var profile = getCloserProfile(body.closerEmail || '') || null;
+      var who = repIdentity(profile, body.closerEmail || '', entry.salesRep);
+      var mine = (getStore().eodReports || []).filter(function(e) {
+        return matchesWorkspace(e, entry.workspaceId) && who.owns(e, 'closerEmail', 'salesRep');
+      });
+      streak = eodStreak(mine);
+    } catch (e) {
+      // A celebration is not worth failing a submission over.
+      console.error('[EOD] streak:', e.message);
+    }
+
+    return NextResponse.json({ success: true, submission: entry, streak: streak, whatsapp: waResult });
   } catch (e) {
     console.error('[EOD Error]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
