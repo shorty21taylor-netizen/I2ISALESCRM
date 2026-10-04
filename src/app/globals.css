@@ -4619,3 +4619,99 @@ html, body { overflow-x: clip; }
   .cel-dart { animation: celFade 1800ms ease-out forwards; left: auto; right: 18%; }
   .cel-cal-hit { animation: none; opacity: 1; }
 }
+
+/* ============================================ */
+/* THE SHARE CARDS WEAR THE BRAND               */
+/* ============================================ */
+/*
+   A card a rep screenshots into the team chat is an artefact, not a page. It has
+   to read the same wherever it lands, so it carries its own token set and stays
+   dark whichever theme the rep happens to be in — the P&L card already worked
+   this way and the other two inherited the page, which meant the same card was
+   three different objects depending on where you opened it.
+
+   The ridge behind it is the Summit mark, the same geometry as the sidebar logo.
+*/
+.sc-card {
+  position: relative; overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    radial-gradient(135% 115% at 100% 0%, rgba(34,197,94,0.11), transparent 62%),
+    radial-gradient(90% 70% at 0% 100%, rgba(200,169,81,0.07), transparent 65%),
+    linear-gradient(165deg, #15181e 0%, #0c0e13 58%, #07080b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    0 30px 70px -26px rgba(0,0,0,0.92);
+
+  /* Its own palette, so nothing inside has to know which theme the page is in.
+     Without this a card forced dark in light mode renders near-black text on a
+     near-black ground. */
+  --crm-text: #d9dfe9;
+  --crm-text-bright: #ffffff;
+  --crm-muted: #93a0b2;
+  --crm-text-muted: #93a0b2;
+  --crm-divider: rgba(255,255,255,0.12);
+  --crm-border: rgba(255,255,255,0.12);
+  --crm-surface: transparent;
+  --crm-card: transparent;
+  --crm-positive: #2ee06a;
+  --positive-rgb: 46,224,106;
+  --crm-warning: #f5b544;
+  --warning-rgb: 245,181,68;
+  --crm-accent: #d9bd68;
+  --accent-rgb: 217,189,104;
+  --glass-surface-bg: rgba(255,255,255,0.05);
+  --glass-surface-border: rgba(255,255,255,0.09);
+  color: var(--crm-text);
+}
+/* The ridge, sitting under everything, low enough to read as texture. */
+.sc-card::after {
+  content: '';
+  position: absolute; right: -10%; bottom: -22%;
+  width: 46%; aspect-ratio: 384.3 / 285.7;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384.3 285.7'%3E%3Cpath fill='%23ffffff' d='M0 285.7L191.8 0L384.3 285.7L275.5 285.7L240.5 238.7L226.5 256.7L184.5 199.7L124.5 285.7Z'/%3E%3C/svg%3E") no-repeat center / contain;
+  opacity: 0.045;
+  pointer-events: none;
+}
+.sc-card > * { position: relative; z-index: 1; }
+
+/* The three cards drop the backgrounds they each invented. */
+.stat-card.sc-card,
+.kpi-card.sc-card,
+.pnl-card.sc-card {
+  padding: 26px 26px 22px;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.kpi-card.sc-card { gap: 18px; }
+.pnl-card.sc-card { color: var(--crm-text); }
+/* The P&L bloom still carries the verdict; it just sits over the brand ground. */
+.pnl-card.sc-card .pnl-glow { z-index: 0; }
+
+/* Money is green on all three, and the name is the brightest thing on the card. */
+.sc-card .stat-card-hero-v,
+.sc-card .pnl-cash { color: var(--crm-positive); }
+.sc-card .stat-card-name,
+.sc-card .kpi-name { color: var(--crm-text-bright); }
+.sc-card .stat-card-avatar {
+  border-color: rgba(46,224,106,0.55);
+  background: rgba(46,224,106,0.12);
+  color: var(--crm-positive);
+}
+
+/* A maker's mark in the footer, so a screenshot in a group chat says whose floor
+   it came off even when the banner is cropped out. */
+.sc-foot-mark {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(255,255,255,0.42);
+}
+.sc-foot-mark svg { opacity: 0.6; }
+
+/* The KPI card's foot now carries the mark as well as the countdown. */
+.kpi-card.sc-card .kpi-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-top: 1px solid var(--crm-divider); padding-top: 12px;
+}
+.sc-card .stat-card-foot { align-items: center; }

@@ -17,6 +17,18 @@ function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
 // Green is "where you should be TODAY", not "you finished". Halfway through the
 // month on half the target is on track, and colouring that amber because it is
 // not 100% yet is how a board stops being read.
+// The ridge, small, for the foot of every card. Same geometry as the sidebar mark.
+function FootMark({ label }) {
+  return (
+    <span className="sc-foot-mark">
+      <svg width="13" height="10" viewBox="0 0 384.3 285.7" fill="currentColor" aria-hidden="true">
+        <path d="M0 285.7L191.8 0L384.3 285.7L275.5 285.7L240.5 238.7L226.5 256.7L184.5 199.7L124.5 285.7Z" />
+      </svg>
+      {label}
+    </span>
+  );
+}
+
 function KpiRow({ row }) {
   function shown(v) {
     if (v === null || v === undefined) return '—';
@@ -70,7 +82,7 @@ function KpiCard({ data, initials }) {
   var k = data.kpis;
   if (!k) {
     return (
-      <div className="kpi-card">
+      <div className="kpi-card sc-card">
         <p className="kpi-empty">No KPIs to show yet — file an EOD and they appear here.</p>
       </div>
     );
@@ -79,7 +91,7 @@ function KpiCard({ data, initials }) {
   var ROLE_LABEL = { closer: 'Closer', setter: 'Setter', 'dm-setter': 'DM Setter' };
 
   return (
-    <div className="kpi-card">
+    <div className="kpi-card sc-card">
       <div className="kpi-top">
         <div className="stat-card-avatar">
           {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
@@ -108,9 +120,12 @@ function KpiCard({ data, initials }) {
       </div>
 
       <div className="kpi-foot">
-        {k.weekdaysLeft > 0
-          ? k.weekdaysLeft + ' working ' + (k.weekdaysLeft === 1 ? 'day' : 'days') + ' left this month'
-          : 'Last working day of the month'}
+        <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
+        <span>
+          {k.weekdaysLeft > 0
+            ? k.weekdaysLeft + ' working ' + (k.weekdaysLeft === 1 ? 'day' : 'days') + ' left this month'
+            : 'Last working day of the month'}
+        </span>
       </div>
     </div>
   );
@@ -224,7 +239,7 @@ export default function StatCardPage() {
         {style === 'kpi' ? <KpiCard data={data} initials={initials} /> : null}
 
         {style === 'pnl' && pnl ? (
-          <div className={'pnl-card ' + (up ? 'up' : 'down')}>
+          <div className={'pnl-card sc-card ' + (up ? 'up' : 'down')}>
             <div className="pnl-glow" />
             <div className="pnl-top">
               <div className="stat-card-avatar">
@@ -266,12 +281,14 @@ export default function StatCardPage() {
             </div>
 
             <p className="stat-card-foot">
-              <span>{p.email.split('@')[0]}</span>
+              <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
               <b>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</b>
             </p>
           </div>
-        ) : (
-        <div className="stat-card">
+        ) : null}
+
+        {style === 'stat' ? (
+        <div className="stat-card sc-card">
           <div className="stat-card-top">
             <div className="stat-card-avatar">
               {p.avatarUrl ? <img src={p.avatarUrl} alt={p.name} /> : <span>{initials}</span>}
@@ -305,11 +322,11 @@ export default function StatCardPage() {
           ) : null}
 
           <p className="stat-card-foot">
-            <span>{data.stats.earnedCount} of {data.stats.totalAwards} awards earned</span>
+            <FootMark label={(data.brand && data.brand.name) || 'Summit OS'} />
             <b>{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</b>
           </p>
         </div>
-        )}
+        ) : null}
 
         <div className="card-actions">
           <button className="an-btn-ghost" onClick={function() { router.push('/me'); }}>
