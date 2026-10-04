@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { normalizeRecording, withRecording } from '@/lib/call-recording';
 import { repScope, scopeList } from '@/lib/rep-scope';
 import { effectiveReadWorkspace, effectiveWriteWorkspace, matchesWorkspace } from '@/lib/access';
 import { addClosedDeal, getStore, registerCloser, initStore } from '@/lib/store';
@@ -13,6 +14,15 @@ export async function POST(req) {
     if (!body.leadsName || !body.cashCollected) {
       return NextResponse.json({ error: 'leadsName and cashCollected required' }, { status: 400 });
     }
+
+    // The tape, before anything is written. A closed deal is the basis of somebody's
+    // commission, so it is refused without the recording rather than saved and
+    // chased afterwards.
+    var tape = normalizeRecording(body.recordingUrl);
+    if (!tape.ok) {
+      return NextResponse.json({ error: tape.reason, needsRecording: true }, { status: 400 });
+    }
+    body.extra = withRecording(body, tape.url);
     // The server decides the owning workspace; a member cannot write into
     // another client's workspace by posting a different workspaceId.
     body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);

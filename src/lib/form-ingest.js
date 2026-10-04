@@ -442,6 +442,21 @@ function normalizeAfterCall(flat, labels) {
 }
 
 // raw -> { type, record } ready for the store's add* functions.
+// The recording link out of a submission, under whatever the form called the
+// field. The ingest route needs this because it is public and keyed: leaving it
+// un-gated would make the recording requirement a front-end suggestion with the
+// bypass one POST away. Keys are matched through the same normalizer as every
+// other field, so call_recording, "Call Recording" and recordingURL all land.
+var RECORDING_FIELDS = [
+  'recordingUrl', 'recording', 'recordingLink', 'callRecording',
+  'callRecordingUrl', 'callRecordingLink', 'recordingOfTheCall', 'tape',
+  'gongUrl', 'gongLink', 'fathomUrl', 'zoomRecording', 'loomUrl', 'driveLink',
+];
+
+export function recordingFieldOf(flat) {
+  return pick(flat || {}, RECORDING_FIELDS);
+}
+
 export function normalizeSubmission(formType, raw) {
   var f = flatten(raw);
   var flat = f.flat;

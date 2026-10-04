@@ -9,6 +9,7 @@ import AnalyzeReport from '@/components/AnalyzeReport';
 import AiAnalysisPanel from '@/components/AiAnalysisPanel';
 import { getUser } from '@/lib/auth';
 import { toReportDay, rangeForPreset } from '@/lib/report-date';
+import { recordingOf } from '@/lib/call-recording';
 
 // After-call recaps. Until now this form's submissions were rejected outright by the
 // ingest route (unknown form type) — nothing a closer wrote here ever reached the CRM.
@@ -191,6 +192,15 @@ export default function AfterCallPage() {
                             style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--crm-accent)' }}>
                             {r.outcome}
                           </span>
+                        )}
+                        {recordingOf(r) ? (
+                          <a className="rec-link" href={recordingOf(r)} target="_blank" rel="noreferrer noopener"
+                            onClick={function(e) { e.stopPropagation(); }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                            Recording
+                          </a>
+                        ) : (
+                          <span className="rec-missing" title="Filed before a recording was required">no recording</span>
                         )}
                       </div>
                       <p className="text-xs font-mono" style={{ color: 'var(--crm-text-muted)' }}>

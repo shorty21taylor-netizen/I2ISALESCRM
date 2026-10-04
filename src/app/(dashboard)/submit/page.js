@@ -166,6 +166,8 @@ export default function SubmitPage() {
   var c6 = useState(''), cdPaymentProcessor = c6[0], setCdPaymentProcessor = c6[1];
   var c7 = useState(''), cdPaymentAgreement = c7[0], setCdPaymentAgreement = c7[1];
   var c8 = useState(''), cdCashCollected = c8[0], setCdCashCollected = c8[1];
+  // Required: the server refuses a deal without it.
+  var cdr = useState(''), cdRecording = cdr[0], setCdRecording = cdr[1];
   var c9 = useState(''), cdSetter = c9[0], setCdSetter = c9[1];
   var c10 = useState(''), cdCloser = c10[0], setCdCloser = c10[1];
   var cb1 = useState(''), cdBrand = cb1[0], setCdBrand = cb1[1];
@@ -202,6 +204,7 @@ export default function SubmitPage() {
   var a5 = useState(''), acOutcome = a5[0], setAcOutcome = a5[1];
   var a6 = useState(''), acNextStep = a6[0], setAcNextStep = a6[1];
   var a7 = useState(''), acNotes = a7[0], setAcNotes = a7[1];
+  var a8 = useState(''), acRecording = a8[0], setAcRecording = a8[1];
 
   // DM setter end-of-day. The same EOD record as above, filed against the inbox
   // funnel rather than the phone one, and carrying Position so eodRole() files it
@@ -264,7 +267,7 @@ export default function SubmitPage() {
 
   function clearAfterCall() {
     setAcLeadsName(''); setAcLeadsPhone(''); setAcLeadsEmail('');
-    setAcOutcome(''); setAcNextStep(''); setAcNotes('');
+    setAcOutcome(''); setAcNextStep(''); setAcNotes(''); setAcRecording('');
     setAcCloser(user ? user.name : '');
   }
 
@@ -371,6 +374,7 @@ export default function SubmitPage() {
           subProgram: cdSubProgram || cdMyfmDuration || cdPartnerName || '',
           pricePoint: cdBrand === 'MYFM' ? cdPricePoint : '',
           paymentDetails: cdPaymentDetails, paymentProcessor: cdPaymentProcessor,
+          recordingUrl: cdRecording,
           paymentAgreement: cdPaymentAgreement, cashCollected: cdCashCollected,
           setter: cdSetter, closer: cdCloser, closerEmail: closerEmailFor(cdCloser),
           workspaceId: submitWorkspaceId,
@@ -431,6 +435,7 @@ export default function SubmitPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          recordingUrl: acRecording,
           leadsName: acLeadsName, leadsPhone: acLeadsPhone, leadsEmail: acLeadsEmail,
           closer: acCloser, outcome: acOutcome, nextStep: acNextStep, callNotes: acNotes,
           closerEmail: closerEmailFor(acCloser),
@@ -894,6 +899,19 @@ export default function SubmitPage() {
                   <input type="text" value={cdCloser} onChange={function(e) { setCdCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
                 </div>
               </div>
+              <div className="form-section-title">The recording</div>
+              <div>
+                <label htmlFor="cd-rec" className="form-label form-label-required">Link to the call recording</label>
+                <input id="cd-rec" type="url" value={cdRecording}
+                  onChange={function(e) { setCdRecording(e.target.value); }}
+                  className="input-field" required
+                  placeholder="https://fathom.video/share/… or Zoom, Grain, Drive…" />
+                <p className="sub-note">
+                  Required. Paste the share link from wherever the call was recorded — this is what makes
+                  the deal auditable, so it cannot be filed without one.
+                </p>
+              </div>
+
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <DollarSign className="w-4 h-4" />}
                 {submitting ? 'Submitting...' : 'Close Deal & Celebrate!'}
@@ -1061,6 +1079,19 @@ export default function SubmitPage() {
                   onChange={function(e) { setAcNotes(e.target.value); }}
                   className="input-field" rows={5}
                   placeholder="What they said, what they objected to, what you promised." />
+              </div>
+
+              <div className="form-section-title">The recording</div>
+              <div>
+                <label htmlFor="ac-rec" className="form-label form-label-required">Link to the call recording</label>
+                <input id="ac-rec" type="url" value={acRecording}
+                  onChange={function(e) { setAcRecording(e.target.value); }}
+                  className="input-field" required
+                  placeholder="https://fathom.video/share/… or Zoom, Grain, Drive…" />
+                <p className="sub-note">
+                  Required. Paste the share link from wherever the call was recorded — this is what makes
+                  the report auditable, so it cannot be filed without one.
+                </p>
               </div>
 
               <button type="submit" disabled={submitting}

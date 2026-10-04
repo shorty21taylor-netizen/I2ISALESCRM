@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { syncBookedCall, syncClosedDeal } from '@/lib/pipeline-sync';
 import { initStore, addBookedCall, addClosedDeal, addEODReport, addAfterCallReport, registerCloser, addIngestAttempt, getIngestAttempts } from '@/lib/store';
 import { callerEmail, OWNER_EMAIL } from '@/lib/access';
-import { normalizeSubmission, resolveFormType, checkEODSanity } from '@/lib/form-ingest';
+import { normalizeSubmission, resolveFormType, checkEODSanity, recordingFieldOf } from '@/lib/form-ingest';
 import { sendFormNotification } from '@/lib/notify-server';
 import { getIngestKey, authorizeIngestKey, resolveClaimedWorkspace } from '@/lib/ingest-auth';
+import { normalizeRecording, withRecording } from '@/lib/call-recording';
 
 // Public ingest endpoint for the hosted n8n forms.
 //
@@ -140,6 +141,18 @@ export async function POST(req) {
         return NextResponse.json({ error: insane }, { status: 400, headers: cors() });
       }
     }
+    // A call that scores needs its tape, here too. This route is public and keyed,
+    // so leaving it un-gated would make the requirement a front-end suggestion with
+    // the bypass one POST away.
+    if (type === 'close-deal' || type === 'after-call') {
+      var tape = normalizeRecording(recordingFieldOf(norm.flat) || record.recordingUrl);
+      if (!tape.ok) {
+        note(req, { status: 'rejected', reason: tape.reason, keyPresented: sawKey, type: type, requestedType: requestedType });
+        return NextResponse.json({ error: tape.reason, needsRecording: true }, { status: 400, headers: cors() });
+      }
+      record.extra = withRecording(record, tape.url);
+    }
+
     if (type !== 'eod-report' && !record.leadsName) {
       note(req, { status: 'rejected', reason: 'Missing lead name', keyPresented: sawKey, type: type, requestedType: requestedType });
       return NextResponse.json({ error: 'Missing lead name' }, { status: 400, headers: cors() });
