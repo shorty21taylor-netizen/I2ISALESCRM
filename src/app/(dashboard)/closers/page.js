@@ -439,6 +439,12 @@ export default function ClosersPage() {
                     <button className="an-chip" onClick={function() { router.push('/me?rep=' + encodeURIComponent(selected.email)); }}>
                       Open their dashboard
                     </button>
+                    {/* The card a manager posts in the group. Straight to it from
+                        the roster, because going rep -> dashboard -> card to show
+                        the floor one number is three screens too many. */}
+                    <button className="an-chip" onClick={function() { router.push('/me/card?style=kpi&rep=' + encodeURIComponent(selected.email)); }}>
+                      <Target className="w-3.5 h-3.5" /> Their KPI card
+                    </button>
                     {canManage ? (
                       <button className="an-chip" onClick={function() {
                         setRenaming(renaming === selected.email ? '' : selected.email);

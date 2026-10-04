@@ -445,17 +445,25 @@ export default function MyDashboardPage() {
                   Not {p.name}? Set the name you want on this page.
                 </button>
               ) : null}
-              {canEdit ? (
-                <div className="me-id-actions">
+              <div className="me-id-actions">
+                {canEdit ? (
                   <button className="an-chip" onClick={function() { setEditing(!editing); }}>Edit profile</button>
-                  <button className="an-chip" onClick={function() { router.push('/me/card?style=kpi'); }}>
-                    <Target size={12} /> KPI card
-                  </button>
-                  <button className="an-chip" onClick={function() { router.push('/me/card'); }}>
-                    <Share2 size={12} /> Stat card
-                  </button>
-                </div>
-              ) : null}
+                ) : null}
+                {/* A card is a thing to SHOW, not an edit — so a manager looking at
+                    a rep gets these too. They were gated behind canEdit with the
+                    profile editor, which left a manager with no way to build the
+                    card they wanted to post about one of their closers. */}
+                <button className="an-chip" onClick={function() {
+                  router.push('/me/card?style=kpi' + (viewingRep ? '&rep=' + encodeURIComponent(viewingRep) : ''));
+                }}>
+                  <Target size={12} /> KPI card
+                </button>
+                <button className="an-chip" onClick={function() {
+                  router.push('/me/card' + (viewingRep ? '?rep=' + encodeURIComponent(viewingRep) : ''));
+                }}>
+                  <Share2 size={12} /> Stat card
+                </button>
+              </div>
               {saving ? <p className="me-saving">{saving}</p> : null}
             </div>
 

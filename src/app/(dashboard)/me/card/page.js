@@ -159,27 +159,40 @@ export default function StatCardPage() {
   var [copied, setCopied] = useState(false);
   var [style, setStyle] = useState('pnl');
   var [days, setDays] = useState('30');
+  // Whose card. Empty means the signed-in person's own.
+  var [rep, setRep] = useState(null);
 
-  // ?style=kpi so the button on the dashboard can land straight on this card.
+  // ?style=kpi so the button on the dashboard can land straight on this card, and
+  // ?rep= so a manager can build a REP's card to post in the group. Without the
+  // second one this page could only ever render the person holding the session,
+  // which meant a manager had no way to show the floor how one of their closers
+  // was tracking. /api/me decides whether they may: a rep who asks for somebody
+  // else gets their own card back.
   useEffect(function() {
     try {
-      var wanted = new URLSearchParams(window.location.search).get('style');
+      var q = new URLSearchParams(window.location.search);
+      var wanted = q.get('style');
       if (wanted === 'kpi' || wanted === 'stat' || wanted === 'pnl') setStyle(wanted);
+      setRep((q.get('rep') || '').trim());
     } catch (e) { /* nothing worth breaking a card over */ }
   }, []);
 
   useEffect(function() {
-    if (!workspaceId) return;
+    // null until the query string has been read, so the card is never built for
+    // the wrong person on the first pass and then swapped underneath a screenshot.
+    if (!workspaceId || rep === null) return;
     var end = todayInReportTimezone();
     var d = new Date(end + 'T12:00:00');
     d.setDate(d.getDate() - (parseInt(days, 10) - 1));
-    apiFetch(withWorkspace('/api/me?start=' + toReportDay(d) + '&end=' + end, workspaceId))
+    var path = '/api/me?start=' + toReportDay(d) + '&end=' + end
+      + (rep ? '&rep=' + encodeURIComponent(rep) : '');
+    apiFetch(withWorkspace(path, workspaceId))
       .then(function(r) { return r.json(); })
       .then(function(json) { if (json.success) setData(json); })
       .catch(function() {});
-  }, [workspaceId, days]);
+  }, [workspaceId, days, rep]);
 
-  if (!data) return <div className="card-stage" style={{ color: 'var(--crm-muted)' }}>Building your card…</div>;
+  if (!data) return <div className="card-stage" style={{ color: 'var(--crm-muted)' }}>Building the card…</div>;
 
   var p = data.profile;
   var life = data.stats.lifetime;
@@ -352,7 +365,9 @@ export default function StatCardPage() {
         ) : null}
 
         <div className="card-actions">
-          <button className="an-btn-ghost" onClick={function() { router.push('/me'); }}>
+          <button className="an-btn-ghost" onClick={function() {
+            router.push(rep ? '/me?rep=' + encodeURIComponent(rep) : '/me');
+          }}>
             <ArrowLeft size={14} /> Back
           </button>
           <button className="an-btn" onClick={copyText}>
