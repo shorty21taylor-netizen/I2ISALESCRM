@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initStore, getAllCloserProfiles } from '@/lib/store';
-import { callerEmail, effectiveReadWorkspace } from '@/lib/access';
+import { initStore, getAllCloserProfiles, getStore, getWorkspaceUserList } from '@/lib/store';
+import { callerEmail, effectiveReadWorkspace, ALL_WORKSPACES as ACCESS_ALL } from '@/lib/access';
 import { scopeProfiles } from '@/lib/rep-roster-scope';
 import { listUsers } from '@/lib/users';
 import { repIdentity } from '@/lib/rep-stats';
@@ -31,6 +31,42 @@ export async function GET(req) {
     // lists people the whole account's floor.
     var workspaceId = await effectiveReadWorkspace(req, new URL(req.url).searchParams.get('workspace'));
     var profiles = scopeProfiles(getAllCloserProfiles() || {}, workspaceId);
+
+    // The roster rows an admin created, folded in — the same thing /api/closers
+    // already does, and for the same reason. A closer profile is only created by
+    // whichever form first carried somebody's email, so a rep onboarded through
+    // Team & Permissions does not have one until their first submission. This
+    // list is what the rep pickers on every submit form are built from, so
+    // without the fold a manager adds three reps and then finds an empty dropdown
+    // — with nobody to pick until each of them has already filed something, which
+    // is the thing the dropdown exists to make possible.
+    var roster = Array.isArray(workspaceId) || workspaceId === ACCESS_ALL
+      ? (getStore().workspaceUsers || [])
+      : await getWorkspaceUserList(workspaceId).catch(function() { return []; });
+    if (Array.isArray(workspaceId)) {
+      roster = roster.filter(function(u) { return workspaceId.indexOf(u.workspaceId) !== -1; });
+    }
+    (roster || []).forEach(function(member) {
+      if (!member || !member.email) return;
+      var key = String(member.email).toLowerCase();
+      if (profiles[key]) {
+        // The roster's name only fills a gap. A profile that already has one has
+        // been through renameCloser, which is a manager's deliberate correction
+        // and outranks whatever the membership row was created with.
+        if (member.name && !profiles[key].displayName && !profiles[key].name) {
+          profiles[key] = Object.assign({}, profiles[key], { name: member.name });
+        }
+        return;
+      }
+      profiles[key] = {
+        email: key,
+        name: member.name || key.split('@')[0],
+        // Deactivated on the roster is off the floor, the same as archived.
+        archivedAt: member.active === false ? (member.deactivatedAt || true) : null,
+        fromRosterOnly: true,
+      };
+    });
+
     var reps = Object.keys(profiles).map(function(email) {
       var profile = profiles[email];
       var account = byEmail[email];
@@ -45,6 +81,9 @@ export async function GET(req) {
         name: identity.name,
         names: identity.matchNames,
         photo: photoId(email, profile && profile.avatarUrl),
+        // Off the roster. Their records still count in every total — this only
+        // says they should not be offered as somebody to file a new one against.
+        archived: !!(profile && profile.archivedAt),
         status: effectiveStatus(profile),
       };
     });

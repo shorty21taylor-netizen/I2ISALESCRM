@@ -5144,3 +5144,11 @@ html, body { overflow-x: clip; }
 
 /* The target inputs, folded under the scorecard on a rep's panel. */
 .cl-target-fold { margin-top: 2px; }
+
+/* Rep pickers on the submit forms. */
+.rp { display: flex; flex-direction: column; gap: 5px; }
+.rp-back {
+  align-self: flex-start; border: 0; background: transparent; padding: 0;
+  cursor: pointer; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--crm-accent); text-decoration: underline;
+}

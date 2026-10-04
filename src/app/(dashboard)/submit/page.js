@@ -8,6 +8,8 @@ import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
 import SubmitCelebration from '@/components/SubmitCelebration';
 import EodAutofill from '@/components/EodAutofill';
+import RepPicker from '@/components/RepPicker';
+import useRoster from '@/lib/use-roster';
 import { toReportDay } from '@/lib/report-date';
 
 // The icon set an admin picks from. Stored as a name on the form row so the
@@ -105,6 +107,9 @@ export default function SubmitPage() {
   // "All workspaces" is a viewing mode, not a destination — let the server default
   // to the primary workspace rather than stamping a placeholder id.
   var submitWorkspaceId = (!workspaceId || workspaceId === ALL_WORKSPACES) ? undefined : workspaceId;
+  // The floor, for every name field on every form. One fetch, scoped to the
+  // workspace being filed into, refetched when it is switched.
+  var roster = useRoster();
   var s1 = useState('book-call'), activeTab = s1[0], setActiveTab = s1[1];
   var s2 = useState([]), submissions = s2[0], setSubmissions = s2[1];
   var s3 = useState(false), submitting = s3[0], setSubmitting = s3[1];
@@ -793,12 +798,12 @@ export default function SubmitPage() {
               <div className="form-section-title">Team</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Setter</label>
-                  <input type="text" value={bcSetter} onChange={function(e) { setBcSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
+                  <label htmlFor="bc-setter" className="form-label">Setter</label>
+                  <RepPicker id="bc-setter" value={bcSetter} onChange={setBcSetter} reps={roster.reps} ready={roster.ready} placeholder="Who set it" />
                 </div>
                 <div>
-                  <label className="form-label">Closer</label>
-                  <input type="text" value={bcCloser} onChange={function(e) { setBcCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
+                  <label htmlFor="bc-closer" className="form-label">Closer</label>
+                  <RepPicker id="bc-closer" value={bcCloser} onChange={setBcCloser} reps={roster.reps} ready={roster.ready} placeholder="Who takes it" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -945,12 +950,12 @@ export default function SubmitPage() {
               <div className="form-section-title">Team</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Setter</label>
-                  <input type="text" value={cdSetter} onChange={function(e) { setCdSetter(e.target.value); }} className="input-field" placeholder="Setter name" />
+                  <label htmlFor="cd-setter" className="form-label">Setter</label>
+                  <RepPicker id="cd-setter" value={cdSetter} onChange={setCdSetter} reps={roster.reps} ready={roster.ready} placeholder="Who set it" />
                 </div>
                 <div>
-                  <label className="form-label">Closer</label>
-                  <input type="text" value={cdCloser} onChange={function(e) { setCdCloser(e.target.value); }} className="input-field" placeholder="Auto-filled from login" />
+                  <label htmlFor="cd-closer" className="form-label">Closer</label>
+                  <RepPicker id="cd-closer" value={cdCloser} onChange={setCdCloser} reps={roster.reps} ready={roster.ready} placeholder="Who closed it" />
                 </div>
               </div>
               <div className="form-section-title">The recording</div>
@@ -994,7 +999,7 @@ export default function SubmitPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="eod-rep" className="form-label form-label-required">Sales Rep</label>
-                  <input id="eod-rep" type="text" value={eodSalesRep} onChange={function(e) { setEodSalesRep(e.target.value); }} className="input-field" placeholder="Your name" required />
+                  <RepPicker id="eod-rep" value={eodSalesRep} onChange={setEodSalesRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
                 </div>
                 <div>
                   <label htmlFor="eod-date" className="form-label">Date</label>
@@ -1095,9 +1100,7 @@ export default function SubmitPage() {
                 </div>
                 <div>
                   <label htmlFor="ac-closer" className="form-label">Closer</label>
-                  <input id="ac-closer" type="text" value={acCloser}
-                    onChange={function(e) { setAcCloser(e.target.value); }}
-                    className="input-field" placeholder="Your name" />
+                  <RepPicker id="ac-closer" value={acCloser} onChange={setAcCloser} reps={roster.reps} ready={roster.ready} placeholder="Who took the call" />
                 </div>
                 <div>
                   <label htmlFor="ac-phone" className="form-label">Lead&apos;s Phone</label>
@@ -1185,9 +1188,7 @@ export default function SubmitPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>
-                  <input id="dm-rep" type="text" value={dmRep}
-                    onChange={function(e) { setDmRep(e.target.value); }}
-                    className="input-field" required />
+                  <RepPicker id="dm-rep" value={dmRep} onChange={setDmRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
                 </div>
                 <div>
                   <label htmlFor="dm-date" className="form-label">Date</label>
