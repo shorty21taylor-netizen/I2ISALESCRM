@@ -4751,3 +4751,116 @@ html, body { overflow-x: clip; }
 .kpi-card.sc-card .kpi-foot {
   border-top: 1px solid var(--crm-divider); padding-top: 12px;
 }
+
+/* ============================================ */
+/* THE ROSTER                                   */
+/* ============================================ */
+.cl-body {
+  display: flex; gap: 20px; padding: 20px 16px 48px;
+  align-items: flex-start;
+}
+@media (min-width: 768px) { .cl-body { padding: 24px 32px 56px; } }
+/* On a phone the roster stacks above the person rather than squeezing into a
+   column nobody can read a name in. */
+@media (max-width: 900px) { .cl-body { flex-direction: column; } }
+.cl-list-col { width: 320px; flex: none; }
+@media (max-width: 900px) { .cl-list-col { width: 100%; } }
+.cl-detail-col { flex: 1; min-width: 0; width: 100%; }
+
+.cl-search {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 14px; border-bottom: 1px solid var(--crm-divider);
+}
+.cl-search input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  font-family: inherit; font-size: 13px; color: var(--crm-text);
+}
+.cl-search input::placeholder { color: var(--crm-text-muted); }
+
+.cl-list { max-height: calc(100vh - 230px); overflow-y: auto; }
+@media (max-width: 900px) { .cl-list { max-height: 340px; } }
+.cl-row {
+  width: 100%; display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px; cursor: pointer; text-align: left;
+  background: none; border: 0; border-left: 2px solid transparent;
+  transition: background 0.15s ease;
+}
+.cl-row:hover { background: var(--glass-surface-hover); }
+.cl-row.on {
+  background: rgba(var(--accent-rgb),0.10);
+  border-left-color: var(--crm-accent);
+}
+.cl-row-av {
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 13px;
+  background: var(--glass-surface-bg); color: var(--crm-text-muted);
+  border: 1px solid var(--crm-divider);
+}
+.cl-row.on .cl-row-av { color: var(--crm-accent); border-color: rgba(var(--accent-rgb),0.4); }
+.cl-row-id { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.cl-row-name {
+  font-size: 13.5px; font-weight: 600; color: var(--crm-text-bright);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cl-row-tag {
+  font-style: normal; margin-left: 7px; font-size: 9.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--crm-text-muted);
+}
+.cl-row-mail {
+  font-size: 11.5px; color: var(--crm-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cl-row-cash {
+  font-family: var(--font-mono); font-size: 12px; color: var(--crm-positive);
+  font-variant-numeric: tabular-nums; flex: none;
+}
+
+.cl-id { display: flex; gap: 16px; padding: 20px 22px; align-items: flex-start; }
+.cl-id-av {
+  width: 52px; height: 52px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 20px;
+  background: rgba(var(--accent-rgb),0.12); color: var(--crm-accent);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+}
+.cl-id-name {
+  margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--crm-text-bright);
+}
+.cl-id-meta {
+  margin: 5px 0 0; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: 12px; color: var(--crm-text-muted);
+}
+.cl-id-dot { opacity: 0.5; margin: 0 3px; }
+.cl-id-acts { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+.cl-danger { color: var(--crm-negative); }
+.cl-danger:hover { border-color: rgba(var(--negative-rgb),0.4); }
+.cl-warn { margin: 8px 0 0; font-size: 11.5px; color: var(--crm-warning); }
+.cl-hint { font-size: 11.5px; line-height: 1.55; color: var(--crm-text-muted); }
+.cl-rename {
+  margin-top: 14px; padding: 14px; border-radius: var(--r-card);
+  border: 1px solid var(--crm-divider); background: var(--glass-surface-bg);
+}
+
+/* Adding somebody: one row, because it is three fields and a button. */
+.cl-addrow {
+  display: grid; grid-template-columns: 1.4fr 1.4fr 0.8fr auto; gap: 14px;
+  padding: 18px 20px; align-items: end;
+}
+@media (max-width: 860px) { .cl-addrow { grid-template-columns: 1fr; align-items: stretch; } }
+.cl-addrow-go { display: flex; gap: 8px; align-items: center; }
+.cl-addrow-note { grid-column: 1 / -1; margin: 0; }
+.cl-add-btn { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 8px 14px; }
+
+/* Targets: the number asked for, with where they are under it. */
+.cl-target-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px;
+}
+.cl-target { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cl-target-l { font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted); }
+.cl-target-now { font-size: 11.5px; color: var(--crm-text-muted); }
+.cl-target-foot {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--crm-divider);
+}
+.cl-target-foot .cl-hint { flex: 1; min-width: 220px; }

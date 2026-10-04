@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility, renameCloser } from '@/lib/store';
-import { callerEmail, OWNER_EMAIL, effectiveReadWorkspace } from '@/lib/access';
+import { getAllCloserProfiles, getStore, initStore, archiveCloser, restoreCloser, setSetterEligibility, renameCloser, getWorkspaceUserList, setMemberActive } from '@/lib/store';
+import { effectiveReadWorkspace, effectiveWriteWorkspace, resolveAccess, ALL_WORKSPACES as ACCESS_ALL } from '@/lib/access';
 import { scopeProfiles } from '@/lib/rep-roster-scope';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 
@@ -8,17 +8,31 @@ import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
 export async function POST(req) {
   await initStore();
   try {
-    if ((await callerEmail(req)) !== OWNER_EMAIL) {
-      return NextResponse.json({ error: 'Operator access required' }, { status: 403 });
+    // A manager runs their own floor. This was pinned to one hardcoded address,
+    // so on any workspace but the first nobody could take a leaver off the board.
+    var access = await resolveAccess(req);
+    if (!access.canSeeTeam) {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 });
     }
+    var target = await effectiveWriteWorkspace(req, null);
     var body = await req.json();
     var action = body.action;
     if (!body.email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
     var result;
-    if (action === 'archive') result = archiveCloser(body.email);
-    else if (action === 'restore') result = restoreCloser(body.email);
-    else if (action === 'setter-exclude') result = setSetterEligibility(body.email, false);
+    if (action === 'archive' || action === 'restore') {
+      var leaving = action === 'archive';
+      // Somebody comes off the floor in two places: the closer profile the boards
+      // read, and the roster membership that lets them sign in. Archiving only the
+      // first left a leaver able to log in, and left a rep who had never filed
+      // anything — who has no profile at all — impossible to remove.
+      result = leaving ? archiveCloser(body.email) : restoreCloser(body.email);
+      await setMemberActive(target, body.email, !leaving).catch(function(e) {
+        console.error('[Closers] roster membership:', e.message);
+      });
+      // No closer profile is not a failure when the roster row was the point.
+      if (result && result.error) result = { profile: null };
+    } else if (action === 'setter-exclude') result = setSetterEligibility(body.email, false);
     else if (action === 'setter-include') result = setSetterEligibility(body.email, true);
     else if (action === 'rename') result = renameCloser(body.email, body.name);
     else return NextResponse.json({ error: "action must be 'archive', 'restore', 'rename', 'setter-exclude' or 'setter-include'" }, { status: 400 });
@@ -42,6 +56,41 @@ export async function GET(req) {
     var profiles = scopeProfiles(getAllCloserProfiles(), workspaceId);
     var store = getStore();
     var today = todayInReportTimezone();
+
+    // A closer profile is created by whichever form first carried somebody's
+    // email, so this list used to show only people who had already filed
+    // something. Anybody added to the roster — which is how a manager onboards a
+    // rep — was invisible here until their first submission, so adding them
+    // looked like it had silently failed. The roster is folded in, and a rep who
+    // has filed nothing yet shows with zeros rather than not at all.
+    // The combined view belongs to no single workspace, so ask for every roster
+    // rather than one that does not exist — otherwise a rep who has filed nothing
+    // yet vanishes the moment an operator switches to All Workspaces.
+    var roster = Array.isArray(workspaceId) || workspaceId === ACCESS_ALL
+      ? (getStore().workspaceUsers || [])
+      : await getWorkspaceUserList(workspaceId).catch(function() { return []; });
+    if (Array.isArray(workspaceId)) {
+      roster = roster.filter(function(u) { return workspaceId.indexOf(u.workspaceId) !== -1; });
+    }
+    (roster || []).forEach(function(member) {
+      if (!member || !member.email) return;
+      var key = String(member.email).toLowerCase();
+      if (profiles[key]) {
+        // Prefer the roster's name: it is what a manager typed, where a profile
+        // name is whatever a form happened to carry.
+        if (member.name) profiles[key] = Object.assign({}, profiles[key], { name: profiles[key].name || member.name });
+        return;
+      }
+      profiles[key] = {
+        email: key,
+        name: member.name || key.split('@')[0],
+        registeredAt: member.joinedAt || '',
+        archived: member.active === false,
+        archivedAt: member.deactivatedAt || null,
+        excludedFromSetterBoard: false,
+        fromRosterOnly: true,
+      };
+    });
 
     var closers = Object.values(profiles).map(function(profile) {
       var name = profile.name;
