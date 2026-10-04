@@ -169,8 +169,8 @@ function Award({ a }) {
 function Stat({ label, value, sub, tone }) {
   return (
     <div className="me-stat">
-      <p className="me-stat-l">{label}</p>
       <p className="me-stat-v" style={tone ? { color: tone } : {}}>{value}</p>
+      <p className="me-stat-l">{label}</p>
       {sub ? <p className="me-stat-s">{sub}</p> : null}
     </div>
   );
@@ -182,6 +182,116 @@ function Record({ label, value, sub }) {
       <span className="me-rec-l">{label}</span>
       <span className="me-rec-v">{value}</span>
       {sub ? <span className="me-rec-s">{sub}</span> : null}
+    </div>
+  );
+}
+
+// The targets a manager set, and exactly what it takes to hit them today.
+//
+// Every figure here comes off computeKpiProgress; nothing is recomputed. The
+// pace notch marks where the month is, so "behind" is something a rep can see
+// rather than something the page asserts. A rate is never paced — half a month
+// gone does not mean half a close rate — so it compares against the target flat.
+function KpiPace({ kpis, canSetTargets, onSetTargets }) {
+  if (!kpis || !kpis.kpis || !kpis.kpis.length) return null;
+  var rows = kpis.kpis;
+  var paced = rows.filter(function(r) { return r.target !== null; });
+  var onPace = paced.filter(function(r) { return r.onTrack === true; }).length;
+
+  function fmt(kpi, v) {
+    if (v === null || v === undefined) return '—';
+    if (kpi.kind === 'money') return formatCurrency(v);
+    if (kpi.kind === 'rate') return v + '%';
+    return Number(v).toLocaleString('en-US');
+  }
+
+  return (
+    <div className="glass-card no-lift mek mb-4">
+      <div className="mek-h">
+        <h3 className="mek-h-t">Your targets this month</h3>
+        <span className="mek-h-rule" />
+        <span className="mek-h-n">
+          {paced.length > 0
+            ? onPace + ' of ' + paced.length + ' on pace · ' + kpis.weekdaysLeft
+              + ' working ' + (kpis.weekdaysLeft === 1 ? 'day' : 'days') + ' left'
+            : kpis.weekdaysLeft + ' working ' + (kpis.weekdaysLeft === 1 ? 'day' : 'days') + ' left'}
+        </span>
+      </div>
+
+      {paced.length === 0 ? (
+        <p className="mek-empty">
+          No targets set yet.{' '}
+          {canSetTargets
+            ? <>Set them and this page will pace you against them every day.</>
+            : <>Your manager sets these, and this page will then show exactly what it takes to hit them.</>}
+          {canSetTargets ? (
+            <><br /><button className="an-chip mt-3" onClick={onSetTargets}>Set targets</button></>
+          ) : null}
+        </p>
+      ) : (
+        <div className="mek-rows">
+          {rows.map(function(r) {
+            var has = r.target !== null;
+            var tone = !has ? 'none' : (r.onTrack === false ? 'behind' : 'good');
+            var pct = (r.percent === null) ? 0 : Math.max(0, Math.min(100, r.percent));
+            var pacePct = (kpis.weekdaysTotal > 0 && r.kind !== 'rate')
+              ? Math.min(100, Math.round((kpis.weekdaysElapsed / kpis.weekdaysTotal) * 100))
+              : null;
+            return (
+              <div className="mek-row" key={r.key}>
+                <div className="mek-row-top">
+                  <span className="mek-l">{r.label}</span>
+                  <span className="mek-v">
+                    {fmt(r, r.actual)}
+                    {has ? <span className="of"> of {fmt(r, r.target)}</span> : null}
+                  </span>
+                </div>
+
+                <div className="mek-bar">
+                  <span className={'mek-fill ' + tone} style={{ width: pct + '%' }} />
+                  {has && pacePct !== null ? (
+                    <span className="mek-pace" style={{ left: pacePct + '%' }} />
+                  ) : null}
+                </div>
+
+                <div className="mek-math">
+                  {!has ? (
+                    <span className="mek-chip none">No target set</span>
+                  ) : r.kind === 'rate' ? (
+                    <>
+                      <span className={'mek-chip ' + tone}>
+                        {r.onTrack ? 'At target' : 'Under target'}
+                      </span>{' '}
+                      {r.actual === null
+                        ? <>nothing to measure it over yet</>
+                        : <>you are at <b>{r.actual}%</b> against a <b>{r.target}%</b> target</>}
+                    </>
+                  ) : r.remaining === 0 ? (
+                    <><span className="mek-chip good">Hit</span> target met with {' '}
+                      <b>{kpis.weekdaysLeft}</b> {kpis.weekdaysLeft === 1 ? 'day' : 'days'} to spare</>
+                  ) : (
+                    <>
+                      <span className={'mek-chip ' + tone}>
+                        {r.onTrack ? 'On pace' : 'Behind'}
+                      </span>{' '}
+                      <b>{fmt(r, r.remaining)}</b> to go
+                      {r.expectedByNow !== null
+                        ? <> · should be at <b>{fmt(r, r.expectedByNow)}</b> by today</>
+                        : null}
+                      {r.neededPerDay !== null
+                        ? <> · <b>{fmt(r, r.neededPerDay)}</b> a day for the last <b>{kpis.weekdaysLeft}</b></>
+                        : null}
+                      {r.projected !== null
+                        ? <> · on this pace you finish at <b>{fmt(r, r.projected)}</b></>
+                        : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -201,7 +311,7 @@ export default function MyDashboardPage() {
   var [awardData, setAwardData] = useState(null);
   var [saving, setSaving] = useState('');
   var [editing, setEditing] = useState(false);
-  var [form, setForm] = useState({ displayName: '', tagline: '', bio: '', monthlyGoal: '' });
+  var [form, setForm] = useState({ displayName: '', tagline: '', bio: '', monthlyGoal: '', kpiTargets: {} });
 
   var start = daysAgo(range);
   var end = todayInReportTimezone();
@@ -225,6 +335,12 @@ export default function MyDashboardPage() {
             tagline: json.profile.tagline || '',
             bio: json.profile.bio || '',
             monthlyGoal: json.profile.monthlyGoal ? String(json.profile.monthlyGoal) : '',
+            kpiTargets: (function() {
+              var t = json.profile.kpiTargets || {};
+              var out = {};
+              Object.keys(t).forEach(function(k) { out[k] = String(t[k]); });
+              return out;
+            })(),
           });
           setError('');
         }
@@ -300,7 +416,6 @@ export default function MyDashboardPage() {
   var comm = data.commissions.summary || {};
   var initials = (p.name || '?').split(' ').map(function(w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
   var daily = (per.daily || []).map(function(d) { return Object.assign({}, d, { label: shortDay(d.date) }); });
-  var goal = data.goal;
   var canEdit = data.canEdit;
   var needsSetup = canEdit && !p.onboarded && !p.avatarUrl && !p.monthlyGoal;
   var today = data.today;
@@ -463,13 +578,19 @@ export default function MyDashboardPage() {
           </div>
         </div>
 
-        {/* ---- the numbers that matter ---- */}
+        {/* ---- what the manager asked for, and what it takes to get there ---- */}
+        <KpiPace
+          kpis={data.kpis}
+          canSetTargets={canEdit || data.viewingSomeoneElse}
+          onSetTargets={function() { setEditing(true); }}
+        />
+
+        {/* ---- the standing numbers ---- */}
         <div className="me-stats mb-4">
           <Stat label="Close rate" value={pct(life.closeRate)} sub={num(life.offers) + ' offers made'} />
           <Stat label="Cash per call" value={cash(life.cashPerCall)} sub={num(life.callsTaken) + ' calls held'} />
           <Stat label="Average deal" value={cash(life.avgDeal)} sub="lifetime" />
           <Stat label="Show rate" value={pct(life.showRate)} sub="of your booked calls" />
-          <Stat label="This period" value={formatCurrency(per.cash)} sub={num(per.deals) + ' deals · ' + pct(per.closeRate) + ' close rate'} tone="#22c55e" />
           <Stat label="EOD streak" value={num(rec.currentStreak)} sub={'best ' + num(rec.longestStreak) + ' weekdays'} />
         </div>
 
@@ -492,6 +613,34 @@ export default function MyDashboardPage() {
                 <input value={form.monthlyGoal} inputMode="numeric" placeholder="50000"
                   onChange={function(e) { setForm(Object.assign({}, form, { monthlyGoal: e.target.value.replace(/[^0-9]/g, '') })); }} />
               </label>
+              {/* The targets the pace block measures against. One box per KPI this
+                  rep's role is actually measured on, so a closer is never asked for
+                  a dial target. The server drops anything outside that set, and a
+                  manager editing someone else may change these and nothing else. */}
+              {(data.kpis && data.kpis.kpis ? data.kpis.kpis : []).map(function(k) {
+                return (
+                  <label className="an-field" key={k.key}>
+                    <span>
+                      {k.label} target{k.kind === 'money' ? ' ($)' : (k.kind === 'rate' ? ' (%)' : '')}
+                    </span>
+                    <input
+                      value={k.key === 'cash' ? form.monthlyGoal : (form.kpiTargets[k.key] || '')}
+                      inputMode="decimal"
+                      placeholder={k.kind === 'rate' ? '30' : (k.kind === 'money' ? '50000' : '20')}
+                      onChange={function(e) {
+                        var v = e.target.value.replace(/[^0-9.]/g, '');
+                        // Cash is the monthly goal the rest of the page already
+                        // paces against — one number, not two that can disagree.
+                        if (k.key === 'cash') { setForm(Object.assign({}, form, { monthlyGoal: v })); return; }
+                        var next = Object.assign({}, form.kpiTargets);
+                        next[k.key] = v;
+                        setForm(Object.assign({}, form, { kpiTargets: next }));
+                      }}
+                    />
+                  </label>
+                );
+              })}
+
               <label className="an-field md:col-span-3">
                 <span>Bio <i className="me-count">{form.bio.length}/280</i></span>
                 <textarea rows={3} value={form.bio} maxLength={280}
@@ -505,6 +654,7 @@ export default function MyDashboardPage() {
                     tagline: form.tagline,
                     bio: form.bio,
                     monthlyGoal: form.monthlyGoal || 0,
+                    kpiTargets: form.kpiTargets,
                     onboarded: true,
                   }, function() { setEditing(false); });
                 }}>Save profile</button>
@@ -593,47 +743,10 @@ export default function MyDashboardPage() {
           </div>
         ) : null}
 
-        {goal && goal.goal > 0 ? (
-          <div className="me-goal glass-card mb-4">
-            <div className="me-goal-head">
-              <span className="me-goal-icon"><Target size={15} /></span>
-              <div>
-                <p className="me-goal-l">{monthName(goal.month)} target</p>
-                <p className="me-goal-v">
-                  {formatCurrency(goal.collected)} <span>of {formatCurrency(goal.goal)}</span>
-                </p>
-              </div>
-              <div className="me-goal-verdict">
-                <span className={'me-goal-pill ' + (goal.onTrack ? 'ok' : 'behind')}>
-                  {goal.onTrack ? 'On pace' : 'Behind pace'}
-                </span>
-                <p className="me-goal-proj">
-                  {goal.weekdaysLeft > 0
-                    ? <>on this pace you finish at <b>{formatCurrency(goal.projected)}</b></>
-                    : <>month closed</>}
-                </p>
-              </div>
-            </div>
-            <span className="me-goal-bar">
-              <i style={{ width: Math.min(100, goal.percent || 0) + '%' }} />
-              {goal.weekdaysTotal > 0 ? (
-                <em className="me-goal-now"
-                  style={{ left: Math.min(100, Math.round((goal.weekdaysElapsed / goal.weekdaysTotal) * 100)) + '%' }} />
-              ) : null}
-            </span>
-            <p className="me-goal-foot">
-              {goal.percent}% of target · {goal.weekdaysLeft} working {goal.weekdaysLeft === 1 ? 'day' : 'days'} left
-              {goal.shortfall > 0 && goal.weekdaysLeft > 0
-                ? <> · {formatCurrency(goal.neededPerDay)} a day to close the gap</>
-                : null}
-              {goal.shortfall === 0 ? <> · target hit</> : null}
-            </p>
-          </div>
-        ) : canEdit && !needsSetup ? (
-          <button className="me-goal-empty glass-card mb-4" onClick={function() { setEditing(true); }}>
-            <Target size={15} /> Set a monthly cash target and this page will pace you against it.
-          </button>
-        ) : null}
+        {/* The standalone monthly-target card lived here. It is gone: the KPI block
+            above carries the same cash figure, the same pace notch and the same
+            per-day arithmetic, and two cards describing one number is how a page
+            ends up disagreeing with itself. */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           {/* ---- bonuses ---- */}

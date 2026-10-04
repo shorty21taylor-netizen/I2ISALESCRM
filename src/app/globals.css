@@ -1294,11 +1294,13 @@
   border-bottom: 1px solid var(--divider-color);
   background: var(--section-header-bg);
 }
+/* Sentence case, matching .td-section-t. Uppercase tracked-out labels on every
+   card header was the single most template-looking thing in the product. */
 .an-card-t {
-  margin: 0; font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--crm-text-bright);
+  margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  letter-spacing: 0.005em; color: var(--crm-text-bright);
 }
-.an-card-n { font-size: 10.5px; color: var(--crm-muted); }
+.an-card-n { font-size: 11.5px; color: var(--crm-text-muted); }
 
 .an-hero {
   border-radius: 14px;
@@ -1890,6 +1892,8 @@ html.light .nav-link.active .nav-icon { filter: none; }
   justify-content: space-between; padding: 16px 22px; border-radius: var(--r-card);
   border: 1px dashed var(--crm-border-hover); background: var(--glass-surface-bg);
 }
+.dh-goal-bar { margin-top: 16px; }
+.dh-goal-foot { margin: 8px 0 0; font-size: 11.5px; color: var(--crm-text-muted); }
 .dh-partner-fig {
   margin: 0; font-family: var(--font-mono); font-size: 24px; font-weight: 500;
   color: var(--crm-text); font-variant-numeric: tabular-nums;
@@ -2420,32 +2424,32 @@ html.light {
 .me-saving { margin: 5px 0 0; font-size: 11.5px; color: var(--crm-warning); }
 
 .me-headline { margin-left: auto; text-align: right; padding-top: 18px; }
-.me-headline-l {
-  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--crm-muted);
-}
+.me-headline-l { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted); }
+/* Lifetime cash is an identity stat, not the number the rep is judged on today.
+   It sits on the profile card in mono, and the hero band below carries the
+   figure that actually moves. */
 .me-headline-v {
-  margin: 3px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 34px;
-  letter-spacing: -0.04em; color: var(--crm-positive); font-variant-numeric: tabular-nums;
+  margin: 4px 0 0; font-family: var(--font-mono); font-weight: 500; font-size: 27px;
+  color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
 }
-.me-headline-s { margin: 2px 0 0; font-size: 11.5px; color: var(--crm-muted); }
+.me-headline-s { margin: 4px 0 0; font-size: 11.5px; color: var(--crm-text-muted); }
 
-.me-stats { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; }
+.me-stats { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
 .me-stat {
   border-radius: var(--r-card); border: 1px solid var(--glass-card-border);
   background: var(--lift), var(--glass-card-bg);
   box-shadow: var(--sheen), var(--ring), var(--e2);
   padding: 13px 15px;
 }
-.me-stat-l {
-  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--crm-muted);
-}
+/* Figure above label, mono tabular figure, sentence-case sans label — the same
+   tile the team and role dashboards use, so a rep reads one language everywhere. */
+.me-stat-l { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted); }
 .me-stat-v {
-  margin: 5px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 24px;
-  letter-spacing: -0.035em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+  margin: 0 0 6px; font-family: var(--font-mono); font-weight: 500; font-size: 25px;
+  letter-spacing: -0.01em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+  line-height: 1.05;
 }
-.me-stat-s { margin: 3px 0 0; font-size: 11px; color: var(--crm-muted); }
+.me-stat-s { margin: 6px 0 0; font-size: 11.5px; color: var(--crm-text-muted); }
 
 .me-comm-total {
   margin: 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 30px;
@@ -2580,10 +2584,7 @@ html.light {
   background: rgba(var(--accent-rgb),0.16); color: var(--crm-accent);
   border: 1px solid rgba(var(--accent-rgb),0.3);
 }
-.me-goal-l {
-  margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--crm-muted);
-}
+.me-goal-l { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--crm-text-muted); }
 .me-goal-v {
   margin: 2px 0 0; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 22px;
   letter-spacing: -0.03em; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
@@ -2594,9 +2595,9 @@ html.light {
   display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: var(--r-pill);
   font-family: 'Outfit', sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em;
 }
-.me-goal-pill.ok { background: rgba(34,197,94,0.14); color: var(--crm-positive); border: 1px solid rgba(34,197,94,0.32); }
-.me-goal-pill.behind { background: rgba(245,158,11,0.14); color: var(--crm-warning); border: 1px solid rgba(245,158,11,0.32); }
-.me-goal-proj { margin: 4px 0 0; font-size: 11.5px; color: var(--crm-muted); }
+.me-goal-pill.ok { background: rgba(var(--positive-rgb),0.14); color: var(--crm-positive); border: 1px solid rgba(var(--positive-rgb),0.32); }
+.me-goal-pill.behind { background: rgba(var(--warning-rgb),0.14); color: var(--crm-warning); border: 1px solid rgba(var(--warning-rgb),0.32); }
+.me-goal-proj { margin: 4px 0 0; font-size: 11.5px; color: var(--crm-text-muted); }
 .me-goal-proj b { color: var(--crm-text-bright); font-weight: 600; }
 .me-goal-bar {
   position: relative; display: block; height: 10px; border-radius: var(--r-pill);
@@ -4445,3 +4446,62 @@ html, body { overflow-x: clip; }
 }
 
 .kpi-empty { font-size: 13px; color: var(--crm-text-muted); text-align: center; padding: 28px 0; }
+
+/* ============================================ */
+/* THE PERSONAL DASHBOARD'S MAIN EVENT          */
+/* ============================================ */
+/*
+   A rep's targets and how far off pace they are. All of this was already being
+   computed — expectedByNow, remaining, neededPerDay, weekdaysLeft — and rendered
+   nowhere except a shareable card behind a button, which meant the page a rep
+   opens every morning never told them what they had to do today.
+
+   The pace notch is the point of the whole block: "behind" is shown rather than
+   asserted, by putting where the month is next to where they are.
+*/
+.mek { padding: 20px 22px; }
+.mek-h { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.mek-h-t {
+  margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  color: var(--crm-text-bright);
+}
+.mek-h-rule { flex: 1; height: 1px; background: var(--crm-divider); min-width: 20px; }
+.mek-h-n { font-size: 11.5px; color: var(--crm-text-muted); }
+.mek-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+@media (max-width: 760px) { .mek-rows { grid-template-columns: 1fr; } }
+.mek-row { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mek-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.mek-l { font-size: 13px; font-weight: 500; color: var(--crm-text-bright); }
+.mek-v {
+  font-family: var(--font-mono); font-size: 17px; font-weight: 500;
+  color: var(--crm-text-bright); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mek-v .of { font-size: 13px; color: var(--crm-text-muted); }
+.mek-bar {
+  position: relative; height: 7px; border-radius: var(--r-pill);
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.mek-fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-pill); transition: width 400ms ease; }
+.mek-fill.good { background: var(--crm-positive); }
+.mek-fill.behind { background: var(--crm-warning); }
+.mek-fill.none { background: var(--crm-text-muted); opacity: 0.3; }
+/* Where the month is. Green bar short of this mark is the definition of behind. */
+.mek-pace {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 2px;
+  background: var(--crm-text-bright); opacity: 0.5;
+}
+/* The arithmetic, spelled out, so nobody has to do it in their head at 8pm. */
+.mek-math { font-size: 12px; line-height: 1.5; color: var(--crm-text-muted); }
+.mek-math b { color: var(--crm-text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+.mek-chip {
+  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.mek-chip.good { background: rgba(var(--positive-rgb),0.13); color: var(--crm-positive); }
+.mek-chip.behind { background: rgba(var(--warning-rgb),0.14); color: var(--crm-warning); }
+.mek-chip.none { background: var(--glass-surface-bg); color: var(--crm-text-muted); }
+.mek-empty {
+  font-size: 13px; line-height: 1.6; color: var(--crm-text-muted);
+  text-align: center; padding: 22px 0;
+}
+.mek-empty b { color: var(--crm-text-bright); font-weight: 600; }
