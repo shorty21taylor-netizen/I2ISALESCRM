@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle, Share2 } from 'lucide-react';
+import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle, Share2, MessageCircle } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -194,6 +194,32 @@ export default function SubmitPage() {
   var e14 = useState(''), eodRevenue = e14[0], setEodRevenue = e14[1];
   var e15 = useState(''), eodPlan = e15[0], setEodPlan = e15[1];
 
+  // After-call report. Until now the only way to file one was a hosted n8n form,
+  // which is a large part of why n8n was still load-bearing for this product.
+  var a1 = useState(''), acLeadsName = a1[0], setAcLeadsName = a1[1];
+  var a2 = useState(''), acLeadsPhone = a2[0], setAcLeadsPhone = a2[1];
+  var a3 = useState(''), acLeadsEmail = a3[0], setAcLeadsEmail = a3[1];
+  var a4 = useState(''), acCloser = a4[0], setAcCloser = a4[1];
+  var a5 = useState(''), acOutcome = a5[0], setAcOutcome = a5[1];
+  var a6 = useState(''), acNextStep = a6[0], setAcNextStep = a6[1];
+  var a7 = useState(''), acNotes = a7[0], setAcNotes = a7[1];
+
+  // DM setter end-of-day. The same EOD record as above, filed against the inbox
+  // funnel rather than the phone one, and carrying Position so eodRole() files it
+  // onto the DM board instead of guessing from the numbers.
+  var m1 = useState(''), dmRep = m1[0], setDmRep = m1[1];
+  var m2 = useState(''), dmDate = m2[0], setDmDate = m2[1];
+  var m3 = useState(''), dmNewLeads = m3[0], setDmNewLeads = m3[1];
+  var m4 = useState(''), dmConversations = m4[0], setDmConversations = m4[1];
+  var m5 = useState(''), dmBooked = m5[0], setDmBooked = m5[1];
+  var m6 = useState(''), dmShowed = m6[0], setDmShowed = m6[1];
+  var m7 = useState(''), dmCloses = m7[0], setDmCloses = m7[1];
+  var m8 = useState(''), dmCash = m8[0], setDmCash = m8[1];
+  var m9 = useState(''), dmGhosted = m9[0], setDmGhosted = m9[1];
+  var m10 = useState(''), dmReactivated = m10[0], setDmReactivated = m10[1];
+  var m11 = useState(''), dmThemes = m11[0], setDmThemes = m11[1];
+  var m12 = useState(''), dmBottleneck = m12[0], setDmBottleneck = m12[1];
+
   useEffect(function() {
     var u = getUser();
     if (u) {
@@ -201,8 +227,11 @@ export default function SubmitPage() {
       setBcCloser(u.name);
       setCdCloser(u.name);
       setEodSalesRep(u.name);
+      setAcCloser(u.name);
+      setDmRep(u.name);
     }
     setEodDate(toReportDay(new Date()));
+    setDmDate(toReportDay(new Date()));
 
     apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
@@ -232,6 +261,20 @@ export default function SubmitPage() {
     setEodDials(''); setEodCashMYFM(''); setEodCashI2I(''); setEodRevenue(''); setEodPlan('');
     setEodSalesRep(user ? user.name : '');
     setEodDate(toReportDay(new Date()));
+  }
+
+  function clearAfterCall() {
+    setAcLeadsName(''); setAcLeadsPhone(''); setAcLeadsEmail('');
+    setAcOutcome(''); setAcNextStep(''); setAcNotes('');
+    setAcCloser(user ? user.name : '');
+  }
+
+  function clearDmEod() {
+    setDmNewLeads(''); setDmConversations(''); setDmBooked(''); setDmShowed('');
+    setDmCloses(''); setDmCash(''); setDmGhosted(''); setDmReactivated('');
+    setDmThemes(''); setDmBottleneck('');
+    setDmRep(user ? user.name : '');
+    setDmDate(toReportDay(new Date()));
   }
 
   // On a phone this is the native share sheet, so a setter can push the calendar
@@ -367,6 +410,67 @@ export default function SubmitPage() {
     setSubmitting(false);
   }
 
+  async function handleSubmitAfterCall(evt) {
+    evt.preventDefault();
+    if (!acLeadsName.trim()) return;
+    setSubmitting(true); setError(''); setSuccessMsg(null);
+    try {
+      var res = await apiFetch('/api/webhooks/after-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadsName: acLeadsName, leadsPhone: acLeadsPhone, leadsEmail: acLeadsEmail,
+          closer: acCloser, outcome: acOutcome, nextStep: acNextStep, callNotes: acNotes,
+          closerEmail: closerEmailFor(acCloser),
+          workspaceId: submitWorkspaceId,
+        }),
+      });
+      var data = await res.json();
+      if (data.success) {
+        setSuccessMsg('After-call report submitted.');
+        clearAfterCall();
+        refreshActivity();
+      } else { setError(data.error || 'Failed to submit'); }
+    } catch (err) { setError('Connection error. Try again.'); }
+    setSubmitting(false);
+  }
+
+  async function handleSubmitDmEod(evt) {
+    evt.preventDefault();
+    if (!dmRep.trim()) return;
+    setSubmitting(true); setError(''); setSuccessMsg(null);
+    try {
+      var res = await apiFetch('/api/webhooks/eod-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salesRep: dmRep, date: dmDate,
+          // Said out loud rather than inferred. eodRole() never reclassifies a
+          // report that names its own position, which matters here because a DM
+          // setter reports closes they did not personally take.
+          position: 'DM Setter',
+          newLeads: dmNewLeads, conversations: dmConversations,
+          netNewCallsBooked: dmBooked, setsShowed: dmShowed, closes: dmCloses,
+          // One cash figure, stored the same way the hosted form's single cash
+          // box already lands (form-ingest puts it in the I2I column), so an
+          // in-app report and an n8n one produce the same record.
+          cashCollectedI2I: dmCash,
+          leadsGhosted: dmGhosted, leadsReactivated: dmReactivated,
+          commonThemes: dmThemes, biggestBottleneck: dmBottleneck,
+          closerEmail: closerEmailFor(dmRep),
+          workspaceId: submitWorkspaceId,
+        }),
+      });
+      var data = await res.json();
+      if (data.success) {
+        setSuccessMsg('DM end-of-day submitted.');
+        clearDmEod();
+        refreshActivity();
+      } else { setError(data.error || 'Failed to submit'); }
+    } catch (err) { setError('Connection error. Try again.'); }
+    setSubmitting(false);
+  }
+
   function refreshActivity() {
     apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
@@ -379,7 +483,9 @@ export default function SubmitPage() {
   var tabs = [
     { id: 'book-call', label: 'Book a Call', icon: Phone, color: 'crm-accent' },
     { id: 'close-deal', label: 'Close a Deal', icon: DollarSign, color: 'crm-positive' },
+    { id: 'after-call', label: 'After-Call', icon: FileText, color: 'crm-accent' },
     { id: 'eod-report', label: 'End-of-Day', icon: ClipboardCheck, color: 'crm-muted' },
+    { id: 'dm-eod', label: 'DM End-of-Day', icon: MessageCircle, color: 'crm-muted' },
   ];
 
   return (
@@ -507,7 +613,11 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {(formLinks || []).length > 0 && (!useExternal || showBuiltIn) && (
+        {/* The in-CRM forms used to be hidden unless the workspace had at least one
+            hosted form row, so a brand new workspace — which has none — showed a
+            rep no way to file anything at all. They render whenever the hosted
+            forms are not being used, or the rep asked for them. */}
+        {(!useExternal || showBuiltIn || (formLinks || []).length === 0) && (
         <div className="space-y-6">
 
         {/* Tab Toggle */}
@@ -918,6 +1028,174 @@ export default function SubmitPage() {
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
                 {submitting ? 'Submitting...' : 'Submit EOD Report'}
+              </button>
+              <WhatsAppStatus formType="eod-report" />
+            </form>
+          </div>
+        )}
+
+        {/* ===== AFTER-CALL REPORT ===== */}
+        {activeTab === 'after-call' && (
+          <div className="glass-card overflow-hidden stagger-1">
+            <div className="section-header">
+              <h3><FileText className="w-4 h-4 text-crm-accent" /> After-Call Report</h3>
+              <span className="section-tag">Sends to WhatsApp</span>
+            </div>
+            <form onSubmit={handleSubmitAfterCall} className="p-6 space-y-5">
+              <div className="form-section-title">Who the call was with</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="ac-name" className="form-label form-label-required">Lead&apos;s Name</label>
+                  <input id="ac-name" type="text" value={acLeadsName}
+                    onChange={function(e) { setAcLeadsName(e.target.value); }}
+                    className="input-field" placeholder="John Smith" required />
+                </div>
+                <div>
+                  <label htmlFor="ac-closer" className="form-label">Closer</label>
+                  <input id="ac-closer" type="text" value={acCloser}
+                    onChange={function(e) { setAcCloser(e.target.value); }}
+                    className="input-field" placeholder="Your name" />
+                </div>
+                <div>
+                  <label htmlFor="ac-phone" className="form-label">Lead&apos;s Phone</label>
+                  <input id="ac-phone" type="tel" value={acLeadsPhone}
+                    onChange={function(e) { setAcLeadsPhone(e.target.value); }}
+                    className="input-field" placeholder="+1 555 000 0000" />
+                </div>
+                <div>
+                  <label htmlFor="ac-email" className="form-label">Lead&apos;s Email</label>
+                  <input id="ac-email" type="email" value={acLeadsEmail}
+                    onChange={function(e) { setAcLeadsEmail(e.target.value); }}
+                    className="input-field" placeholder="john@example.com" />
+                </div>
+              </div>
+
+              <div className="form-section-title">How it went</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="ac-outcome" className="form-label">Outcome</label>
+                  <select id="ac-outcome" value={acOutcome}
+                    onChange={function(e) { setAcOutcome(e.target.value); }} className="input-field">
+                    <option value="">Select an outcome</option>
+                    <option value="Closed">Closed</option>
+                    <option value="Follow-up booked">Follow-up booked</option>
+                    <option value="Thinking about it">Thinking about it</option>
+                    <option value="Not qualified">Not qualified</option>
+                    <option value="No show">No show</option>
+                    <option value="Lost">Lost</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="ac-next" className="form-label">Next Step</label>
+                  <input id="ac-next" type="text" value={acNextStep}
+                    onChange={function(e) { setAcNextStep(e.target.value); }}
+                    className="input-field" placeholder="Follow up Tuesday 2pm" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="ac-notes" className="form-label">Call Notes</label>
+                <textarea id="ac-notes" value={acNotes}
+                  onChange={function(e) { setAcNotes(e.target.value); }}
+                  className="input-field" rows={5}
+                  placeholder="What they said, what they objected to, what you promised." />
+              </div>
+
+              <button type="submit" disabled={submitting}
+                className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {submitting ? 'Submitting...' : 'Submit After-Call Report'}
+              </button>
+              <WhatsAppStatus formType="after-call" />
+            </form>
+          </div>
+        )}
+
+        {/* ===== DM SETTER END-OF-DAY ===== */}
+        {activeTab === 'dm-eod' && (
+          <div className="glass-card overflow-hidden stagger-1">
+            <div className="section-header">
+              <h3><MessageCircle className="w-4 h-4 text-crm-accent" /> DM Setter End-of-Day</h3>
+              <span className="section-tag">Sends to WhatsApp</span>
+            </div>
+            <form onSubmit={handleSubmitDmEod} className="p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>
+                  <input id="dm-rep" type="text" value={dmRep}
+                    onChange={function(e) { setDmRep(e.target.value); }}
+                    className="input-field" required />
+                </div>
+                <div>
+                  <label htmlFor="dm-date" className="form-label">Date</label>
+                  <input id="dm-date" type="date" value={dmDate}
+                    onChange={function(e) { setDmDate(e.target.value); }} className="input-field" />
+                </div>
+              </div>
+
+              <div className="form-section-title">The inbox funnel</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="dm-leads" className="form-label">New Leads</label>
+                  <input id="dm-leads" type="number" min="0" inputMode="numeric" value={dmNewLeads}
+                    onChange={function(e) { setDmNewLeads(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-convos" className="form-label">Conversations Started</label>
+                  <input id="dm-convos" type="number" min="0" inputMode="numeric" value={dmConversations}
+                    onChange={function(e) { setDmConversations(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-booked" className="form-label">Calls Booked</label>
+                  <input id="dm-booked" type="number" min="0" inputMode="numeric" value={dmBooked}
+                    onChange={function(e) { setDmBooked(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-showed" className="form-label">Booked Calls That Showed</label>
+                  <input id="dm-showed" type="number" min="0" inputMode="numeric" value={dmShowed}
+                    onChange={function(e) { setDmShowed(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-closes" className="form-label">Deals Closed</label>
+                  <input id="dm-closes" type="number" min="0" inputMode="numeric" value={dmCloses}
+                    onChange={function(e) { setDmCloses(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-cash" className="form-label">Cash Collected</label>
+                  <input id="dm-cash" type="number" min="0" step="0.01" inputMode="decimal" value={dmCash}
+                    onChange={function(e) { setDmCash(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-ghost" className="form-label">Leads That Went Ghost</label>
+                  <input id="dm-ghost" type="number" min="0" inputMode="numeric" value={dmGhosted}
+                    onChange={function(e) { setDmGhosted(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-react" className="form-label">Dead Leads Reactivated</label>
+                  <input id="dm-react" type="number" min="0" inputMode="numeric" value={dmReactivated}
+                    onChange={function(e) { setDmReactivated(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+              </div>
+
+              <div className="form-section-title">What you saw today</div>
+              <div>
+                <label htmlFor="dm-themes" className="form-label">Common Themes or Patterns</label>
+                <textarea id="dm-themes" value={dmThemes}
+                  onChange={function(e) { setDmThemes(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="What kept coming up in the DMs today." />
+              </div>
+              <div>
+                <label htmlFor="dm-block" className="form-label">Biggest Bottleneck</label>
+                <textarea id="dm-block" value={dmBottleneck}
+                  onChange={function(e) { setDmBottleneck(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="The one thing slowing you down most." />
+              </div>
+
+              <button type="submit" disabled={submitting}
+                className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                {submitting ? 'Submitting...' : 'Submit DM End-of-Day'}
               </button>
               <WhatsAppStatus formType="eod-report" />
             </form>
