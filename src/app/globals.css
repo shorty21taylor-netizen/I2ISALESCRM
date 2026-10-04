@@ -5141,3 +5141,6 @@ html, body { overflow-x: clip; }
 .eod-auto-rest {
   margin: 11px 0 0; font-size: 11px; line-height: 1.6; color: var(--crm-text-muted);
 }
+
+/* The target inputs, folded under the scorecard on a rep's panel. */
+.cl-target-fold { margin-top: 2px; }

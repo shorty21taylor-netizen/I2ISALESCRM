@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Camera, Trophy, Lock, Flame, Crown, Target, Share2, Check, Clock, CalendarDays, ChevronDown, ImagePlus } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
+import KpiPace from '@/components/KpiPace';
 import { getUser } from '@/lib/auth';
 import ClientOnly from '@/components/ClientOnly';
 import AwardsPanel from '@/components/awards/AwardsPanel';
@@ -182,116 +183,6 @@ function Record({ label, value, sub }) {
       <span className="me-rec-l">{label}</span>
       <span className="me-rec-v">{value}</span>
       {sub ? <span className="me-rec-s">{sub}</span> : null}
-    </div>
-  );
-}
-
-// The targets a manager set, and exactly what it takes to hit them today.
-//
-// Every figure here comes off computeKpiProgress; nothing is recomputed. The
-// pace notch marks where the month is, so "behind" is something a rep can see
-// rather than something the page asserts. A rate is never paced — half a month
-// gone does not mean half a close rate — so it compares against the target flat.
-function KpiPace({ kpis, canSetTargets, onSetTargets }) {
-  if (!kpis || !kpis.kpis || !kpis.kpis.length) return null;
-  var rows = kpis.kpis;
-  var paced = rows.filter(function(r) { return r.target !== null; });
-  var onPace = paced.filter(function(r) { return r.onTrack === true; }).length;
-
-  function fmt(kpi, v) {
-    if (v === null || v === undefined) return '—';
-    if (kpi.kind === 'money') return formatCurrency(v);
-    if (kpi.kind === 'rate') return v + '%';
-    return Number(v).toLocaleString('en-US');
-  }
-
-  return (
-    <div className="glass-card no-lift mek mb-4">
-      <div className="mek-h">
-        <h3 className="mek-h-t">Your targets this month</h3>
-        <span className="mek-h-rule" />
-        <span className="mek-h-n">
-          {paced.length > 0
-            ? onPace + ' of ' + paced.length + ' on pace · ' + kpis.weekdaysLeft
-              + ' working ' + (kpis.weekdaysLeft === 1 ? 'day' : 'days') + ' left'
-            : kpis.weekdaysLeft + ' working ' + (kpis.weekdaysLeft === 1 ? 'day' : 'days') + ' left'}
-        </span>
-      </div>
-
-      {paced.length === 0 ? (
-        <p className="mek-empty">
-          No targets set yet.{' '}
-          {canSetTargets
-            ? <>Set them and this page will pace you against them every day.</>
-            : <>Your manager sets these, and this page will then show exactly what it takes to hit them.</>}
-          {canSetTargets ? (
-            <><br /><button className="an-chip mt-3" onClick={onSetTargets}>Set targets</button></>
-          ) : null}
-        </p>
-      ) : (
-        <div className="mek-rows">
-          {rows.map(function(r) {
-            var has = r.target !== null;
-            var tone = !has ? 'none' : (r.onTrack === false ? 'behind' : 'good');
-            var pct = (r.percent === null) ? 0 : Math.max(0, Math.min(100, r.percent));
-            var pacePct = (kpis.weekdaysTotal > 0 && r.kind !== 'rate')
-              ? Math.min(100, Math.round((kpis.weekdaysElapsed / kpis.weekdaysTotal) * 100))
-              : null;
-            return (
-              <div className="mek-row" key={r.key}>
-                <div className="mek-row-top">
-                  <span className="mek-l">{r.label}</span>
-                  <span className="mek-v">
-                    {fmt(r, r.actual)}
-                    {has ? <span className="of"> of {fmt(r, r.target)}</span> : null}
-                  </span>
-                </div>
-
-                <div className="mek-bar">
-                  <span className={'mek-fill ' + tone} style={{ width: pct + '%' }} />
-                  {has && pacePct !== null ? (
-                    <span className="mek-pace" style={{ left: pacePct + '%' }} />
-                  ) : null}
-                </div>
-
-                <div className="mek-math">
-                  {!has ? (
-                    <span className="mek-chip none">No target set</span>
-                  ) : r.kind === 'rate' ? (
-                    <>
-                      <span className={'mek-chip ' + tone}>
-                        {r.onTrack ? 'At target' : 'Under target'}
-                      </span>{' '}
-                      {r.actual === null
-                        ? <>nothing to measure it over yet</>
-                        : <>you are at <b>{r.actual}%</b> against a <b>{r.target}%</b> target</>}
-                    </>
-                  ) : r.remaining === 0 ? (
-                    <><span className="mek-chip good">Hit</span> target met with {' '}
-                      <b>{kpis.weekdaysLeft}</b> {kpis.weekdaysLeft === 1 ? 'day' : 'days'} to spare</>
-                  ) : (
-                    <>
-                      <span className={'mek-chip ' + tone}>
-                        {r.onTrack ? 'On pace' : 'Behind'}
-                      </span>{' '}
-                      <b>{fmt(r, r.remaining)}</b> to go
-                      {r.expectedByNow !== null
-                        ? <> · should be at <b>{fmt(r, r.expectedByNow)}</b> by today</>
-                        : null}
-                      {r.neededPerDay !== null
-                        ? <> · <b>{fmt(r, r.neededPerDay)}</b> a day for the last <b>{kpis.weekdaysLeft}</b></>
-                        : null}
-                      {r.projected !== null
-                        ? <> · on this pace you finish at <b>{fmt(r, r.projected)}</b></>
-                        : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -581,6 +472,8 @@ export default function MyDashboardPage() {
         {/* ---- what the manager asked for, and what it takes to get there ---- */}
         <KpiPace
           kpis={data.kpis}
+          voice={data.viewingSomeoneElse ? 'other' : 'self'}
+          name={p.name}
           canSetTargets={canEdit || data.viewingSomeoneElse}
           onSetTargets={function() { setEditing(true); }}
         />

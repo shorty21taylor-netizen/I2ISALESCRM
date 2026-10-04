@@ -11,6 +11,7 @@ import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { apiFetch, withWorkspace, useWorkspace, useAccess } from '@/lib/workspace-client';
 import useRoster from '@/lib/use-roster';
+import KpiPace from '@/components/KpiPace';
 
 // The roster, and the one place a manager runs it: who is on the floor, what
 // each of them has done, and what they have been asked to do this month.
@@ -153,6 +154,9 @@ export default function ClosersPage() {
   var s13 = useState(null), repKpis = s13[0], setRepKpis = s13[1];
   var s14 = useState(false), savingTargets = s14[0], setSavingTargets = s14[1];
   var s15 = useState(false), savedTargets = s15[0], setSavedTargets = s15[1];
+  // The scorecard is what a manager came to look at; the inputs are what they
+  // occasionally came to change, so the inputs start folded away behind it.
+  var s16 = useState(false), editingTargets = s16[0], setEditingTargets = s16[1];
 
   var router = useRouter();
   // A manager runs their own floor. This was pinned to one hardcoded address, so
@@ -189,6 +193,7 @@ export default function ClosersPage() {
     if (!selected || !canManage) { setRepKpis(null); return; }
     setRepKpis(null);
     setSavedTargets(false);
+    setEditingTargets(false);
     var cancelled = false;
     apiFetch(withWorkspace('/api/me?rep=' + encodeURIComponent(selected.email), workspaceId))
       .then(function(r) { return r.json(); })
@@ -513,16 +518,40 @@ export default function ClosersPage() {
 
               {/* what they were asked for */}
               {canManage ? (
-                <Section title="Their targets this month" note={repKpis ? repKpis.month : ''}>
-                  <div className="glass-card no-lift p-5">
-                    <TargetEditor
-                      rep={selected.email}
-                      kpis={repKpis}
-                      saving={savingTargets}
-                      savedAt={savedTargets}
-                      onSave={saveTargets}
-                    />
-                  </div>
+                <Section title="KPI scorecard" note={repKpis ? repKpis.month : ''}>
+                  {/* The card first and the inputs second. A manager opening a rep
+                      is almost always asking "where are they against the number",
+                      not "let me retype the number". */}
+                  <KpiPace
+                    kpis={repKpis}
+                    voice="other"
+                    name={selected.name || ''}
+                    canSetTargets
+                    onSetTargets={function() { setEditingTargets(true); }}
+                    className="mb-3"
+                  />
+                  {!repKpis ? <p className="cl-hint">Reading their month…</p> : null}
+
+                  {repKpis ? (
+                    <div className="cl-target-fold">
+                      <button type="button" className="an-chip"
+                        onClick={function() { setEditingTargets(!editingTargets); }}>
+                        <Target className="w-3.5 h-3.5" />
+                        {editingTargets ? 'Hide targets' : 'Set their targets'}
+                      </button>
+                      {editingTargets ? (
+                        <div className="glass-card no-lift p-5 mt-3">
+                          <TargetEditor
+                            rep={selected.email}
+                            kpis={repKpis}
+                            saving={savingTargets}
+                            savedAt={savedTargets}
+                            onSave={saveTargets}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </Section>
               ) : null}
 
