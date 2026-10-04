@@ -312,6 +312,16 @@ export default function SubmitPage() {
       : '';
   }
 
+  // The record saving and the message going out are two things, and the page used
+  // to claim both whenever the first one worked. A rep who is told the group was
+  // notified does not re-send; one who is told it failed goes and says it in chat.
+  function filed(what, data) {
+    var wa = (data && data.whatsapp) || {};
+    if (wa.sent) return what + ' Sent to WhatsApp.';
+    if (wa.skipped) return what + ' No WhatsApp destination is set, so nothing was sent.';
+    return what + ' The WhatsApp message did NOT go out \u2014 tell the group yourself.';
+  }
+
   async function handleSubmitBookCall(evt) {
     evt.preventDefault();
     if (!bcLeadsName.trim()) return;
@@ -336,7 +346,7 @@ export default function SubmitPage() {
       });
       var data = await res.json();
       if (data.success) {
-        setSuccessMsg('Call booked! WhatsApp notification sent.');
+        setSuccessMsg(filed('Call booked.', data));
         setCelebrate({ variant: 'dart' });
         clearBookCall();
         refreshActivity();
@@ -369,7 +379,7 @@ export default function SubmitPage() {
       });
       var data = await res.json();
       if (data.success) {
-        setSuccessMsg('Deal closed! Celebration sent to WhatsApp!');
+        setSuccessMsg(filed('Deal closed.', data));
         setCelebrate({ variant: 'cash', amount: cdCashCollected });
         clearCloseDeal();
         refreshActivity();
@@ -403,7 +413,7 @@ export default function SubmitPage() {
       });
       var data = await res.json();
       if (data.success) {
-        setSuccessMsg('EOD report submitted!');
+        setSuccessMsg(filed('EOD report submitted.', data));
         clearEOD();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -428,7 +438,7 @@ export default function SubmitPage() {
       });
       var data = await res.json();
       if (data.success) {
-        setSuccessMsg('After-call report submitted.');
+        setSuccessMsg(filed('After-call report submitted.', data));
         clearAfterCall();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
@@ -464,7 +474,7 @@ export default function SubmitPage() {
       });
       var data = await res.json();
       if (data.success) {
-        setSuccessMsg('DM end-of-day submitted.');
+        setSuccessMsg(filed('DM end-of-day submitted.', data));
         clearDmEod();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }

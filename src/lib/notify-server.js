@@ -14,6 +14,7 @@
 import { getWhatsappConfig, addMessageLog } from '@/lib/store';
 import { buildMessage } from '@/lib/form-messages';
 import { resolveRoute } from '@/lib/workspace-config';
+import { sendWhatsApp, GROUP } from '@/lib/assistro-send';
 
 function labelFor(formType, entry) {
   if (formType === 'eod-report') return entry.salesRep || '';
@@ -100,25 +101,13 @@ export async function sendFormNotification(opts) {
   console.log('[Notify] ' + formType + ' | workspace=' + workspaceId
     + ' | channel=' + route.channel + ' | target=' + groupId);
 
-  var result = { sent: false };
-  var error = '';
-  try {
-    var res = await fetch(new URL('/api/notify', opts.req.url).href, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assistroApiUrl: apiUrl,
-        assistroApiKey: apiKey,
-        whatsappGroupId: groupId,
-        message: message,
-      }),
-    });
-    result = await res.json().catch(function() { return { sent: false, error: 'Bad response from notifier' }; });
-    if (!result.sent) error = result.error || result.reason || 'Send failed';
-  } catch (e) {
-    error = e.message;
-    console.error('[Notify]', formType, 'send error:', e.message);
-  }
+  // Sent from this process. This used to POST to the app's own /api/notify over
+  // HTTP, which Railway's container cannot do to itself — every submission came
+  // back `fetch failed` while the browser-fired test button kept working.
+  var result = await sendWhatsApp({
+    apiUrl: apiUrl, apiKey: apiKey, target: groupId, message: message, type: GROUP,
+  });
+  var error = result.sent ? '' : (result.error || result.reason || 'Send failed');
 
   var logEntry = addMessageLog(Object.assign({}, base, {
     destination: groupId,
@@ -177,24 +166,11 @@ export async function sendWorkspaceMessage(opts) {
 
   console.log('[Notify] ' + formKey + ' analysis | workspace=' + workspaceId + ' | target=' + route.target);
 
-  var result = { sent: false };
-  var error = '';
-  try {
-    var res = await fetch(new URL('/api/notify', opts.req.url).href, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assistroApiUrl: wc.assistroApiUrl,
-        assistroApiKey: wc.assistroApiKey,
-        whatsappGroupId: route.target,
-        message: message,
-      }),
-    });
-    result = await res.json().catch(function() { return { sent: false, error: 'Bad response from notifier' }; });
-    if (!result.sent) error = result.error || result.reason || 'Send failed';
-  } catch (e) {
-    error = e.message;
-  }
+  var result = await sendWhatsApp({
+    apiUrl: wc.assistroApiUrl, apiKey: wc.assistroApiKey,
+    target: route.target, message: message, type: GROUP,
+  });
+  var error = result.sent ? '' : (result.error || result.reason || 'Send failed');
 
   var logEntry = addMessageLog(Object.assign({}, base, {
     destination: route.target, channel: route.channel, message: message,

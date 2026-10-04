@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sendWhatsApp, GROUP } from '@/lib/assistro-send';
 import { initStore, getWorkspace, getWorkspaces, getWhatsappConfig, getMessageLog } from '@/lib/store';
 import { resolveAccess } from '@/lib/access';
 import {
@@ -267,21 +268,12 @@ async function testSend(req, g, formKey) {
 
   console.log('[Test send] workspace=' + g.workspaceId + ' | form=' + formKey + ' | target=' + route.target);
 
-  try {
-    var res = await fetch(new URL('/api/notify', req.url).href, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assistroApiUrl: wc.assistroApiUrl,
-        assistroApiKey: wc.assistroApiKey,
-        whatsappGroupId: route.target,
-        message: message,
-      }),
-    });
-    var out = await res.json().catch(function() { return {}; });
-    if (!out.sent) return { error: 'Could not send: ' + (out.error || out.reason || 'unknown') };
-    return { tested: true, target: route.target, note: 'Test message sent to ' + route.target + '.' };
-  } catch (e) {
-    return { error: 'Could not send: ' + e.message };
-  }
+  // Sent from this process rather than through the app's own /api/notify, which
+  // the container cannot reach over its public hostname.
+  var out = await sendWhatsApp({
+    apiUrl: wc.assistroApiUrl, apiKey: wc.assistroApiKey,
+    target: route.target, message: message, type: GROUP,
+  });
+  if (!out.sent) return { error: 'Could not send: ' + (out.error || out.reason || 'unknown') };
+  return { tested: true, target: route.target, note: 'Test message sent to ' + route.target + '.' };
 }
