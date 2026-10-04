@@ -7,6 +7,7 @@ import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
 import SubmitCelebration from '@/components/SubmitCelebration';
+import EodAutofill from '@/components/EodAutofill';
 import { toReportDay } from '@/lib/report-date';
 
 // The icon set an admin picks from. Stored as a name on the form row so the
@@ -221,6 +222,59 @@ export default function SubmitPage() {
   var m10 = useState(''), dmReactivated = m10[0], setDmReactivated = m10[1];
   var m11 = useState(''), dmThemes = m11[0], setDmThemes = m11[1];
   var m12 = useState(''), dmBottleneck = m12[0], setDmBottleneck = m12[1];
+
+  // The two end-of-day forms, as a key -> value map and a key -> setter map, so the
+  // autofill strip can read what is already typed and write only the blanks without
+  // knowing anything about this component's state layout.
+  function eodValues() {
+    return {
+      netNewCallsBooked: eodNetNew, callsOnCalendar: eodOnCalendar,
+      callsTaken: eodTaken, callsNoShowed: eodNoShowed,
+      callsCanceled: eodCanceled, callsRescheduled: eodRescheduled,
+      callsTakenAndPitched: eodTakenPitched, closes: eodCloses,
+      outboundDials: eodDials, cashCollectedMYFM: eodCashMYFM,
+      cashCollectedI2I: eodCashI2I, revenueOnDay: eodRevenue,
+      improvementPlan: eodPlan,
+    };
+  }
+
+  function applyEodDraft(next) {
+    var setters = {
+      netNewCallsBooked: setEodNetNew, callsOnCalendar: setEodOnCalendar,
+      callsTaken: setEodTaken, callsNoShowed: setEodNoShowed,
+      callsCanceled: setEodCanceled, callsRescheduled: setEodRescheduled,
+      callsTakenAndPitched: setEodTakenPitched, closes: setEodCloses,
+      outboundDials: setEodDials, cashCollectedMYFM: setEodCashMYFM,
+      cashCollectedI2I: setEodCashI2I, revenueOnDay: setEodRevenue,
+      improvementPlan: setEodPlan,
+    };
+    Object.keys(next || {}).forEach(function(key) {
+      if (setters[key]) setters[key](String(next[key]));
+    });
+  }
+
+  function dmValues() {
+    return {
+      newLeads: dmNewLeads, conversations: dmConversations,
+      netNewCallsBooked: dmBooked, setsShowed: dmShowed, closes: dmCloses,
+      cashCollectedI2I: dmCash, leadsGhosted: dmGhosted,
+      leadsReactivated: dmReactivated, commonThemes: dmThemes,
+      biggestBottleneck: dmBottleneck,
+    };
+  }
+
+  function applyDmDraft(next) {
+    var setters = {
+      newLeads: setDmNewLeads, conversations: setDmConversations,
+      netNewCallsBooked: setDmBooked, setsShowed: setDmShowed, closes: setDmCloses,
+      cashCollectedI2I: setDmCash, leadsGhosted: setDmGhosted,
+      leadsReactivated: setDmReactivated, commonThemes: setDmThemes,
+      biggestBottleneck: setDmBottleneck,
+    };
+    Object.keys(next || {}).forEach(function(key) {
+      if (setters[key]) setters[key](String(next[key]));
+    });
+  }
 
   useEffect(function() {
     var u = getUser();
@@ -929,81 +983,89 @@ export default function SubmitPage() {
               <span className="section-tag">CRM only</span>
             </div>
             <form onSubmit={handleSubmitEOD} className="p-6 space-y-5">
+              <EodAutofill
+                role="closer"
+                day={eodDate}
+                rep={eodSalesRep}
+                workspaceId={submitWorkspaceId}
+                values={eodValues()}
+                onApply={applyEodDraft}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label form-label-required">Sales Rep</label>
-                  <input type="text" value={eodSalesRep} onChange={function(e) { setEodSalesRep(e.target.value); }} className="input-field" placeholder="Your name" required />
+                  <label htmlFor="eod-rep" className="form-label form-label-required">Sales Rep</label>
+                  <input id="eod-rep" type="text" value={eodSalesRep} onChange={function(e) { setEodSalesRep(e.target.value); }} className="input-field" placeholder="Your name" required />
                 </div>
                 <div>
-                  <label className="form-label">Date</label>
-                  <input type="date" value={eodDate} onChange={function(e) { setEodDate(e.target.value); }} className="input-field" />
+                  <label htmlFor="eod-date" className="form-label">Date</label>
+                  <input id="eod-date" type="date" value={eodDate} onChange={function(e) { setEodDate(e.target.value); }} className="input-field" />
                 </div>
               </div>
 
               <div className="form-section-title">Call Metrics</div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="form-label">Net New Calls Booked</label>
-                  <input type="number" inputMode="numeric" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-netnew" className="form-label">Net New Calls Booked</label>
+                  <input id="eod-netnew" type="number" inputMode="numeric" value={eodNetNew} onChange={function(e) { setEodNetNew(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Calls on Calendar</label>
-                  <input type="number" inputMode="numeric" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-oncal" className="form-label">Calls on Calendar</label>
+                  <input id="eod-oncal" type="number" inputMode="numeric" value={eodOnCalendar} onChange={function(e) { setEodOnCalendar(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Calls Taken</label>
-                  <input type="number" inputMode="numeric" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-taken" className="form-label">Calls Taken</label>
+                  <input id="eod-taken" type="number" inputMode="numeric" value={eodTaken} onChange={function(e) { setEodTaken(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">No-Showed</label>
-                  <input type="number" inputMode="numeric" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-noshow" className="form-label">No-Showed</label>
+                  <input id="eod-noshow" type="number" inputMode="numeric" value={eodNoShowed} onChange={function(e) { setEodNoShowed(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Canceled</label>
-                  <input type="number" inputMode="numeric" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-canceled" className="form-label">Canceled</label>
+                  <input id="eod-canceled" type="number" inputMode="numeric" value={eodCanceled} onChange={function(e) { setEodCanceled(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Rescheduled</label>
-                  <input type="number" inputMode="numeric" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-resched" className="form-label">Rescheduled</label>
+                  <input id="eod-resched" type="number" inputMode="numeric" value={eodRescheduled} onChange={function(e) { setEodRescheduled(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
               <div className="form-section-title">Performance</div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="form-label">Calls Taken &amp; Pitched</label>
-                  <input type="number" inputMode="numeric" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-pitched" className="form-label">Calls Taken &amp; Pitched</label>
+                  <input id="eod-pitched" type="number" inputMode="numeric" value={eodTakenPitched} onChange={function(e) { setEodTakenPitched(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Closes</label>
-                  <input type="number" inputMode="numeric" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-closes" className="form-label">Closes</label>
+                  <input id="eod-closes" type="number" inputMode="numeric" value={eodCloses} onChange={function(e) { setEodCloses(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Outbound Dials</label>
-                  <input type="number" inputMode="numeric" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-dials" className="form-label">Outbound Dials</label>
+                  <input id="eod-dials" type="number" inputMode="numeric" value={eodDials} onChange={function(e) { setEodDials(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
               <div className="form-section-title">Revenue</div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="form-label">Cash Collected (MYFM)</label>
-                  <input type="number" inputMode="decimal" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-myfm" className="form-label">Cash Collected (MYFM)</label>
+                  <input id="eod-myfm" type="number" inputMode="decimal" value={eodCashMYFM} onChange={function(e) { setEodCashMYFM(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Cash Collected (I2I)</label>
-                  <input type="number" inputMode="decimal" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-i2i" className="form-label">Cash Collected (I2I)</label>
+                  <input id="eod-i2i" type="number" inputMode="decimal" value={eodCashI2I} onChange={function(e) { setEodCashI2I(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label className="form-label">Revenue on Day</label>
-                  <input type="number" inputMode="decimal" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
+                  <label htmlFor="eod-revenue" className="form-label">Revenue on Day</label>
+                  <input id="eod-revenue" type="number" inputMode="decimal" value={eodRevenue} onChange={function(e) { setEodRevenue(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
               <div className="form-section-title">Improvement Plan</div>
               <div>
-                <label className="form-label">What will you improve?</label>
-                <textarea value={eodPlan} onChange={function(e) { setEodPlan(e.target.value); }} className="input-field" rows={3} placeholder="What will you improve tomorrow? What worked today?" />
+                <label htmlFor="eod-plan" className="form-label">What will you improve?</label>
+                <textarea id="eod-plan" value={eodPlan} onChange={function(e) { setEodPlan(e.target.value); }} className="input-field" rows={3} placeholder="What will you improve tomorrow? What worked today?" />
               </div>
 
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
@@ -1112,6 +1174,14 @@ export default function SubmitPage() {
               <span className="section-tag">Sends to WhatsApp</span>
             </div>
             <form onSubmit={handleSubmitDmEod} className="p-6 space-y-5">
+              <EodAutofill
+                role="dm"
+                day={dmDate}
+                rep={dmRep}
+                workspaceId={submitWorkspaceId}
+                values={dmValues()}
+                onApply={applyDmDraft}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>

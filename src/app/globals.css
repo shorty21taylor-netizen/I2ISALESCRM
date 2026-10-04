@@ -5050,3 +5050,94 @@ html, body { overflow-x: clip; }
   font-size: 10.5px; font-weight: 600;
   background: var(--glass-surface-bg); color: var(--crm-text-muted);
 }
+
+/* ── The day, as the CRM has it, above the end-of-day form ─────────────────── */
+/* A panel rather than a card: it belongs to the form under it, so it shares the
+   form's inner padding and reads as the first thing on it, not a separate object
+   floating above. */
+.eod-auto {
+  border: 1px solid var(--crm-border);
+  border-radius: var(--r-panel);
+  background: var(--glass-surface-bg);
+  padding: 14px 16px 15px;
+}
+.eod-auto-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+}
+.eod-auto-title {
+  margin: 0; font-family: var(--font-display); font-weight: 700;
+  font-size: 13px; letter-spacing: 0.01em; color: var(--crm-text-bright);
+}
+.eod-auto-sub {
+  margin: 2px 0 0; font-family: var(--font-mono);
+  font-size: 11px; color: var(--crm-text-muted);
+}
+.eod-auto-actions { display: flex; align-items: center; gap: 8px; }
+.eod-auto-refresh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px;
+  border: 1px solid var(--crm-border); background: transparent;
+  color: var(--crm-text-muted); cursor: pointer;
+}
+.eod-auto-refresh:hover { color: var(--crm-text-bright); border-color: var(--crm-accent); }
+.eod-auto-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: 10px; cursor: pointer;
+  font-family: var(--font-display); font-weight: 700; font-size: 12.5px;
+  background: var(--btn-primary-bg); color: #101013; border: 0;
+}
+.eod-auto-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.eod-auto-btn:disabled { cursor: default; }
+
+/* The strip itself. Figures first, label under — scanned, not read. */
+.eod-stats {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px;
+}
+.eod-stat {
+  flex: 1 1 86px; min-width: 86px;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 9px 11px; border-radius: 10px;
+  background: var(--crm-surface-bg); border: 1px solid var(--crm-divider);
+}
+.eod-stat-v {
+  font-family: var(--font-display); font-weight: 800; font-size: 17px;
+  line-height: 1.1; color: var(--crm-text-bright); font-variant-numeric: tabular-nums;
+}
+.eod-stat-l {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--crm-text-muted);
+}
+
+.eod-auto-notes {
+  margin: 11px 0 0; padding-left: 16px;
+  font-size: 11.5px; line-height: 1.6; color: var(--crm-text-muted);
+}
+.eod-auto-err {
+  margin: 10px 0 0; font-size: 11.5px; color: var(--crm-negative);
+}
+
+.eod-auto-result {
+  margin-top: 13px; padding-top: 12px;
+  border-top: 1px solid var(--crm-divider);
+}
+.eod-auto-result-h {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-family: var(--font-display); font-weight: 700; font-size: 12px;
+  color: var(--crm-positive);
+}
+.eod-auto-warn { color: var(--crm-warning, #c8a951); margin-top: 11px; }
+.eod-auto-list {
+  margin: 7px 0 0; padding-left: 16px;
+  font-size: 11.5px; line-height: 1.75; color: var(--crm-text-muted);
+}
+.eod-auto-list b { color: var(--crm-text-bright); font-variant-numeric: tabular-nums; }
+.eod-auto-take {
+  border: 0; background: transparent; cursor: pointer; padding: 0 1px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  color: var(--crm-accent); text-decoration: underline;
+}
+.eod-auto-conflicts { margin-top: 2px; }
+.eod-auto-rest {
+  margin: 11px 0 0; font-size: 11px; line-height: 1.6; color: var(--crm-text-muted);
+}
