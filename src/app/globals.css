@@ -4926,3 +4926,14 @@ html, body { overflow-x: clip; }
   .cm-hist-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
   .cm-hist-n { display: none; }
 }
+
+/* The status pill is a control for whoever settles the money, and a plain badge
+   for everybody else — the server refuses a rep either way, so the control is
+   hidden from them rather than offered and then denied. */
+.cm-status-pick {
+  border: 1px solid currentColor; cursor: pointer;
+  font-family: inherit; padding: 2px 8px; appearance: none;
+  -webkit-appearance: none; text-align: center;
+}
+.cm-status-pick:disabled { opacity: 0.5; cursor: wait; }
+.cm-status-pick option { color: var(--crm-text); background: var(--option-bg, var(--crm-surface)); }

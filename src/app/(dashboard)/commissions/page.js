@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'lucide-react';
-import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
+import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import { todayInReportTimezone } from '@/lib/report-date';
@@ -37,6 +37,9 @@ export default function CommissionsPage() {
   // The month the team is standing in, not the browser's — the same bucketing
   // every other figure in this product uses.
   var s6 = useState(todayInReportTimezone().slice(0, 7)), month = s6[0], setMonth = s6[1];
+  var s7 = useState(''), statusBusy = s7[0], setStatusBusy = s7[1];
+  var access = useAccess();
+  var canSettle = !!(access && access.canSeeTeam);
 
   useEffect(function() {
     var u = getUser();
@@ -59,24 +62,45 @@ export default function CommissionsPage() {
       .catch(function() {});
   }, [workspaceId, month]);
 
+  function refreshCommissions() {
+    apiFetch(withWorkspace('/api/commissions?month=' + encodeURIComponent(month), workspaceId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) { if (data.success) setCommData(data); })
+      .catch(function() {});
+    apiFetch(withWorkspace('/api/commissions?view=all', workspaceId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) { if (data.success) setAllData(data); })
+      .catch(function() {});
+  }
+
+  // Marking a commission paid is a money decision, so the server only accepts it
+  // from somebody who runs the workspace — the control is hidden from a rep as
+  // well, rather than offered and then refused.
   function handleStatusUpdate(dealId, newStatus) {
+    setStatusBusy(dealId);
     apiFetch('/api/commissions/status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dealId: dealId, status: newStatus }),
     })
       .then(function(r) { return r.json(); })
-      .then(function() {
-        // Refresh both views
-        if (user) {
-          apiFetch(withWorkspace('/api/commissions?closer=' + encodeURIComponent(user.name), workspaceId))
-            .then(function(r) { return r.json(); })
-            .then(function(data) { if (data.success) setCommData(data); });
-        }
-        apiFetch(withWorkspace('/api/commissions?view=all', workspaceId))
-          .then(function(r) { return r.json(); })
-          .then(function(data) { if (data.success) setAllData(data); });
+      .then(function() { setStatusBusy(''); refreshCommissions(); })
+      .catch(function() { setStatusBusy(''); });
+  }
+
+  // Everything still owed on the month being looked at, settled in one go.
+  function markMonthPaid(rows) {
+    var owing = (rows || []).filter(function(d) { return d.status !== 'paid'; });
+    if (!owing.length) return;
+    setStatusBusy('all');
+    Promise.all(owing.map(function(d) {
+      return apiFetch('/api/commissions/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId: d.id, status: 'paid' }),
       });
+    })).then(function() { setStatusBusy(''); refreshCommissions(); })
+      .catch(function() { setStatusBusy(''); });
   }
 
   function handleBulkStatusUpdate(fromStatus, toStatus) {
@@ -141,13 +165,13 @@ export default function CommissionsPage() {
       </header>
 
       <div className="px-8 py-6 space-y-6">
-        {view === 'personal' ? renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate) : renderTeamView(allData, handleBulkStatusUpdate)}
+        {view === 'personal' ? renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate, markMonthPaid, canSettle, statusBusy) : renderTeamView(allData, handleBulkStatusUpdate)}
       </div>
     </div>
   );
 }
 
-function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate) {
+function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate, markMonthPaid, canSettle, statusBusy) {
   // Nothing loaded yet, or nothing ever earned. Without this the figures below
   // read straight off a null summary and the page renders blank.
   if (!summary) {
@@ -222,6 +246,13 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
         <div className="td-section-h">
           <h3 className="td-section-t">Deals closed in {formatMonth(month)}</h3>
           <span className="td-section-rule" />
+          {canSettle && summary.totalCommission > summary.paidCommission ? (
+            <button className="an-chip" disabled={statusBusy === 'all'}
+              onClick={function() { markMonthPaid(deals); }}>
+              <CheckCircle className="w-3 h-3" />
+              {statusBusy === 'all' ? 'Marking…' : 'Mark the month paid'}
+            </button>
+          ) : null}
           <span className="section-tag">{deals.length} {deals.length === 1 ? 'deal' : 'deals'}</span>
         </div>
 
@@ -259,10 +290,24 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
                       <td>{(deal.commissionRate * 100).toFixed(0)}%</td>
                       <td className="cm-earned">{formatCurrency(deal.commissionAmount)}</td>
                       <td>
-                        <span className={'cm-status ' + (deal.status || 'pending')}>
-                          {deal.status === 'paid' ? <CheckCircle className="w-3 h-3" /> : null}
-                          {deal.status || 'pending'}
-                        </span>
+                        {canSettle ? (
+                          <select
+                            className={'cm-status cm-status-pick ' + (deal.status || 'pending')}
+                            value={deal.status || 'pending'}
+                            disabled={statusBusy === deal.id || statusBusy === 'all'}
+                            aria-label={'Commission status for ' + (deal.leadName || 'this deal')}
+                            onChange={function(e) { handleStatusUpdate(deal.id, e.target.value); }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="paid">Paid</option>
+                          </select>
+                        ) : (
+                          <span className={'cm-status ' + (deal.status || 'pending')}>
+                            {deal.status === 'paid' ? <CheckCircle className="w-3 h-3" /> : null}
+                            {deal.status || 'pending'}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
