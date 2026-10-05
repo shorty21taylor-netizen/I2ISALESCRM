@@ -5152,3 +5152,7 @@ html, body { overflow-x: clip; }
   cursor: pointer; font-family: var(--font-mono); font-size: 10.5px;
   color: var(--crm-accent); text-decoration: underline;
 }
+
+/* The node the card screenshot is taken of. Nothing of its own — it exists so the
+   capture can be bounded to the card and never the controls around it. */
+.card-shot { display: block; }

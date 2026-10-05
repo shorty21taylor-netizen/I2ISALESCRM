@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trophy, ArrowLeft, Check, Copy, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import { Trophy, ArrowLeft, Check, Copy, Image as ImageIcon, Download, Loader2, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import { toBlob } from 'html-to-image';
 import { useWorkspace, withWorkspace, apiFetch } from '@/lib/workspace-client';
 import { formatCurrency } from '@/lib/utils';
 import { todayInReportTimezone, toReportDay } from '@/lib/report-date';
@@ -161,6 +162,13 @@ export default function StatCardPage() {
   var [days, setDays] = useState('30');
   // Whose card. Empty means the signed-in person's own.
   var [rep, setRep] = useState(null);
+  // The node the picture is taken of: the card itself, never the switch above it
+  // or the buttons below, which are controls and have no business in a screenshot
+  // posted to a group.
+  var shotRef = useRef(null);
+  var [shooting, setShooting] = useState(false);
+  var [shot, setShot] = useState('');
+  var [shotErr, setShotErr] = useState('');
 
   // ?style=kpi so the button on the dashboard can land straight on this card, and
   // ?rep= so a manager can build a REP's card to post in the group. Without the
@@ -204,6 +212,103 @@ export default function StatCardPage() {
   var pnl = data.pnl;
   var PERIODS = [{ id: '7', label: '7D' }, { id: '30', label: '30D' }, { id: '90', label: '90D' }, { id: '365', label: '1Y' }];
   var up = pnl && pnl.direction !== 'down';
+
+  // The card as a PNG, on the clipboard.
+  //
+  // Rendered from the live DOM rather than drawn a second time, so what lands in
+  // the group is exactly what is on screen — one card to keep right instead of
+  // two that drift apart.
+  //
+  // The background is painted in rather than left transparent: every chat client
+  // flattens a PNG onto white, and a transparent card arrives with four white
+  // corners cut out of its rounded edges.
+  async function shoot() {
+    var node = shotRef.current;
+    if (!node) return null;
+    var ground = '';
+    try {
+      ground = getComputedStyle(document.body).backgroundColor || '';
+    } catch (e) { ground = ''; }
+    return await toBlob(node, {
+      // Retina, so the card is still sharp when somebody opens it full-screen on
+      // a phone. Above 2 the file gets large enough that pasting stalls.
+      pixelRatio: 2,
+      backgroundColor: ground || '#0a0a0b',
+      cacheBust: true,
+      // The avatar is served from /api/avatar and must be fetched and inlined; a
+      // picture of the card with a broken face on it is worse than no picture.
+      skipFonts: false,
+    });
+  }
+
+  function say(kind) {
+    setShot(kind);
+    setTimeout(function() { setShot(''); }, 2600);
+  }
+
+  function download(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (p.name || 'card').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+      + '-' + style + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Freed on the next tick; revoking immediately cancels the download in Safari.
+    setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  async function copyImage() {
+    if (shooting) return;
+    setShooting(true);
+    setShotErr('');
+    try {
+      var blob = await shoot();
+      if (!blob) throw new Error('nothing to capture');
+
+      // Writing an image to the clipboard needs a secure context and a browser
+      // that supports it — Firefox does not, and neither does any browser over
+      // plain http. Rather than fail, the card is downloaded instead and the
+      // button says so, because a file in Downloads can still be dragged into the
+      // chat and an error message cannot.
+      var canWrite = typeof window !== 'undefined'
+        && window.isSecureContext
+        && navigator.clipboard
+        && typeof navigator.clipboard.write === 'function'
+        && typeof window.ClipboardItem === 'function';
+
+      if (!canWrite) { download(blob); say('saved'); setShooting(false); return; }
+
+      try {
+        await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+        say('copied');
+      } catch (e) {
+        // Permission refused, or a browser that advertises write() and then
+        // rejects image types. The picture already exists either way.
+        download(blob);
+        say('saved');
+      }
+    } catch (e) {
+      setShotErr('Could not build the image. Screenshot the card instead.');
+    }
+    setShooting(false);
+  }
+
+  async function downloadImage() {
+    if (shooting) return;
+    setShooting(true);
+    setShotErr('');
+    try {
+      var blob = await shoot();
+      if (!blob) throw new Error('nothing to capture');
+      download(blob);
+      say('saved');
+    } catch (e) {
+      setShotErr('Could not build the image. Screenshot the card instead.');
+    }
+    setShooting(false);
+  }
 
   function copyText() {
     if (style === 'kpi' && data.kpis) {
@@ -270,6 +375,7 @@ export default function StatCardPage() {
             onClick={function() { setStyle('kpi'); }}>KPIs</button>
         </div>
 
+        <div className="card-shot" ref={shotRef}>
         {style === 'kpi' ? <KpiCard data={data} initials={initials} /> : null}
 
         {style === 'pnl' && pnl ? (
@@ -364,18 +470,36 @@ export default function StatCardPage() {
         </div>
         ) : null}
 
+        </div>
+
         <div className="card-actions">
           <button className="an-btn-ghost" onClick={function() {
             router.push(rep ? '/me?rep=' + encodeURIComponent(rep) : '/me');
           }}>
             <ArrowLeft size={14} /> Back
           </button>
-          <button className="an-btn" onClick={copyText}>
+          <button className="an-btn-ghost" onClick={copyText}>
             {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy as text</>}
           </button>
+          {/* Saving is the escape hatch for a browser that will not take an image
+              on the clipboard, and it is also just what some people want, so it is
+              a button of its own rather than only a silent fallback. */}
+          <button className="an-btn-ghost" onClick={downloadImage} disabled={shooting} title="Save the card as a PNG">
+            <Download size={14} /> Save
+          </button>
+          <button className="an-btn" onClick={copyImage} disabled={shooting}>
+            {shooting ? <><Loader2 size={14} className="animate-spin" /> Building…</>
+              : shot === 'copied' ? <><Check size={14} /> Image copied</>
+              : shot === 'saved' ? <><Check size={14} /> Saved as PNG</>
+              : <><ImageIcon size={14} /> Copy image</>}
+          </button>
         </div>
-        <p className="text-center text-xs mt-3" style={{ color: 'var(--crm-muted)' }}>
-          Screenshot the card, or copy it as text for chat.
+        <p className="text-center text-xs mt-3" style={{ color: shotErr ? 'var(--crm-negative)' : 'var(--crm-muted)' }}>
+          {shotErr
+            ? shotErr
+            : shot === 'saved'
+              ? 'Your browser will not put an image on the clipboard, so the card was saved instead — drag it into the chat.'
+              : 'Copy the card as an image and paste it straight into the group.'}
         </p>
       </div>
     </div>
