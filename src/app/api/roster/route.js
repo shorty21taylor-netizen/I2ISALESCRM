@@ -46,6 +46,16 @@ export async function GET(req) {
     if (Array.isArray(workspaceId)) {
       roster = roster.filter(function(u) { return workspaceId.indexOf(u.workspaceId) !== -1; });
     }
+    // What each person was put on the roster AS. Authoritative, unlike the role
+    // the browser cached at sign-in, which defaults to 'closer' for anybody whose
+    // membership never said — and a default dressed up as a fact is how somebody
+    // ends up filing the wrong end-of-day.
+    var roleByEmail = {};
+    (roster || []).forEach(function(member) {
+      if (!member || !member.email || !member.role) return;
+      roleByEmail[String(member.email).toLowerCase()] = String(member.role);
+    });
+
     (roster || []).forEach(function(member) {
       if (!member || !member.email) return;
       var key = String(member.email).toLowerCase();
@@ -84,6 +94,9 @@ export async function GET(req) {
         // Off the roster. Their records still count in every total — this only
         // says they should not be offered as somebody to file a new one against.
         archived: !!(profile && profile.archivedAt),
+        // Empty when nobody ever said. Callers must treat that as "unknown",
+        // never as a default.
+        role: roleByEmail[email] || '',
         status: effectiveStatus(profile),
       };
     });

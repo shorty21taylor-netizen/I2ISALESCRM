@@ -150,6 +150,55 @@ export function buildEodDraft(input) {
   };
 }
 
+// The phone setter's end-of-day. Measured on the dials and the sets, not on calls
+// taken — a setter's report must carry no callsTaken, callsOnCalendar or
+// callsTakenAndPitched at all, because eodRole() reads evidence of closing as
+// outranking the stated position and would file the day onto the closer board.
+export function buildSetterEodDraft(input) {
+  var day = toReportDay(input && input.day) || '';
+  var owns = (input && input.owns) || function() { return false; };
+  var booked = (input && input.booked) || [];
+  var deals = (input && input.deals) || [];
+
+  var setToday = booked.filter(function(r) {
+    return recordDay(r) === day && owns(r, 'closerEmail', 'setter');
+  });
+  // Deals credited to them as the SETTER. A setter reports the closes their sets
+  // produced; they did not take those calls.
+  var setDeals = deals.filter(function(r) {
+    return recordDay(r) === day && owns(r, 'closerEmail', 'setter');
+  });
+  var cash = 0;
+  setDeals.forEach(function(d) { cash += n(d.cashCollected); });
+
+  return {
+    day: day,
+    fields: {
+      sets: counted(setToday.length, setToday.length === 1
+        ? '1 call you set today'
+        : setToday.length + ' calls you set today'),
+      closes: counted(setDeals.length,
+        setDeals.length + ' deals closed off calls you set'),
+      cashCollectedI2I: counted(Math.round(cash * 100) / 100,
+        'cash from deals closed off your sets today'),
+
+      outboundDials: manual('The CRM does not count dials — yours to fill in'),
+      conversations: manual('Nothing records conversations — yours to fill in'),
+      liveCalls: manual('Yours to fill in'),
+      talkTime: manual('Yours to fill in'),
+      followUpsScheduled: manual('Yours to fill in'),
+      improvementPlan: manual('Yours to write'),
+    },
+    notes: setToday.length || setDeals.length ? []
+      : ['Nothing filed today yet, so there is nothing to build from.'],
+    counts: {
+      booked: setToday.length,
+      deals: setDeals.length,
+      cash: Math.round(cash * 100) / 100,
+    },
+  };
+}
+
 // The DM setter's end-of-day. A different funnel: they are measured on the calls
 // they SET and the deals that came off them, not on calls they took.
 export function buildDmEodDraft(input) {

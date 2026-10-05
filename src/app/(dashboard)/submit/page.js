@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle, Share2, MessageCircle } from 'lucide-react';
+import { Phone, PhoneCall, DollarSign, ClipboardCheck, Clock, CheckCircle, Loader2, ExternalLink, ChevronDown, ChevronUp, FileText, CalendarDays, Copy, Check, Settings2, AlertTriangle, Share2, MessageCircle } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { getFormConfig, getPartners } from '@/lib/form-config';
 import { useWorkspace, withWorkspace, ALL_WORKSPACES, apiFetch } from '@/lib/workspace-client';
@@ -14,6 +14,25 @@ import { toReportDay } from '@/lib/report-date';
 
 // The icon set an admin picks from. Stored as a name on the form row so the
 // choice survives without the page compiling in a list of forms.
+// The three end-of-day reports, and what each one is for. One list, so the
+// chooser, the form it opens and the position stamped on the record can never
+// name three different things.
+var EOD_KINDS = [
+  { id: 'closer', label: 'Closer', blurb: 'You took the calls and pitched' },
+  { id: 'setter', label: 'Setter', blurb: 'You worked the phone and set calls' },
+  { id: 'dm-setter', label: 'DM Setter', blurb: 'You worked the inbox' },
+];
+
+// The roster's word for someone, in the chooser's vocabulary. Marked as theirs,
+// never selected for them.
+function kindFromRole(role) {
+  var r = String(role || '').toLowerCase();
+  if (r.indexOf('dm') !== -1) return 'dm-setter';
+  if (r.indexOf('setter') !== -1) return 'setter';
+  if (r.indexOf('closer') !== -1) return 'closer';
+  return '';
+}
+
 var ICON_FOR = {
   'phone': Phone,
   'dollar': DollarSign,
@@ -119,6 +138,15 @@ export default function SubmitPage() {
   var s9 = useState(null), celebrate = s9[0], setCelebrate = s9[1];
   var s5 = useState(''), error = s5[0], setError = s5[1];
   var s6 = useState(null), user = s6[0], setUser = s6[1];
+
+  // Below `user` deliberately: `var` hoists the binding but not the useState
+  // assignment, so computing this above read an undefined user and badged nobody.
+  //
+  // The roster's word, not the browser's. localStorage stores role with a
+  // 'closer' default for anybody whose membership never said one, so reading it
+  // there would badge every unassigned setter as a closer.
+  var myRow = user && user.email ? roster.findByEmail(user.email) : null;
+  var rosterKind = kindFromRole(myRow && myRow.role);
 
   // The hosted (n8n) forms are the default way to submit. The built-in forms below
   // stay available as a fallback for anyone who is already inside the CRM.
@@ -228,6 +256,35 @@ export default function SubmitPage() {
   var m11 = useState(''), dmThemes = m11[0], setDmThemes = m11[1];
   var m12 = useState(''), dmBottleneck = m12[0], setDmBottleneck = m12[1];
 
+  // Which end-of-day is being filed. Deliberately empty until the rep says: a
+  // setter filing on the closer form answered six questions about calls they
+  // never took and left every number they DID work on unasked, and the report
+  // landed on the closer board with a wall of zeros on it.
+  //
+  // Not pre-selected from the roster, even when the roster knows. `position` is
+  // the field eodRole() reads to decide which funnel a day belongs to, and a
+  // default that is quietly wrong is the kind of wrong nobody notices — the
+  // roster role is marked as theirs instead, so it is one tap rather than none.
+  var ek = useState(''), eodKind = ek[0], setEodKind = ek[1];
+
+  // Phone setter end-of-day. Carries no callsTaken, callsOnCalendar or
+  // callsTakenAndPitched at all — eodRole() treats evidence of closing as
+  // outranking the stated position, so a single one of those fields would file a
+  // setter's day onto the closer board.
+  var p1 = useState(''), stRep = p1[0], setStRep = p1[1];
+  var p2 = useState(''), stDate = p2[0], setStDate = p2[1];
+  var p3 = useState(''), stDials = p3[0], setStDials = p3[1];
+  var p4 = useState(''), stConversations = p4[0], setStConversations = p4[1];
+  var p5 = useState(''), stLiveCalls = p5[0], setStLiveCalls = p5[1];
+  var p6 = useState(''), stTalkTime = p6[0], setStTalkTime = p6[1];
+  var p7 = useState(''), stSets = p7[0], setStSets = p7[1];
+  var p8 = useState(''), stFollowUps = p8[0], setStFollowUps = p8[1];
+  var p9 = useState(''), stCloses = p9[0], setStCloses = p9[1];
+  var p10 = useState(''), stCash = p10[0], setStCash = p10[1];
+  var p11 = useState(''), stCloser = p11[0], setStCloser = p11[1];
+  var p12 = useState(''), stRating = p12[0], setStRating = p12[1];
+  var p13 = useState(''), stPlan = p13[0], setStPlan = p13[1];
+
   // The two end-of-day forms, as a key -> value map and a key -> setter map, so the
   // autofill strip can read what is already typed and write only the blanks without
   // knowing anything about this component's state layout.
@@ -252,6 +309,27 @@ export default function SubmitPage() {
       outboundDials: setEodDials, cashCollectedMYFM: setEodCashMYFM,
       cashCollectedI2I: setEodCashI2I, revenueOnDay: setEodRevenue,
       improvementPlan: setEodPlan,
+    };
+    Object.keys(next || {}).forEach(function(key) {
+      if (setters[key]) setters[key](String(next[key]));
+    });
+  }
+
+  function setterValues() {
+    return {
+      outboundDials: stDials, conversations: stConversations,
+      liveCalls: stLiveCalls, talkTime: stTalkTime, sets: stSets,
+      followUpsScheduled: stFollowUps, closes: stCloses,
+      cashCollectedI2I: stCash, improvementPlan: stPlan,
+    };
+  }
+
+  function applySetterDraft(next) {
+    var setters = {
+      outboundDials: setStDials, conversations: setStConversations,
+      liveCalls: setStLiveCalls, talkTime: setStTalkTime, sets: setStSets,
+      followUpsScheduled: setStFollowUps, closes: setStCloses,
+      cashCollectedI2I: setStCash, improvementPlan: setStPlan,
     };
     Object.keys(next || {}).forEach(function(key) {
       if (setters[key]) setters[key](String(next[key]));
@@ -290,9 +368,11 @@ export default function SubmitPage() {
       setEodSalesRep(u.name);
       setAcCloser(u.name);
       setDmRep(u.name);
+      setStRep(u.name);
     }
     setEodDate(toReportDay(new Date()));
     setDmDate(toReportDay(new Date()));
+    setStDate(toReportDay(new Date()));
 
     apiFetch(withWorkspace('/api/dashboard', workspaceId))
       .then(function(r) { return r.json(); })
@@ -328,6 +408,14 @@ export default function SubmitPage() {
     setAcLeadsName(''); setAcLeadsPhone(''); setAcLeadsEmail('');
     setAcOutcome(''); setAcNextStep(''); setAcNotes(''); setAcRecording('');
     setAcCloser(user ? user.name : '');
+  }
+
+  function clearSetterEod() {
+    setStDials(''); setStConversations(''); setStLiveCalls(''); setStTalkTime('');
+    setStSets(''); setStFollowUps(''); setStCloses(''); setStCash('');
+    setStCloser(''); setStRating(''); setStPlan('');
+    setStRep(user ? user.name : '');
+    setStDate(toReportDay(new Date()));
   }
 
   function clearDmEod() {
@@ -462,6 +550,10 @@ export default function SubmitPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           salesRep: eodSalesRep, date: eodDate,
+          // Chosen on the form rather than inferred from the numbers. A quiet day
+          // with nothing on it used to fall through eodRole() to 'closer' by
+          // default; now every report says which funnel it belongs to.
+          position: 'Closer', role: 'closer',
           netNewCallsBooked: eodNetNew, callsOnCalendar: eodOnCalendar,
           callsTaken: eodTaken, callsNoShowed: eodNoShowed,
           callsCanceled: eodCanceled, callsRescheduled: eodRescheduled,
@@ -506,6 +598,42 @@ export default function SubmitPage() {
         setSuccessMsg(filed('After-call report submitted.', data));
         setCelebrate({ variant: 'aftercall' });
         clearAfterCall();
+        refreshActivity();
+      } else { setError(data.error || 'Failed to submit'); }
+    } catch (err) { setError('Connection error. Try again.'); }
+    setSubmitting(false);
+  }
+
+  async function handleSubmitSetterEod(evt) {
+    evt.preventDefault();
+    if (!stRep.trim()) return;
+    setSubmitting(true); setError(''); setSuccessMsg(null);
+    try {
+      var res = await apiFetch('/api/webhooks/eod-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salesRep: stRep, date: stDate,
+          // Both, because two different readers ask. eodRole() reads `position`
+          // to pick the board; buildEODMessage asks eodRole() too, which is how
+          // this day goes out on the setter template instead of a closer's.
+          position: 'Setter', role: 'setter',
+          outboundDials: stDials, conversations: stConversations,
+          liveCalls: stLiveCalls, talkTime: stTalkTime,
+          sets: stSets, followUpsScheduled: stFollowUps, closes: stCloses,
+          // One cash box, landing in the I2I column the way the hosted form's
+          // single figure already does, so both paths produce the same record.
+          cashCollectedI2I: stCash,
+          closerName: stCloser, selfRating: stRating, improvementPlan: stPlan,
+          closerEmail: closerEmailFor(stRep),
+          workspaceId: submitWorkspaceId,
+        }),
+      });
+      var data = await res.json();
+      if (data.success) {
+        setSuccessMsg(filed('Setter end-of-day submitted.', data));
+        setCelebrate({ variant: 'eod', streak: data.streak || 0 });
+        clearSetterEod();
         refreshActivity();
       } else { setError(data.error || 'Failed to submit'); }
     } catch (err) { setError('Connection error. Try again.'); }
@@ -563,7 +691,6 @@ export default function SubmitPage() {
     { id: 'close-deal', label: 'Close a Deal', icon: DollarSign, color: 'crm-positive' },
     { id: 'after-call', label: 'After-Call', icon: FileText, color: 'crm-accent' },
     { id: 'eod-report', label: 'End-of-Day', icon: ClipboardCheck, color: 'crm-muted' },
-    { id: 'dm-eod', label: 'DM End-of-Day', icon: MessageCircle, color: 'crm-muted' },
   ];
 
   return (
@@ -987,6 +1114,38 @@ export default function SubmitPage() {
               <h3><ClipboardCheck className="w-4 h-4 text-crm-muted" /> End-of-Day Report</h3>
               <span className="section-tag">CRM only</span>
             </div>
+            <div className="eod-pick">
+              <p className="eod-pick-q">Which end-of-day are you filing?</p>
+              <p className="eod-pick-h">
+                Three jobs, three reports. Pick yours and the right form opens — a
+                setter filing on a closer&apos;s form answers six questions about calls
+                they never took and never gets asked the numbers they did work on.
+              </p>
+              <div className="eod-pick-row">
+                {EOD_KINDS.map(function(k) {
+                  var mine = rosterKind && rosterKind === k.id;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      aria-pressed={eodKind === k.id}
+                      className={'eod-pick-opt' + (eodKind === k.id ? ' on' : '')}
+                      onClick={function() { setEodKind(k.id); }}
+                    >
+                      <span className="eod-pick-l">{k.label}</span>
+                      <span className="eod-pick-d">{k.blurb}</span>
+                      {mine ? <span className="eod-pick-mine">your role</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {!eodKind ? (
+              <p className="eod-pick-wait">Pick one above to open your end-of-day.</p>
+            ) : null}
+
+            {eodKind === 'closer' && (
             <form onSubmit={handleSubmitEOD} className="p-6 space-y-5">
               <EodAutofill
                 role="closer"
@@ -1079,6 +1238,201 @@ export default function SubmitPage() {
               </button>
               <WhatsAppStatus formType="eod-report" />
             </form>
+            )}
+
+            {eodKind === 'setter' && (
+            <form onSubmit={handleSubmitSetterEod} className="p-6 space-y-5">
+              <EodAutofill
+                role="setter"
+                day={stDate}
+                rep={stRep}
+                workspaceId={submitWorkspaceId}
+                values={setterValues()}
+                onApply={applySetterDraft}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="st-rep" className="form-label form-label-required">Your Name</label>
+                  <RepPicker id="st-rep" value={stRep} onChange={setStRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
+                </div>
+                <div>
+                  <label htmlFor="st-date" className="form-label">Date</label>
+                  <input id="st-date" type="date" value={stDate}
+                    onChange={function(e) { setStDate(e.target.value); }} className="input-field" />
+                </div>
+              </div>
+
+              <div className="form-section-title">The phone</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <label htmlFor="st-dials" className="form-label">Outbound Dials</label>
+                  <input id="st-dials" type="number" min="0" inputMode="numeric" value={stDials}
+                    onChange={function(e) { setStDials(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-conv" className="form-label">Conversations</label>
+                  <input id="st-conv" type="number" min="0" inputMode="numeric" value={stConversations}
+                    onChange={function(e) { setStConversations(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-live" className="form-label">Live Calls</label>
+                  <input id="st-live" type="number" min="0" inputMode="numeric" value={stLiveCalls}
+                    onChange={function(e) { setStLiveCalls(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-talk" className="form-label">Talk Time</label>
+                  <input id="st-talk" type="text" value={stTalkTime}
+                    onChange={function(e) { setStTalkTime(e.target.value); }} className="input-field" placeholder="1h 20m" />
+                </div>
+              </div>
+
+              <div className="form-section-title">What it produced</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <label htmlFor="st-sets" className="form-label">Calls Set</label>
+                  <input id="st-sets" type="number" min="0" inputMode="numeric" value={stSets}
+                    onChange={function(e) { setStSets(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-follow" className="form-label">Follow-Ups Booked</label>
+                  <input id="st-follow" type="number" min="0" inputMode="numeric" value={stFollowUps}
+                    onChange={function(e) { setStFollowUps(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-closes" className="form-label">Deals Closed</label>
+                  <input id="st-closes" type="number" min="0" inputMode="numeric" value={stCloses}
+                    onChange={function(e) { setStCloses(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="st-cash" className="form-label">Cash Collected</label>
+                  <input id="st-cash" type="number" min="0" inputMode="decimal" value={stCash}
+                    onChange={function(e) { setStCash(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+              </div>
+              <p className="sub-note">
+                Closes and cash are the ones your sets produced — you did not take those
+                calls, and they are counted against your sets, never against a pitch.
+              </p>
+
+              <div className="form-section-title">The day</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="st-closer" className="form-label">Closer you fed</label>
+                  <RepPicker id="st-closer" value={stCloser} onChange={setStCloser} reps={roster.reps} ready={roster.ready} placeholder="Who took them" />
+                </div>
+                <div>
+                  <label htmlFor="st-rating" className="form-label">Self Rating (1-10)</label>
+                  <input id="st-rating" type="number" min="1" max="10" inputMode="numeric" value={stRating}
+                    onChange={function(e) { setStRating(e.target.value); }} className="input-field" placeholder="7" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="st-plan" className="form-label">What do you need help with?</label>
+                <textarea id="st-plan" value={stPlan}
+                  onChange={function(e) { setStPlan(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="What got in the way today, and what would fix it tomorrow." />
+              </div>
+
+              <button type="submit" disabled={submitting}
+                className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
+                {submitting ? 'Submitting...' : 'Submit Setter End-of-Day'}
+              </button>
+              <WhatsAppStatus formType="eod-report" />
+            </form>
+            )}
+
+        {eodKind === 'dm-setter' && (
+            <form onSubmit={handleSubmitDmEod} className="p-6 space-y-5">
+              <EodAutofill
+                role="dm"
+                day={dmDate}
+                rep={dmRep}
+                workspaceId={submitWorkspaceId}
+                values={dmValues()}
+                onApply={applyDmDraft}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>
+                  <RepPicker id="dm-rep" value={dmRep} onChange={setDmRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
+                </div>
+                <div>
+                  <label htmlFor="dm-date" className="form-label">Date</label>
+                  <input id="dm-date" type="date" value={dmDate}
+                    onChange={function(e) { setDmDate(e.target.value); }} className="input-field" />
+                </div>
+              </div>
+
+              <div className="form-section-title">The inbox funnel</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="dm-leads" className="form-label">New Leads</label>
+                  <input id="dm-leads" type="number" min="0" inputMode="numeric" value={dmNewLeads}
+                    onChange={function(e) { setDmNewLeads(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-convos" className="form-label">Conversations Started</label>
+                  <input id="dm-convos" type="number" min="0" inputMode="numeric" value={dmConversations}
+                    onChange={function(e) { setDmConversations(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-booked" className="form-label">Calls Booked</label>
+                  <input id="dm-booked" type="number" min="0" inputMode="numeric" value={dmBooked}
+                    onChange={function(e) { setDmBooked(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-showed" className="form-label">Booked Calls That Showed</label>
+                  <input id="dm-showed" type="number" min="0" inputMode="numeric" value={dmShowed}
+                    onChange={function(e) { setDmShowed(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-closes" className="form-label">Deals Closed</label>
+                  <input id="dm-closes" type="number" min="0" inputMode="numeric" value={dmCloses}
+                    onChange={function(e) { setDmCloses(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-cash" className="form-label">Cash Collected</label>
+                  <input id="dm-cash" type="number" min="0" step="0.01" inputMode="decimal" value={dmCash}
+                    onChange={function(e) { setDmCash(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-ghost" className="form-label">Leads That Went Ghost</label>
+                  <input id="dm-ghost" type="number" min="0" inputMode="numeric" value={dmGhosted}
+                    onChange={function(e) { setDmGhosted(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-react" className="form-label">Dead Leads Reactivated</label>
+                  <input id="dm-react" type="number" min="0" inputMode="numeric" value={dmReactivated}
+                    onChange={function(e) { setDmReactivated(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+              </div>
+
+              <div className="form-section-title">What you saw today</div>
+              <div>
+                <label htmlFor="dm-themes" className="form-label">Common Themes or Patterns</label>
+                <textarea id="dm-themes" value={dmThemes}
+                  onChange={function(e) { setDmThemes(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="What kept coming up in the DMs today." />
+              </div>
+              <div>
+                <label htmlFor="dm-block" className="form-label">Biggest Bottleneck</label>
+                <textarea id="dm-block" value={dmBottleneck}
+                  onChange={function(e) { setDmBottleneck(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="The one thing slowing you down most." />
+              </div>
+
+              <button type="submit" disabled={submitting}
+                className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                {submitting ? 'Submitting...' : 'Submit DM End-of-Day'}
+              </button>
+              <WhatsAppStatus formType="eod-report" />
+            </form>
+        )}
           </div>
         )}
 
@@ -1170,103 +1524,6 @@ export default function SubmitPage() {
         )}
 
         {/* ===== DM SETTER END-OF-DAY ===== */}
-        {activeTab === 'dm-eod' && (
-          <div className="glass-card overflow-hidden stagger-1">
-            <div className="section-header">
-              <h3><MessageCircle className="w-4 h-4 text-crm-accent" /> DM Setter End-of-Day</h3>
-              <span className="section-tag">Sends to WhatsApp</span>
-            </div>
-            <form onSubmit={handleSubmitDmEod} className="p-6 space-y-5">
-              <EodAutofill
-                role="dm"
-                day={dmDate}
-                rep={dmRep}
-                workspaceId={submitWorkspaceId}
-                values={dmValues()}
-                onApply={applyDmDraft}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>
-                  <RepPicker id="dm-rep" value={dmRep} onChange={setDmRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
-                </div>
-                <div>
-                  <label htmlFor="dm-date" className="form-label">Date</label>
-                  <input id="dm-date" type="date" value={dmDate}
-                    onChange={function(e) { setDmDate(e.target.value); }} className="input-field" />
-                </div>
-              </div>
-
-              <div className="form-section-title">The inbox funnel</div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="dm-leads" className="form-label">New Leads</label>
-                  <input id="dm-leads" type="number" min="0" inputMode="numeric" value={dmNewLeads}
-                    onChange={function(e) { setDmNewLeads(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-convos" className="form-label">Conversations Started</label>
-                  <input id="dm-convos" type="number" min="0" inputMode="numeric" value={dmConversations}
-                    onChange={function(e) { setDmConversations(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-booked" className="form-label">Calls Booked</label>
-                  <input id="dm-booked" type="number" min="0" inputMode="numeric" value={dmBooked}
-                    onChange={function(e) { setDmBooked(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-showed" className="form-label">Booked Calls That Showed</label>
-                  <input id="dm-showed" type="number" min="0" inputMode="numeric" value={dmShowed}
-                    onChange={function(e) { setDmShowed(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-closes" className="form-label">Deals Closed</label>
-                  <input id="dm-closes" type="number" min="0" inputMode="numeric" value={dmCloses}
-                    onChange={function(e) { setDmCloses(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-cash" className="form-label">Cash Collected</label>
-                  <input id="dm-cash" type="number" min="0" step="0.01" inputMode="decimal" value={dmCash}
-                    onChange={function(e) { setDmCash(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-ghost" className="form-label">Leads That Went Ghost</label>
-                  <input id="dm-ghost" type="number" min="0" inputMode="numeric" value={dmGhosted}
-                    onChange={function(e) { setDmGhosted(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-react" className="form-label">Dead Leads Reactivated</label>
-                  <input id="dm-react" type="number" min="0" inputMode="numeric" value={dmReactivated}
-                    onChange={function(e) { setDmReactivated(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-              </div>
-
-              <div className="form-section-title">What you saw today</div>
-              <div>
-                <label htmlFor="dm-themes" className="form-label">Common Themes or Patterns</label>
-                <textarea id="dm-themes" value={dmThemes}
-                  onChange={function(e) { setDmThemes(e.target.value); }}
-                  className="input-field" rows={3}
-                  placeholder="What kept coming up in the DMs today." />
-              </div>
-              <div>
-                <label htmlFor="dm-block" className="form-label">Biggest Bottleneck</label>
-                <textarea id="dm-block" value={dmBottleneck}
-                  onChange={function(e) { setDmBottleneck(e.target.value); }}
-                  className="input-field" rows={3}
-                  placeholder="The one thing slowing you down most." />
-              </div>
-
-              <button type="submit" disabled={submitting}
-                className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-                {submitting ? 'Submitting...' : 'Submit DM End-of-Day'}
-              </button>
-              <WhatsAppStatus formType="eod-report" />
-            </form>
-          </div>
-        )}
-
         </div>
 
 

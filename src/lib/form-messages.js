@@ -4,6 +4,8 @@
 // build their notification here, so a deal posted from n8n reads exactly like one
 // posted from the CRM.
 
+import { eodRole } from '@/lib/eod-role';
+
 var OFFER_LABELS = {
   'saas': 'SaaS (Fund2Grow)',
   'coaching': 'Coaching (Digital Programs)',
@@ -174,8 +176,42 @@ function buildSetterEODMessage(entry, timezone) {
     + '═══════════════════════';
 }
 
+// The inbox funnel. A DM setter's day went out on the closer template until now,
+// which posted a wall of zeros to the group — calls taken, no-shows, pitches — for
+// somebody who never touched a phone, and left out every number they do work on.
+function buildDmSetterEODMessage(entry, timezone) {
+  var replyRate = entry.newLeads > 0
+    ? Math.round((entry.conversations / entry.newLeads) * 100) : 0;
+  return '📋 EOD REPORT — DM SETTER 📋\n'
+    + '═══════════════════════\n\n'
+    + '👤 Sales Rep: ' + (entry.salesRep || 'N/A') + '\n'
+    + '📅 Date: ' + (entry.date || 'Today') + '\n\n'
+    + '📥 THE INBOX\n'
+    + '────────────────\n'
+    + '🆕 New Leads: ' + (entry.newLeads || 0) + '\n'
+    + '💬 Conversations: ' + (entry.conversations || 0) + '\n'
+    + '📈 Reply Rate: ' + replyRate + '%\n'
+    + '👻 Ghosted: ' + (entry.leadsGhosted || 0) + '\n'
+    + '♻️ Reactivated: ' + (entry.leadsReactivated || 0) + '\n\n'
+    + '🎯 OUTPUT\n'
+    + '────────────────\n'
+    + '📅 Calls Booked: ' + (entry.netNewCallsBooked || 0) + '\n'
+    + '✅ Sets Showed: ' + (entry.setsShowed || 0) + '\n'
+    + '🏆 Deals Closed: ' + (entry.closes || 0) + '\n'
+    + '💵 Cash Collected: ' + money(entry.cashCollectedMYFM + entry.cashCollectedI2I) + '\n'
+    + (entry.commonThemes ? '\n🗣️ COMMON THEMES\n────────────────\n' + entry.commonThemes + '\n' : '')
+    + (entry.biggestBottleneck ? '\n🧱 BIGGEST BOTTLENECK\n────────────────\n' + entry.biggestBottleneck + '\n' : '')
+    + '\n⏰ ' + stamp(timezone) + '\n'
+    + '═══════════════════════';
+}
+
 export function buildEODMessage(entry, timezone) {
-  if (entry.role === 'setter') return buildSetterEODMessage(entry, timezone);
+  // eodRole(), not the raw label. It is the one implementation of this question,
+  // and it reads the numbers on the record alongside the label — which is what
+  // catches a report whose stated position does not match what is on it.
+  var role = eodRole(entry);
+  if (role === 'setter') return buildSetterEODMessage(entry, timezone);
+  if (role === 'dm-setter') return buildDmSetterEODMessage(entry, timezone);
   return '📋 EOD REPORT 📋\n'
     + '═══════════════════════\n\n'
     + '👤 Sales Rep: ' + (entry.salesRep || 'N/A') + '\n'
