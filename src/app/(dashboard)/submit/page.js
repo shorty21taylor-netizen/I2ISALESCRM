@@ -1257,10 +1257,10 @@ export default function SubmitPage() {
               </div>
               <div className="form-section-title">The recording</div>
               <div>
-                <label htmlFor="cd-rec" className="form-label form-label-required">Link to the call recording</label>
+                <label htmlFor="cd-rec" className="form-label">Link to the call recording</label>
                 <input id="cd-rec" type="url" value={cdRecording}
                   onChange={function(e) { setCdRecording(e.target.value); }}
-                  className="input-field" required
+                  className="input-field"
                   placeholder="https://fathom.video/share/… or Zoom, Grain, Drive…" />
                 <p className="sub-note">
                   Required. Paste the share link from wherever the call was recorded — this is what makes
@@ -1783,14 +1783,14 @@ export default function SubmitPage() {
                   placeholder="What they said, what they objected to, what you promised." />
               </div>
               <div>
-                <label htmlFor="ac-rec" className="form-label form-label-required">Link to the call recording</label>
-                <input id="ac-rec" type="url" value={acRecording} required
+                <label htmlFor="ac-rec" className="form-label">Link to the call recording</label>
+                <input id="ac-rec" type="url" value={acRecording}
                   onChange={function(e) { setAcRecording(e.target.value); }}
                   className="input-field"
                   placeholder="https://fathom.video/share/… or Zoom, Grain, Drive…" />
                 <p className="sub-note">
-                  Required. Paste the share link from wherever the call was recorded — this is what
-                  makes the report auditable, so it cannot be filed without one.
+                  Paste the share link from wherever the call was recorded. It is what makes
+                  the report auditable later, and the record says "no recording" without one.
                 </p>
               </div>
 

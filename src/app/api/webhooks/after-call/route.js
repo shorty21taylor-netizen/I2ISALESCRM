@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { normalizeRecording, withRecording } from '@/lib/call-recording';
+import { getIntegration } from '@/lib/workspace-config';
+import { normalizeRecording, withRecording, recordingRequired } from '@/lib/call-recording';
 import { initStore, getAfterCallReports, addAfterCallReport, registerCloser } from '@/lib/store';
 import { effectiveReadWorkspace, effectiveWriteWorkspace } from '@/lib/access';
 import { repScope, scopeList } from '@/lib/rep-scope';
@@ -20,14 +21,15 @@ export async function POST(req) {
       return NextResponse.json({ error: 'leadsName required' }, { status: 400 });
     }
 
-    // The tape, before anything is written. An after-call report is the basis of somebody's
-    // commission, so it is refused without the recording rather than saved and
-    // chased afterwards.
+    // The tape, when there is one. Captured and stored rather than demanded: a
+    // submission with no link is a record missing a link, which is visible on the
+    // row and fixable; a refused submission is a after-call report nobody has at all.
+    // A workspace can still insist, with summit / require_call_recording = on.
     var tape = normalizeRecording(body.recordingUrl);
-    if (!tape.ok) {
+    if (!tape.ok && await recordingRequired(getIntegration, body.workspaceId)) {
       return NextResponse.json({ error: tape.reason, needsRecording: true }, { status: 400 });
     }
-    body.extra = withRecording(body, tape.url);
+    if (tape.ok) body.extra = withRecording(body, tape.url);
     // The server decides the owning workspace; a member cannot write into
     // another client's workspace by posting a different workspaceId.
     body.workspaceId = await effectiveWriteWorkspace(req, body.workspaceId);

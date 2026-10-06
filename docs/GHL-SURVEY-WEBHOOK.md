@@ -30,7 +30,10 @@ Workflow → Trigger **Survey Submitted** → pick the survey → Action **Webho
   - Booked Call Report → `?type=book-call`
   - End-of-Call Report → `?type=after-call`
   - Setter End-of-Day → `?type=eod-report`
-- Header: `x-summit-signature: <HMAC-SHA256 of the raw body, keyed with webhook_secret>`
+- Header: `x-summit-token: <the webhook_secret>` — this is what GoHighLevel can send
+  - A computed `x-summit-signature` (HMAC-SHA256 of the raw body) is also accepted and is
+    stronger, for any sender that can produce one. Either proves the submission; neither
+    being present is a 401.
 - Body: the survey submission. Send everything; nothing needs renaming.
 
 Leaving `?type=` off works too — the route reads the questions only one survey
@@ -56,18 +59,17 @@ submission and skips the send.
 
 ## The call recording
 
-The internal End-of-Call form requires a link to the recording. The hosted survey
-has no such question, so by default a call report submitted without one is
-**refused** and the response says so.
+Optional. The link is captured wherever it is offered — the route reads it under
+`call_recording`, `call_recording_link`, `recording_url`, `recording_link`,
+`gong_link` or `fathom_link` — stored on the record, and shown as a chip on the
+board. A record filed without one says "no recording" rather than being refused.
 
-Two ways out, in order of preference:
+It used to be a hard gate. Refusing a submission with no link did not produce
+recordings; it produced no record at all, losing the call, the cash and the
+commission along with the missing link.
 
-1. Add a **Call Recording Link** question to the GHL survey. The route accepts it
-   under any of `call_recording`, `call_recording_link`, `recording_url`,
-   `recording_link`, `gong_link`, `fathom_link`.
-2. Stand the requirement down for this workspace: add
-   `summit` / `require_call_recording` = `off` in Integrations. Records then file
-   without a tape and show "no recording" on the board.
+A workspace that wants the old behaviour sets `summit` / `require_call_recording`
+= `on` in Integrations, and every write path then refuses again.
 
 ## Retries
 

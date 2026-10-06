@@ -1,9 +1,14 @@
-// A closer does not get to file a call without the tape.
+// Where a call recording lives on a record, and what counts as one.
 //
-// Two forms carry a claim about what happened on a call — the after-call report
-// and the closed deal — and both are the basis of somebody's commission. The
-// recording is what makes either auditable, so it is required rather than
-// requested, and the write is refused without it rather than saved and chased.
+// It was briefly a hard gate: no link, no record. That is no longer true. The
+// floor files on hosted forms that have no recording question, and refusing
+// those submissions did not produce recordings — it produced nothing at all,
+// with the call, the cash and the commission lost along with the missing link.
+//
+// So the link is captured wherever it is offered, stored, and shown on the
+// record; a record without one says "no recording" rather than being refused.
+// A workspace that wants the old behaviour back sets
+// summit / require_call_recording = on, which every write path honours.
 //
 // It is a LINK, not an upload. There is no object store behind this product: the
 // only upload path is the avatar one, which caps at 12MB and resizes in the
@@ -74,3 +79,17 @@ export function recordingOf(record) {
   return (record && record.extra && record.extra.recordingUrl) || '';
 }
 
+
+
+// Does this workspace refuse a call record that carries no recording?
+//
+// Off by default. It is opt-in rather than opt-out because the cost of being
+// wrong runs one way: a workspace that wanted the rule and does not have it has
+// records missing a link, which is visible on every row and fixable later; a
+// workspace that did not want it and has it loses the submission entirely.
+export async function recordingRequired(getIntegration, workspaceId) {
+  if (!getIntegration || !workspaceId) return false;
+  var v = await getIntegration(workspaceId, 'summit', 'require_call_recording')
+    .catch(function() { return ''; });
+  return String(v || '').trim().toLowerCase() === 'on';
+}

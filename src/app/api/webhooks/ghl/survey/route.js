@@ -6,7 +6,7 @@ import {
 import { workspaceForIntegrationValue, getIntegration } from '@/lib/workspace-config';
 import { syncBookedCall, syncClosedDeal } from '@/lib/pipeline-sync';
 import { sendFormNotification } from '@/lib/notify-server';
-import { normalizeRecording, withRecording } from '@/lib/call-recording';
+import { normalizeRecording, withRecording, recordingRequired } from '@/lib/call-recording';
 import {
   flattenSurvey, surveyFormType, recordingFrom,
   toBookedCall, toAfterCall, toClosedDeal, closedOnThisCall, toEod,
@@ -58,6 +58,27 @@ function signatureOk(rawBody, header, secret) {
   return safeEqual(expected, String(header).trim().replace(/^sha256=/i, ''));
 }
 
+// The shared token, for a sender that cannot compute a signature.
+//
+// GoHighLevel's webhook action sends fixed headers; it has no way to HMAC the
+// body it is about to post. Requiring a signature therefore refused every
+// submission, which is a security property nobody benefits from — it did not
+// make the endpoint safer, it made it unreachable.
+//
+// So a static token is accepted as well. It is weaker than a signature: it does
+// not prove the body is unmodified in transit, only that the sender knows the
+// secret. Over HTTPS to a known host that is the same guarantee most webhook
+// products ship with, and the rest of the route's protections are unchanged —
+// the workspace still comes from the location id, and knowing one workspace's
+// token still gets you nowhere with another's, because the token checked is
+// whichever belongs to the workspace the payload named.
+//
+// Compared in constant time. A plain === on a secret leaks its prefix by timing.
+function tokenOk(header, secret) {
+  if (!secret || !header) return false;
+  return safeEqual(String(header).trim().replace(/^bearer\s+/i, ''), String(secret).trim());
+}
+
 // GHL retries on its own timeout as well as on ours, so the same submission can
 // arrive several times. Kept in memory: a duplicate hours later is a rep filing
 // twice, which is a real record, not a retry.
@@ -84,6 +105,10 @@ export async function POST(req) {
   catch (e) { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
   var signature = req.headers.get('x-summit-signature') || req.headers.get('x-wh-signature') || '';
+  var token = req.headers.get('x-summit-token')
+    || req.headers.get('x-api-key')
+    || req.headers.get('authorization')
+    || '';
 
   // Read before anything is verified, and used for exactly one thing: choosing
   // which secret to check the signature against. It grants nothing on its own.
@@ -108,9 +133,16 @@ export async function POST(req) {
     console.error('[GHL survey] No webhook secret for workspace ' + workspaceId + ' — rejecting.');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 401 });
   }
-  if (!signatureOk(raw, signature, secret)) {
-    console.error('[GHL survey] Bad or missing signature for workspace ' + workspaceId);
-    return NextResponse.json({ error: 'Bad signature' }, { status: 401 });
+  // Either proof is enough. A signature is better and is tried first; the token
+  // is what GoHighLevel can actually send.
+  var signed = signatureOk(raw, signature, secret);
+  var tokened = !signed && tokenOk(token, secret);
+  if (!signed && !tokened) {
+    console.error('[GHL survey] No valid signature or token for workspace ' + workspaceId);
+    return NextResponse.json({
+      error: 'Unauthorized. Send x-summit-token with this workspace\'s webhook secret,'
+        + ' or x-summit-signature with an HMAC-SHA256 of the body.',
+    }, { status: 401 });
   }
 
   var url = new URL(req.url);
@@ -131,15 +163,6 @@ export async function POST(req) {
     console.log('[GHL survey] Duplicate within the retry window — ignored.');
     return NextResponse.json({ ok: true, duplicate: true });
   }
-
-  // Whether this workspace still insists on the tape. The internal forms require
-  // it; a hosted survey that has no such question would be refused outright and
-  // the closers would have nowhere to file at all. So it stays required by
-  // default and a workspace can stand it down deliberately, with
-  // summit / require_call_recording = off.
-  var requireRecording = String(
-    (await getIntegration(workspaceId, 'summit', 'require_call_recording')) || 'on'
-  ).toLowerCase() !== 'off';
 
   try {
     if (formType === 'eod-report') {
@@ -175,12 +198,15 @@ export async function POST(req) {
     var ac = toAfterCall(flat);
     if (!ac.leadsName) return NextResponse.json({ error: 'Missing the prospect name' }, { status: 400 });
 
+    // The tape, if the survey happens to ask for one. It does not today, and that
+    // is not a reason to lose the call: the record carries the link when it is
+    // there and says "no recording" when it is not.
     var tape = normalizeRecording(recordingFrom(flat));
-    if (requireRecording && !tape.ok) {
+    if (!tape.ok && await recordingRequired(getIntegration, workspaceId)) {
       console.warn('[GHL survey] Refused a call report with no recording in workspace ' + workspaceId);
       return NextResponse.json({
-        error: tape.reason + ' Add a recording-link question to the survey, or set'
-          + ' summit / require_call_recording to "off" for this workspace.',
+        error: tape.reason + ' Add a recording-link question to the survey, or clear'
+          + ' summit / require_call_recording for this workspace.',
         needsRecording: true,
       }, { status: 400 });
     }
