@@ -3,9 +3,9 @@ import { initStore, getWorkspace, getDisplayNameState, getLastWorkspace, setLast
 import { getUser } from '@/lib/users';
 import { mintSession, attachSession } from '@/lib/session';
 import {
-  GENERIC_FAILURE, rateLimitMessage, normalizeEmail, dummyCompare,
+  GENERIC_FAILURE, normalizeEmail, dummyCompare,
   ensureAuthReady, verifyWorkspacePassword, workspaceStamp,
-  activeMemberships, rateLimit, noteAttempt, clientIp,
+  activeMemberships, noteAttempt,
 } from '@/lib/workspace-auth';
 
 export var dynamic = 'force-dynamic';
@@ -27,13 +27,19 @@ export async function POST(req) {
       return NextResponse.json({ error: GENERIC_FAILURE }, { status: 401 });
     }
 
-    // Before anything else. One shared secret across the org means a single
-    // guessed password opens every roster email at once, so this is the whole of
-    // the brute-force defence and it runs first.
-    var limited = rateLimit(email, clientIp(req));
-    if (limited) {
-      return NextResponse.json({ error: rateLimitMessage(limited.minutes) }, { status: 429 });
-    }
+    // The lockout that used to run here has been removed at the owner's request:
+    // after a password rotation a floor typing the old one burned through the
+    // per-IP budget and locked the whole office out of their own CRM, right
+    // password included.
+    //
+    // What that costs, stated plainly so the next person does not have to work it
+    // out: one shared secret across the org, no attempt budget, and a guess that
+    // lands opens every address on the roster at once. rateLimit() still exists
+    // in workspace-auth.js with IP_LIMIT / EMAIL_LIMIT, and raising those would
+    // have fixed the lockout without giving this up.
+    //
+    // Every attempt is still recorded below, so Access & Sign-ins shows a run of
+    // failures — but nothing stops one.
 
     await ensureAuthReady();
 
