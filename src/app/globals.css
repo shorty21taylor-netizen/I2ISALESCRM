@@ -5199,3 +5199,17 @@ html, body { overflow-x: clip; }
   margin: 0; padding: 18px 24px 24px;
   font-size: 12px; color: var(--crm-text-muted);
 }
+
+/* Several answers to one question, as chips. */
+.obj-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+.obj-chip {
+  padding: 7px 12px; border-radius: var(--r-pill); cursor: pointer;
+  font-size: 11.5px; font-weight: 600; line-height: 1.2;
+  background: var(--crm-surface-bg); color: var(--crm-text-muted);
+  border: 1px solid var(--crm-border);
+}
+.obj-chip:hover { color: var(--crm-text-bright); border-color: var(--crm-accent); }
+.obj-chip.on {
+  background: rgba(var(--accent-rgb, 200,169,81), 0.14);
+  color: var(--crm-text-bright); border-color: var(--crm-accent);
+}

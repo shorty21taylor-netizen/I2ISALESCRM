@@ -10,6 +10,12 @@ import SubmitCelebration from '@/components/SubmitCelebration';
 import EodAutofill from '@/components/EodAutofill';
 import RepPicker from '@/components/RepPicker';
 import useRoster from '@/lib/use-roster';
+import {
+  PROGRAMS, BOOKING_SOURCES, LEAD_TEMPERATURES, CALL_OUTCOMES, outcomeKind,
+  PROGRAM_DURATIONS, PAYMENT_PLATFORMS, PAYMENT_TYPES, PAYMENT_FREQUENCIES,
+  needsSchedule, FOLLOWUP_REASONS, LOST_REASONS,
+  SETTER_TYPES, DM_OBJECTIONS, PHONE_OBJECTIONS, LEAD_SOURCES,
+} from '@/lib/i2i-forms';
 import { toReportDay } from '@/lib/report-date';
 
 // The icon set an admin picks from. Stored as a name on the form row so the
@@ -185,7 +191,11 @@ export default function SubmitPage() {
   var b7 = useState(''), bcNotes = b7[0], setBcNotes = b7[1];
   var b8 = useState(''), bcSetter = b8[0], setBcSetter = b8[1];
   var b9 = useState(''), bcCloser = b9[0], setBcCloser = b9[1];
-  var b10 = useState('inbound'), bcSource = b10[0], setBcSource = b10[1];
+  var b10 = useState(''), bcSource = b10[0], setBcSource = b10[1];
+  var b11 = useState(''), bcLeadsEmail = b11[0], setBcLeadsEmail = b11[1];
+  var b12 = useState(''), bcProgram = b12[0], setBcProgram = b12[1];
+  var b13 = useState(''), bcTemperature = b13[0], setBcTemperature = b13[1];
+  var b14 = useState(''), bcGoal = b14[0], setBcGoal = b14[1];
   var bb1 = useState(''), bcBrand = bb1[0], setBcBrand = bb1[1];
   var bb2 = useState(''), bcSubProgram = bb2[0], setBcSubProgram = bb2[1];
   var bb3 = useState(''), bcPartnerName = bb3[0], setBcPartnerName = bb3[1];
@@ -239,6 +249,27 @@ export default function SubmitPage() {
   var a6 = useState(''), acNextStep = a6[0], setAcNextStep = a6[1];
   var a7 = useState(''), acNotes = a7[0], setAcNotes = a7[1];
   var a8 = useState(''), acRecording = a8[0], setAcRecording = a8[1];
+  // The closer's End-of-Call Report, as the floor's own form asks it. One form,
+  // three branches, and on a close it files two records: the after-call report is
+  // the account of the call, the closed deal is the money. Neither is double
+  // counted — cash comes off deals, calls come off reports.
+  var q1 = useState(''), acProgram = q1[0], setAcProgram = q1[1];
+  var q2 = useState(''), acDuration = q2[0], setAcDuration = q2[1];
+  var q3 = useState(''), acDealValue = q3[0], setAcDealValue = q3[1];
+  var q4 = useState(''), acCash = q4[0], setAcCash = q4[1];
+  var q5 = useState(''), acPlatform = q5[0], setAcPlatform = q5[1];
+  var q6 = useState(''), acOwnCard = q6[0], setAcOwnCard = q6[1];
+  var q7 = useState(''), acPayerName = q7[0], setAcPayerName = q7[1];
+  var q8 = useState(''), acPayerEmail = q8[0], setAcPayerEmail = q8[1];
+  var q9 = useState(''), acPaymentType = q9[0], setAcPaymentType = q9[1];
+  var q10 = useState(''), acStructure = q10[0], setAcStructure = q10[1];
+  var q11 = useState(''), acFrequency = q11[0], setAcFrequency = q11[1];
+  var q12 = useState(''), acNextPayDate = q12[0], setAcNextPayDate = q12[1];
+  var q13 = useState(''), acNextPayAmount = q13[0], setAcNextPayAmount = q13[1];
+  var q14 = useState(''), acRemaining = q14[0], setAcRemaining = q14[1];
+  var q15 = useState(''), acFollowupReason = q15[0], setAcFollowupReason = q15[1];
+  var q16 = useState(''), acFollowupDate = q16[0], setAcFollowupDate = q16[1];
+  var q17 = useState(''), acLostReason = q17[0], setAcLostReason = q17[1];
 
   // DM setter end-of-day. The same EOD record as above, filed against the inbox
   // funnel rather than the phone one, and carrying Position so eodRole() files it
@@ -284,6 +315,20 @@ export default function SubmitPage() {
   var p11 = useState(''), stCloser = p11[0], setStCloser = p11[1];
   var p12 = useState(''), stRating = p12[0], setStRating = p12[1];
   var p13 = useState(''), stPlan = p13[0], setStPlan = p13[1];
+  var p14 = useState(''), stLeadSource = p14[0], setStLeadSource = p14[1];
+  var p15 = useState(''), stObjection = p15[0], setStObjection = p15[1];
+  // The DM day takes several objections, so this one is a list.
+  var p16 = useState([]), dmObjections = p16[0], setDmObjections = p16[1];
+  var p17 = useState(''), dmFollowUps = p17[0], setDmFollowUps = p17[1];
+
+  function toggleDmObjection(name) {
+    setDmObjections(function(prev) {
+      return prev.indexOf(name) === -1
+        ? prev.concat([name])
+        : prev.filter(function(x) { return x !== name; });
+    });
+  }
+
 
   // The two end-of-day forms, as a key -> value map and a key -> setter map, so the
   // autofill strip can read what is already typed and write only the blanks without
@@ -318,18 +363,14 @@ export default function SubmitPage() {
   function setterValues() {
     return {
       outboundDials: stDials, conversations: stConversations,
-      liveCalls: stLiveCalls, talkTime: stTalkTime, sets: stSets,
-      followUpsScheduled: stFollowUps, closes: stCloses,
-      cashCollectedI2I: stCash, improvementPlan: stPlan,
+      sets: stSets, followUpsScheduled: stFollowUps, improvementPlan: stPlan,
     };
   }
 
   function applySetterDraft(next) {
     var setters = {
       outboundDials: setStDials, conversations: setStConversations,
-      liveCalls: setStLiveCalls, talkTime: setStTalkTime, sets: setStSets,
-      followUpsScheduled: setStFollowUps, closes: setStCloses,
-      cashCollectedI2I: setStCash, improvementPlan: setStPlan,
+      sets: setStSets, followUpsScheduled: setStFollowUps, improvementPlan: setStPlan,
     };
     Object.keys(next || {}).forEach(function(key) {
       if (setters[key]) setters[key](String(next[key]));
@@ -339,20 +380,16 @@ export default function SubmitPage() {
   function dmValues() {
     return {
       newLeads: dmNewLeads, conversations: dmConversations,
-      netNewCallsBooked: dmBooked, setsShowed: dmShowed, closes: dmCloses,
-      cashCollectedI2I: dmCash, leadsGhosted: dmGhosted,
-      leadsReactivated: dmReactivated, commonThemes: dmThemes,
-      biggestBottleneck: dmBottleneck,
+      followUpsScheduled: dmFollowUps, netNewCallsBooked: dmBooked,
+      commonThemes: dmThemes,
     };
   }
 
   function applyDmDraft(next) {
     var setters = {
       newLeads: setDmNewLeads, conversations: setDmConversations,
-      netNewCallsBooked: setDmBooked, setsShowed: setDmShowed, closes: setDmCloses,
-      cashCollectedI2I: setDmCash, leadsGhosted: setDmGhosted,
-      leadsReactivated: setDmReactivated, commonThemes: setDmThemes,
-      biggestBottleneck: setDmBottleneck,
+      followUpsScheduled: setDmFollowUps, netNewCallsBooked: setDmBooked,
+      commonThemes: setDmThemes,
     };
     Object.keys(next || {}).forEach(function(key) {
       if (setters[key]) setters[key](String(next[key]));
@@ -383,10 +420,10 @@ export default function SubmitPage() {
   }, []);
 
   function clearBookCall() {
-    setBcLeadsName(''); setBcLeadsPhone(''); setBcQualified('yes');
-    setBcBookedDay(''); setBcBookedTime(''); setBcNotes(''); setBcSetter('');
-    setBcCloser(user ? user.name : ''); setBcSource('inbound');
-    setBcBrand(''); setBcSubProgram(''); setBcPartnerName(''); setBcMyfmDuration(''); setBcPricePoint('');
+    setBcLeadsName(''); setBcLeadsPhone(''); setBcLeadsEmail('');
+    setBcProgram(''); setBcQualified('yes'); setBcBookedDay(''); setBcBookedTime('');
+    setBcSource(''); setBcTemperature(''); setBcGoal(''); setBcNotes('');
+    setBcSetter(''); setBcCloser(user ? user.name : '');
   }
 
   function clearCloseDeal() {
@@ -407,6 +444,11 @@ export default function SubmitPage() {
   function clearAfterCall() {
     setAcLeadsName(''); setAcLeadsPhone(''); setAcLeadsEmail('');
     setAcOutcome(''); setAcNextStep(''); setAcNotes(''); setAcRecording('');
+    setAcProgram(''); setAcDuration(''); setAcDealValue(''); setAcCash('');
+    setAcPlatform(''); setAcOwnCard(''); setAcPayerName(''); setAcPayerEmail('');
+    setAcPaymentType(''); setAcStructure(''); setAcFrequency('');
+    setAcNextPayDate(''); setAcNextPayAmount(''); setAcRemaining('');
+    setAcFollowupReason(''); setAcFollowupDate(''); setAcLostReason('');
     setAcCloser(user ? user.name : '');
   }
 
@@ -414,6 +456,7 @@ export default function SubmitPage() {
     setStDials(''); setStConversations(''); setStLiveCalls(''); setStTalkTime('');
     setStSets(''); setStFollowUps(''); setStCloses(''); setStCash('');
     setStCloser(''); setStRating(''); setStPlan('');
+    setStLeadSource(''); setStObjection('');
     setStRep(user ? user.name : '');
     setStDate(toReportDay(new Date()));
   }
@@ -421,7 +464,7 @@ export default function SubmitPage() {
   function clearDmEod() {
     setDmNewLeads(''); setDmConversations(''); setDmBooked(''); setDmShowed('');
     setDmCloses(''); setDmCash(''); setDmGhosted(''); setDmReactivated('');
-    setDmThemes(''); setDmBottleneck('');
+    setDmThemes(''); setDmBottleneck(''); setDmFollowUps(''); setDmObjections([]);
     setDmRep(user ? user.name : '');
     setDmDate(toReportDay(new Date()));
   }
@@ -482,13 +525,16 @@ export default function SubmitPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadsName: bcLeadsName, leadsPhone: bcLeadsPhone,
-          program: buildProgramString(bcBrand, bcMyfmDuration, bcSubProgram, bcPartnerName),
-          brand: bcBrand,
-          subProgram: bcSubProgram || bcMyfmDuration || bcPartnerName || '',
-          pricePoint: bcBrand === 'MYFM' ? bcPricePoint : '',
+          leadsName: bcLeadsName, leadsPhone: bcLeadsPhone, leadsEmail: bcLeadsEmail,
+          program: bcProgram,
           qualified: bcQualified, bookedDay: bcBookedDay, bookedTime: bcBookedTime,
-          notes: bcNotes, setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
+          // The two things the closer reads before they dial. `goal` and `notes`
+          // are columns addBookedCall already carries, so neither needs `extra`.
+          goal: bcGoal, notes: bcNotes,
+          // The floor calls this Lead Temperature; the record and the WhatsApp
+          // message have always called it Intent Score, under a thermometer.
+          intentScore: bcTemperature,
+          setter: bcSetter, closer: bcCloser, outboundInbound: bcSource,
           closerEmail: closerEmailFor(bcCloser),
           workspaceId: submitWorkspaceId,
           _whatsapp: waBC,
@@ -580,26 +626,95 @@ export default function SubmitPage() {
   async function handleSubmitAfterCall(evt) {
     evt.preventDefault();
     if (!acLeadsName.trim()) return;
+    var kind = outcomeKind(acOutcome);
     setSubmitting(true); setError(''); setSuccessMsg(null);
+
+    // Everything the outcome branch asked for, kept together so both records
+    // carry the same account of the call. None of it needs a column of its own:
+    // addAfterCallReport and addClosedDeal both pass `extra` through untouched,
+    // and addClosedDeal is one of the functions the floor's numbers rest on.
+    var detail = {
+      program: acProgram,
+      programDuration: acDuration,
+      paymentPlatform: acPlatform,
+      prospectPaidThemselves: acOwnCard,
+      payerName: acOwnCard === 'No' ? acPayerName : '',
+      payerEmail: acOwnCard === 'No' ? acPayerEmail : '',
+      paymentType: acPaymentType,
+      paymentStructure: acStructure,
+      paymentFrequency: acFrequency,
+      nextPaymentDate: acNextPayDate,
+      nextPaymentAmount: acNextPayAmount,
+      remainingPayments: acRemaining,
+      followUpReason: acFollowupReason,
+      followUpDate: acFollowupDate,
+      lostReason: acLostReason,
+      totalDealValue: acDealValue,
+    };
+
     try {
+      // The call itself, always. A closed call is still a call that happened, and
+      // leaving it off this board would under-count every closer's calls taken.
       var res = await apiFetch('/api/webhooks/after-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recordingUrl: acRecording,
           leadsName: acLeadsName, leadsPhone: acLeadsPhone, leadsEmail: acLeadsEmail,
-          closer: acCloser, outcome: acOutcome, nextStep: acNextStep, callNotes: acNotes,
+          closer: acCloser, outcome: acOutcome,
+          nextStep: kind === 'follow-up' ? acFollowupReason : acNextStep,
+          callNotes: acNotes,
           closerEmail: closerEmailFor(acCloser),
+          extra: detail,
           workspaceId: submitWorkspaceId,
         }),
       });
       var data = await res.json();
-      if (data.success) {
-        setSuccessMsg(filed('After-call report submitted.', data));
+      if (!data.success) {
+        setError(data.error || 'Failed to submit');
+        setSubmitting(false);
+        return;
+      }
+
+      // And the money, when there is money. Two records, never two sets of cash:
+      // cash is read off closed deals, calls off after-call reports.
+      if (kind === 'closed') {
+        var waCD = getWhatsAppForType('close-deal');
+        var deal = await apiFetch('/api/webhooks/close-deal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordingUrl: acRecording,
+            leadsName: acLeadsName, leadsPhone: acLeadsPhone, leadsEmail: acLeadsEmail,
+            program: acProgram,
+            cashCollected: acCash || acDealValue,
+            paymentProcessor: acPlatform,
+            paymentAgreement: acPaymentType,
+            paymentDetails: acStructure,
+            closer: acCloser, closerEmail: closerEmailFor(acCloser),
+            notes: acNotes,
+            extra: detail,
+            workspaceId: submitWorkspaceId,
+            _whatsapp: waCD,
+          }),
+        });
+        var dealData = await deal.json();
+        if (!dealData.success) {
+          // The call is on the record; the deal is not. Say exactly that rather
+          // than a success message that would leave the cash unaccounted for.
+          setError('The call was filed, but the deal was not: '
+            + (dealData.error || 'unknown error') + ' — file the deal again.');
+          setSubmitting(false);
+          return;
+        }
+        setSuccessMsg(filed('Deal closed and call filed.', dealData));
+        setCelebrate({ variant: 'cash', amount: acCash || acDealValue });
+      } else {
+        setSuccessMsg(filed('End-of-call report submitted.', data));
         setCelebrate({ variant: 'aftercall' });
-        clearAfterCall();
-        refreshActivity();
-      } else { setError(data.error || 'Failed to submit'); }
+      }
+      clearAfterCall();
+      refreshActivity();
     } catch (err) { setError('Connection error. Try again.'); }
     setSubmitting(false);
   }
@@ -618,13 +733,17 @@ export default function SubmitPage() {
           // to pick the board; buildEODMessage asks eodRole() too, which is how
           // this day goes out on the setter template instead of a closer's.
           position: 'Setter', role: 'setter',
-          outboundDials: stDials, conversations: stConversations,
-          liveCalls: stLiveCalls, talkTime: stTalkTime,
-          sets: stSets, followUpsScheduled: stFollowUps, closes: stCloses,
-          // One cash box, landing in the I2I column the way the hosted form's
-          // single figure already does, so both paths produce the same record.
-          cashCollectedI2I: stCash,
-          closerName: stCloser, selfRating: stRating, improvementPlan: stPlan,
+          // Their wording on the left, the column that already holds it on the
+          // right. Nothing is promoted out of the JSONB for this.
+          outboundDials: stDials,            // Total Calls Made
+          conversations: stConversations,    // Total People Reached
+          followUpsScheduled: stFollowUps,   // Total Follow-Ups Made
+          sets: stSets,                      // Total Calls Booked
+          netNewCallsBooked: stSets,         // the same figure, under the name the setter KPI reads
+          improvementPlan: stPlan,
+          // No column of their own, and none is promoted for them — `extra` is
+          // carried through addEODReport untouched.
+          extra: { leadSourceWorked: stLeadSource, mainObjection: stObjection },
           closerEmail: closerEmailFor(stRep),
           workspaceId: submitWorkspaceId,
         }),
@@ -654,14 +773,13 @@ export default function SubmitPage() {
           // report that names its own position, which matters here because a DM
           // setter reports closes they did not personally take.
           position: 'DM Setter',
-          newLeads: dmNewLeads, conversations: dmConversations,
-          netNewCallsBooked: dmBooked, setsShowed: dmShowed, closes: dmCloses,
-          // One cash figure, stored the same way the hosted form's single cash
-          // box already lands (form-ingest puts it in the I2I column), so an
-          // in-app report and an n8n one produce the same record.
-          cashCollectedI2I: dmCash,
-          leadsGhosted: dmGhosted, leadsReactivated: dmReactivated,
-          commonThemes: dmThemes, biggestBottleneck: dmBottleneck,
+          newLeads: dmNewLeads,              // Total New DMs / Conversations Started
+          conversations: dmConversations,    // Total Replies / Conversations Had
+          followUpsScheduled: dmFollowUps,   // Total Follow-Ups Sent
+          netNewCallsBooked: dmBooked,       // Total Calls Booked
+          commonThemes: dmThemes,
+          // Several answers, kept as a list and joined for the message.
+          extra: { mainObjections: dmObjections },
           closerEmail: closerEmailFor(dmRep),
           workspaceId: submitWorkspaceId,
         }),
@@ -689,7 +807,7 @@ export default function SubmitPage() {
   var tabs = [
     { id: 'book-call', label: 'Book a Call', icon: Phone, color: 'crm-accent' },
     { id: 'close-deal', label: 'Close a Deal', icon: DollarSign, color: 'crm-positive' },
-    { id: 'after-call', label: 'After-Call', icon: FileText, color: 'crm-accent' },
+    { id: 'after-call', label: 'End-of-Call', icon: FileText, color: 'crm-accent' },
     { id: 'eod-report', label: 'End-of-Day', icon: ClipboardCheck, color: 'crm-muted' },
   ];
 
@@ -824,79 +942,28 @@ export default function SubmitPage() {
                   <input type="text" value={bcLeadsName} onChange={function(e) { setBcLeadsName(e.target.value); }} className="input-field" placeholder="John Smith" required />
                 </div>
                 <div>
+                  <label htmlFor="bc-email" className="form-label form-label-required">Lead&apos;s Email</label>
+                  <input id="bc-email" type="email" value={bcLeadsEmail} required
+                    onChange={function(e) { setBcLeadsEmail(e.target.value); }}
+                    className="input-field" placeholder="prospect@email.com" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="form-label">Lead&apos;s Phone</label>
                   <input type="text" value={bcLeadsPhone} onChange={function(e) { setBcLeadsPhone(e.target.value); }} className="input-field" placeholder="+1 555-123-4567" />
                 </div>
               </div>
-              {/* PROGRAM SELECTION — 3-step */}
+              {/* One question, the floor's own seven answers. The three-step brand
+                  picker it replaces asked about offers this team does not sell and
+                  could not name the ones it does. */}
               <div>
-                <label className="form-label">Program</label>
-
-                <div className="flex gap-2 mb-3">
-                  {['MYFM', 'I2I', 'Partner'].map(function(bnd) {
-                    return (
-                      <button
-                        key={bnd}
-                        type="button"
-                        onClick={function() {
-                          setBcBrand(bnd);
-                          setBcSubProgram('');
-                          setBcPartnerName('');
-                          setBcMyfmDuration('');
-                          setBcPricePoint('');
-                        }}
-                        className={'flex-1 px-4 py-3 rounded-xl text-sm font-display font-bold transition-all ' +
-                          (bcBrand === bnd ? 'text-white' : 'text-crm-muted')}
-                        style={bcBrand === bnd ? {
-                          background: bnd === 'MYFM' ? '#fafafa' : bnd === 'I2I' ? '#d4d4d4' : '#f59e0b',
-                          boxShadow: '0 0 20px ' + (bnd === 'MYFM' ? 'rgba(59,130,246,0.3)' : bnd === 'I2I' ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.3)')
-                        } : { background: 'var(--crm-surface-bg)', border: '1px solid var(--crm-border)' }}
-                      >
-                        {bnd}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {bcBrand === 'MYFM' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="form-label">Duration</label>
-                      <select value={bcMyfmDuration} onChange={function(e) { setBcMyfmDuration(e.target.value); }} className="input-field">
-                        <option value="">Select duration...</option>
-                        <option value="6 Month Coaching">6 Month Coaching</option>
-                        <option value="12 Month Coaching">12 Month Coaching</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="form-label">Price Point</label>
-                      <input type="number" inputMode="decimal" value={bcPricePoint} onChange={function(e) { setBcPricePoint(e.target.value); }} placeholder="e.g. 6000" className="input-field" />
-                    </div>
-                  </div>
-                )}
-
-                {bcBrand === 'I2I' && (
-                  <div>
-                    <label className="form-label">Offer</label>
-                    <select value={bcSubProgram} onChange={function(e) { setBcSubProgram(e.target.value); }} className="input-field">
-                      <option value="">Select offer...</option>
-                      <option value="Skool Sales">Skool Sales</option>
-                      <option value="Funding Program">Funding Program</option>
-                      <option value="Digital Program">Digital Program</option>
-                      <option value="Inner Circle">Inner Circle</option>
-                    </select>
-                  </div>
-                )}
-
-                {bcBrand === 'Partner' && (
-                  <div>
-                    <label className="form-label">Partner</label>
-                    <select value={bcPartnerName} onChange={function(e) { setBcPartnerName(e.target.value); }} className="input-field">
-                      <option value="">Select partner...</option>
-                      {partners.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
-                    </select>
-                  </div>
-                )}
+                <label htmlFor="bc-program" className="form-label form-label-required">Program/Service</label>
+                <select id="bc-program" value={bcProgram} required
+                  onChange={function(e) { setBcProgram(e.target.value); }} className="input-field">
+                  <option value="">Select the offer</option>
+                  {PROGRAMS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -935,16 +1002,39 @@ export default function SubmitPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Source</label>
-                  <select value={bcSource} onChange={function(e) { setBcSource(e.target.value); }} className="input-field">
-                    <option value="inbound">Inbound</option>
-                    <option value="outbound">Outbound</option>
+                  {/* Lands in `outboundInbound`, which every screen already labels
+                      Source and whose filter builds its own list from what it finds
+                      — so five real answers cost nothing downstream. */}
+                  <label htmlFor="bc-source" className="form-label form-label-required">Booking Source</label>
+                  <select id="bc-source" value={bcSource} required
+                    onChange={function(e) { setBcSource(e.target.value); }} className="input-field">
+                    <option value="">Where it came from</option>
+                    {BOOKING_SOURCES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="bc-temp" className="form-label form-label-required">Lead Temperature</label>
+                  <select id="bc-temp" value={bcTemperature} required
+                    onChange={function(e) { setBcTemperature(e.target.value); }} className="input-field">
+                    <option value="">How warm are they</option>
+                    {LEAD_TEMPERATURES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
                   </select>
                 </div>
               </div>
+
+              <div className="form-section-title">For the closer</div>
               <div>
-                <label className="form-label">Notes</label>
-                <textarea value={bcNotes} onChange={function(e) { setBcNotes(e.target.value); }} className="input-field" rows={3} placeholder="Any additional notes..." />
+                <label htmlFor="bc-goal" className="form-label form-label-required">Main Goal / What do they need help with?</label>
+                <input id="bc-goal" type="text" value={bcGoal} required
+                  onChange={function(e) { setBcGoal(e.target.value); }}
+                  className="input-field" placeholder="What they said they want fixed" />
+              </div>
+              <div>
+                <label htmlFor="bc-notes" className="form-label form-label-required">Important Notes for the Closer</label>
+                <textarea id="bc-notes" value={bcNotes} required
+                  onChange={function(e) { setBcNotes(e.target.value); }}
+                  className="input-field" rows={3}
+                  placeholder="Anything the closer needs before they pick up the phone." />
               </div>
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Phone className="w-4 h-4" />}
@@ -1252,82 +1342,59 @@ export default function SubmitPage() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="st-rep" className="form-label form-label-required">Your Name</label>
+                  <label htmlFor="st-rep" className="form-label form-label-required">Setter&apos;s Name</label>
                   <RepPicker id="st-rep" value={stRep} onChange={setStRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
                 </div>
                 <div>
-                  <label htmlFor="st-date" className="form-label">Date</label>
-                  <input id="st-date" type="date" value={stDate}
+                  <label htmlFor="st-date" className="form-label form-label-required">Date Today</label>
+                  <input id="st-date" type="date" value={stDate} required
                     onChange={function(e) { setStDate(e.target.value); }} className="input-field" />
                 </div>
               </div>
 
               <div className="form-section-title">The phone</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <label htmlFor="st-source" className="form-label form-label-required">Lead Source / List Worked</label>
+                <select id="st-source" value={stLeadSource} required
+                  onChange={function(e) { setStLeadSource(e.target.value); }} className="input-field">
+                  <option value="">Which list you worked</option>
+                  {LEAD_SOURCES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="st-dials" className="form-label">Outbound Dials</label>
-                  <input id="st-dials" type="number" min="0" inputMode="numeric" value={stDials}
+                  <label htmlFor="st-dials" className="form-label form-label-required">Total Calls Made</label>
+                  <input id="st-dials" type="number" min="0" inputMode="numeric" value={stDials} required
                     onChange={function(e) { setStDials(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label htmlFor="st-conv" className="form-label">Conversations</label>
-                  <input id="st-conv" type="number" min="0" inputMode="numeric" value={stConversations}
+                  <label htmlFor="st-conv" className="form-label form-label-required">Total People Reached</label>
+                  <input id="st-conv" type="number" min="0" inputMode="numeric" value={stConversations} required
                     onChange={function(e) { setStConversations(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label htmlFor="st-live" className="form-label">Live Calls</label>
-                  <input id="st-live" type="number" min="0" inputMode="numeric" value={stLiveCalls}
-                    onChange={function(e) { setStLiveCalls(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="st-talk" className="form-label">Talk Time</label>
-                  <input id="st-talk" type="text" value={stTalkTime}
-                    onChange={function(e) { setStTalkTime(e.target.value); }} className="input-field" placeholder="1h 20m" />
-                </div>
-              </div>
-
-              <div className="form-section-title">What it produced</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label htmlFor="st-sets" className="form-label">Calls Set</label>
-                  <input id="st-sets" type="number" min="0" inputMode="numeric" value={stSets}
-                    onChange={function(e) { setStSets(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="st-follow" className="form-label">Follow-Ups Booked</label>
-                  <input id="st-follow" type="number" min="0" inputMode="numeric" value={stFollowUps}
+                  <label htmlFor="st-follow" className="form-label form-label-required">Total Follow-Ups Made</label>
+                  <input id="st-follow" type="number" min="0" inputMode="numeric" value={stFollowUps} required
                     onChange={function(e) { setStFollowUps(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="st-closes" className="form-label">Deals Closed</label>
-                  <input id="st-closes" type="number" min="0" inputMode="numeric" value={stCloses}
-                    onChange={function(e) { setStCloses(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="st-cash" className="form-label">Cash Collected</label>
-                  <input id="st-cash" type="number" min="0" inputMode="decimal" value={stCash}
-                    onChange={function(e) { setStCash(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-              </div>
-              <p className="sub-note">
-                Closes and cash are the ones your sets produced — you did not take those
-                calls, and they are counted against your sets, never against a pitch.
-              </p>
-
-              <div className="form-section-title">The day</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="st-closer" className="form-label">Closer you fed</label>
-                  <RepPicker id="st-closer" value={stCloser} onChange={setStCloser} reps={roster.reps} ready={roster.ready} placeholder="Who took them" />
-                </div>
-                <div>
-                  <label htmlFor="st-rating" className="form-label">Self Rating (1-10)</label>
-                  <input id="st-rating" type="number" min="1" max="10" inputMode="numeric" value={stRating}
-                    onChange={function(e) { setStRating(e.target.value); }} className="input-field" placeholder="7" />
                 </div>
               </div>
               <div>
-                <label htmlFor="st-plan" className="form-label">What do you need help with?</label>
+                <label htmlFor="st-objection" className="form-label form-label-required">Main Objection / Reason People Didn&rsquo;t Book</label>
+                <select id="st-objection" value={stObjection} required
+                  onChange={function(e) { setStObjection(e.target.value); }} className="input-field">
+                  <option value="">What stopped them</option>
+                  {PHONE_OBJECTIONS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                </select>
+              </div>
+
+              <div className="form-section-title">What it produced</div>
+              <div>
+                <label htmlFor="st-sets" className="form-label form-label-required">Total Calls Booked</label>
+                <input id="st-sets" type="number" min="0" inputMode="numeric" value={stSets} required
+                  onChange={function(e) { setStSets(e.target.value); }} className="input-field" placeholder="0" />
+              </div>
+              <div>
+                <label htmlFor="st-plan" className="form-label">Any important notes / issues from today?</label>
                 <textarea id="st-plan" value={stPlan}
                   onChange={function(e) { setStPlan(e.target.value); }}
                   className="input-field" rows={3}
@@ -1343,7 +1410,7 @@ export default function SubmitPage() {
             </form>
             )}
 
-        {eodKind === 'dm-setter' && (
+            {eodKind === 'dm-setter' && (
             <form onSubmit={handleSubmitDmEod} className="p-6 space-y-5">
               <EodAutofill
                 role="dm"
@@ -1355,74 +1422,66 @@ export default function SubmitPage() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="dm-rep" className="form-label form-label-required">Your Name</label>
+                  <label htmlFor="dm-rep" className="form-label form-label-required">Setter&apos;s Name</label>
                   <RepPicker id="dm-rep" value={dmRep} onChange={setDmRep} reps={roster.reps} ready={roster.ready} placeholder="Whose day this is" required />
                 </div>
                 <div>
-                  <label htmlFor="dm-date" className="form-label">Date</label>
-                  <input id="dm-date" type="date" value={dmDate}
+                  <label htmlFor="dm-date" className="form-label form-label-required">Date Today</label>
+                  <input id="dm-date" type="date" value={dmDate} required
                     onChange={function(e) { setDmDate(e.target.value); }} className="input-field" />
                 </div>
               </div>
 
-              <div className="form-section-title">The inbox funnel</div>
+              <div className="form-section-title">The inbox</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="dm-leads" className="form-label">New Leads</label>
-                  <input id="dm-leads" type="number" min="0" inputMode="numeric" value={dmNewLeads}
+                  <label htmlFor="dm-leads" className="form-label form-label-required">Total New DMs / Conversations Started</label>
+                  <input id="dm-leads" type="number" min="0" inputMode="numeric" value={dmNewLeads} required
                     onChange={function(e) { setDmNewLeads(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
                 <div>
-                  <label htmlFor="dm-convos" className="form-label">Conversations Started</label>
-                  <input id="dm-convos" type="number" min="0" inputMode="numeric" value={dmConversations}
+                  <label htmlFor="dm-follow" className="form-label form-label-required">Total Follow-Ups Sent</label>
+                  <input id="dm-follow" type="number" min="0" inputMode="numeric" value={dmFollowUps} required
+                    onChange={function(e) { setDmFollowUps(e.target.value); }} className="input-field" placeholder="0" />
+                </div>
+                <div>
+                  <label htmlFor="dm-conv" className="form-label form-label-required">Total Replies / Conversations Had</label>
+                  <input id="dm-conv" type="number" min="0" inputMode="numeric" value={dmConversations} required
                     onChange={function(e) { setDmConversations(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-booked" className="form-label">Calls Booked</label>
-                  <input id="dm-booked" type="number" min="0" inputMode="numeric" value={dmBooked}
-                    onChange={function(e) { setDmBooked(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-showed" className="form-label">Booked Calls That Showed</label>
-                  <input id="dm-showed" type="number" min="0" inputMode="numeric" value={dmShowed}
-                    onChange={function(e) { setDmShowed(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-closes" className="form-label">Deals Closed</label>
-                  <input id="dm-closes" type="number" min="0" inputMode="numeric" value={dmCloses}
-                    onChange={function(e) { setDmCloses(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-cash" className="form-label">Cash Collected</label>
-                  <input id="dm-cash" type="number" min="0" step="0.01" inputMode="decimal" value={dmCash}
-                    onChange={function(e) { setDmCash(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-ghost" className="form-label">Leads That Went Ghost</label>
-                  <input id="dm-ghost" type="number" min="0" inputMode="numeric" value={dmGhosted}
-                    onChange={function(e) { setDmGhosted(e.target.value); }} className="input-field" placeholder="0" />
-                </div>
-                <div>
-                  <label htmlFor="dm-react" className="form-label">Dead Leads Reactivated</label>
-                  <input id="dm-react" type="number" min="0" inputMode="numeric" value={dmReactivated}
-                    onChange={function(e) { setDmReactivated(e.target.value); }} className="input-field" placeholder="0" />
                 </div>
               </div>
 
-              <div className="form-section-title">What you saw today</div>
+              {/* Their form takes several answers here, not one — a day in the
+                  inbox rarely dies of a single objection. */}
               <div>
-                <label htmlFor="dm-themes" className="form-label">Common Themes or Patterns</label>
-                <textarea id="dm-themes" value={dmThemes}
-                  onChange={function(e) { setDmThemes(e.target.value); }}
-                  className="input-field" rows={3}
-                  placeholder="What kept coming up in the DMs today." />
+                <span className="form-label form-label-required">Main Objection / Reason People Didn&rsquo;t Book</span>
+                <div className="obj-grid">
+                  {DM_OBJECTIONS.map(function(x) {
+                    var on = dmObjections.indexOf(x) !== -1;
+                    return (
+                      <button key={x} type="button"
+                        aria-pressed={on}
+                        className={'obj-chip' + (on ? ' on' : '')}
+                        onClick={function() { toggleDmObjection(x); }}>
+                        {x}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="form-section-title">What it produced</div>
+              <div>
+                <label htmlFor="dm-booked" className="form-label form-label-required">Total Calls Booked</label>
+                <input id="dm-booked" type="number" min="0" inputMode="numeric" value={dmBooked} required
+                  onChange={function(e) { setDmBooked(e.target.value); }} className="input-field" placeholder="0" />
               </div>
               <div>
-                <label htmlFor="dm-block" className="form-label">Biggest Bottleneck</label>
-                <textarea id="dm-block" value={dmBottleneck}
-                  onChange={function(e) { setDmBottleneck(e.target.value); }}
+                <label htmlFor="dm-notes" className="form-label">Any important notes / issues from today?</label>
+                <textarea id="dm-notes" value={dmThemes}
+                  onChange={function(e) { setDmThemes(e.target.value); }}
                   className="input-field" rows={3}
-                  placeholder="The one thing slowing you down most." />
+                  placeholder="What kept coming up, and anything that slowed you down." />
               </div>
 
               <button type="submit" disabled={submitting}
@@ -1432,91 +1491,235 @@ export default function SubmitPage() {
               </button>
               <WhatsAppStatus formType="eod-report" />
             </form>
-        )}
+            )}
+
           </div>
         )}
 
         {/* ===== AFTER-CALL REPORT ===== */}
+        {/* ===== END-OF-CALL REPORT (closers) ===== */}
         {activeTab === 'after-call' && (
           <div className="glass-card overflow-hidden stagger-1">
             <div className="section-header">
-              <h3><FileText className="w-4 h-4 text-crm-accent" /> After-Call Report</h3>
+              <h3><FileText className="w-4 h-4 text-crm-accent" /> End-of-Call Report</h3>
               <span className="section-tag">Sends to WhatsApp</span>
             </div>
             <form onSubmit={handleSubmitAfterCall} className="p-6 space-y-5">
-              <div className="form-section-title">Who the call was with</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="ac-name" className="form-label form-label-required">Lead&apos;s Name</label>
-                  <input id="ac-name" type="text" value={acLeadsName}
+                  <label htmlFor="ac-closer" className="form-label form-label-required">Closer&apos;s Name</label>
+                  <RepPicker id="ac-closer" value={acCloser} onChange={setAcCloser} reps={roster.reps} ready={roster.ready} placeholder="Who took the call" required />
+                </div>
+                <div>
+                  <label htmlFor="ac-name" className="form-label form-label-required">Prospect Name</label>
+                  <input id="ac-name" type="text" value={acLeadsName} required
                     onChange={function(e) { setAcLeadsName(e.target.value); }}
-                    className="input-field" placeholder="John Smith" required />
+                    className="input-field" placeholder="Enter prospect's full name" />
                 </div>
                 <div>
-                  <label htmlFor="ac-closer" className="form-label">Closer</label>
-                  <RepPicker id="ac-closer" value={acCloser} onChange={setAcCloser} reps={roster.reps} ready={roster.ready} placeholder="Who took the call" />
+                  <label htmlFor="ac-email" className="form-label form-label-required">Prospect Email</label>
+                  <input id="ac-email" type="email" value={acLeadsEmail} required
+                    onChange={function(e) { setAcLeadsEmail(e.target.value); }}
+                    className="input-field" placeholder="prospect-email@email.com" />
                 </div>
                 <div>
-                  <label htmlFor="ac-phone" className="form-label">Lead&apos;s Phone</label>
+                  <label htmlFor="ac-phone" className="form-label">Prospect Phone</label>
                   <input id="ac-phone" type="tel" value={acLeadsPhone}
                     onChange={function(e) { setAcLeadsPhone(e.target.value); }}
-                    className="input-field" placeholder="+1 555 000 0000" />
+                    className="input-field" placeholder="+1 555-123-4567" />
                 </div>
                 <div>
-                  <label htmlFor="ac-email" className="form-label">Lead&apos;s Email</label>
-                  <input id="ac-email" type="email" value={acLeadsEmail}
-                    onChange={function(e) { setAcLeadsEmail(e.target.value); }}
-                    className="input-field" placeholder="john@example.com" />
-                </div>
-              </div>
-
-              <div className="form-section-title">How it went</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="ac-outcome" className="form-label">Outcome</label>
-                  <select id="ac-outcome" value={acOutcome}
-                    onChange={function(e) { setAcOutcome(e.target.value); }} className="input-field">
-                    <option value="">Select an outcome</option>
-                    <option value="Closed">Closed</option>
-                    <option value="Follow-up booked">Follow-up booked</option>
-                    <option value="Thinking about it">Thinking about it</option>
-                    <option value="Not qualified">Not qualified</option>
-                    <option value="No show">No show</option>
-                    <option value="Lost">Lost</option>
+                  <label htmlFor="ac-program" className="form-label form-label-required">Program/Service</label>
+                  <select id="ac-program" value={acProgram} required
+                    onChange={function(e) { setAcProgram(e.target.value); }} className="input-field">
+                    <option value="">Select the offer</option>
+                    {PROGRAMS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="ac-next" className="form-label">Next Step</label>
-                  <input id="ac-next" type="text" value={acNextStep}
-                    onChange={function(e) { setAcNextStep(e.target.value); }}
-                    className="input-field" placeholder="Follow up Tuesday 2pm" />
+                  <label htmlFor="ac-outcome" className="form-label form-label-required">Call Outcome</label>
+                  <select id="ac-outcome" value={acOutcome} required
+                    onChange={function(e) { setAcOutcome(e.target.value); }} className="input-field">
+                    <option value="">How did it end</option>
+                    {CALL_OUTCOMES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                  </select>
                 </div>
               </div>
+
+              {/* ---- 🟢 CLOSED ---- */}
+              {outcomeKind(acOutcome) === 'closed' && (
+                <>
+                  <div className="form-section-title">The deal</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="ac-duration" className="form-label form-label-required">Program Duration</label>
+                      <select id="ac-duration" value={acDuration} required
+                        onChange={function(e) { setAcDuration(e.target.value); }} className="input-field">
+                        <option value="">How long</option>
+                        {PROGRAM_DURATIONS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="ac-platform" className="form-label form-label-required">Payment Platform Used</label>
+                      <select id="ac-platform" value={acPlatform} required
+                        onChange={function(e) { setAcPlatform(e.target.value); }} className="input-field">
+                        <option value="">Where it was paid</option>
+                        {PAYMENT_PLATFORMS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="ac-value" className="form-label form-label-required">Total Deal Value</label>
+                      <input id="ac-value" type="number" min="0" inputMode="decimal" value={acDealValue} required
+                        onChange={function(e) { setAcDealValue(e.target.value); }}
+                        className="input-field" placeholder="0" />
+                    </div>
+                    <div>
+                      <label htmlFor="ac-cash" className="form-label">Cash Collected</label>
+                      <input id="ac-cash" type="number" min="0" inputMode="decimal" value={acCash}
+                        onChange={function(e) { setAcCash(e.target.value); }}
+                        className="input-field" placeholder="0" />
+                      <p className="sub-note">
+                        What actually landed today. Left empty, the full deal value is counted —
+                        this is the figure the board and every commission read.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="form-section-title">Payment / cardholder information</div>
+                  <div>
+                    <label htmlFor="ac-owncard" className="form-label form-label-required">Did the prospect use their own payment method/card?</label>
+                    <select id="ac-owncard" value={acOwnCard} required
+                      onChange={function(e) { setAcOwnCard(e.target.value); }} className="input-field">
+                      <option value="">Select</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                  {/* Only asked when somebody else paid — their form hides these on Yes. */}
+                  {acOwnCard === 'No' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="ac-payer" className="form-label form-label-required">Name of Person Who Paid / Cardholder Name</label>
+                        <input id="ac-payer" type="text" value={acPayerName} required
+                          onChange={function(e) { setAcPayerName(e.target.value); }} className="input-field" />
+                      </div>
+                      <div>
+                        <label htmlFor="ac-payer-email" className="form-label form-label-required">Email of Person Who Paid / Cardholder</label>
+                        <input id="ac-payer-email" type="email" value={acPayerEmail} required
+                          onChange={function(e) { setAcPayerEmail(e.target.value); }} className="input-field" />
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label htmlFor="ac-paytype" className="form-label form-label-required">Payment Type</label>
+                    <select id="ac-paytype" value={acPaymentType} required
+                      onChange={function(e) { setAcPaymentType(e.target.value); }} className="input-field">
+                      <option value="">Select</option>
+                      {PAYMENT_TYPES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                    </select>
+                  </div>
+
+                  {/* ---- payment plan or custom ---- */}
+                  {needsSchedule(acPaymentType) && (
+                    <>
+                      <div className="form-section-title">The schedule</div>
+                      <div>
+                        <label htmlFor="ac-structure" className="form-label form-label-required">Payment Structure</label>
+                        <input id="ac-structure" type="text" value={acStructure} required
+                          onChange={function(e) { setAcStructure(e.target.value); }}
+                          className="input-field" placeholder="$1,000 today + 5 monthly payments of $500" />
+                        <p className="sub-note">Example: $1,000 today + 5 monthly payments of $500</p>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                          <label htmlFor="ac-freq" className="form-label form-label-required">Payment Frequency</label>
+                          <select id="ac-freq" value={acFrequency} required
+                            onChange={function(e) { setAcFrequency(e.target.value); }} className="input-field">
+                            <option value="">Select</option>
+                            {PAYMENT_FREQUENCIES.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="ac-nextdate" className="form-label form-label-required">Next Payment Date</label>
+                          <input id="ac-nextdate" type="date" value={acNextPayDate} required
+                            onChange={function(e) { setAcNextPayDate(e.target.value); }} className="input-field" />
+                        </div>
+                        <div>
+                          <label htmlFor="ac-nextamt" className="form-label form-label-required">Next Payment Amount</label>
+                          <input id="ac-nextamt" type="number" min="0" inputMode="decimal" value={acNextPayAmount} required
+                            onChange={function(e) { setAcNextPayAmount(e.target.value); }} className="input-field" placeholder="0" />
+                        </div>
+                        <div>
+                          <label htmlFor="ac-remaining" className="form-label form-label-required">Number of Remaining Payments</label>
+                          <input id="ac-remaining" type="number" min="0" inputMode="numeric" value={acRemaining} required
+                            onChange={function(e) { setAcRemaining(e.target.value); }} className="input-field" placeholder="0" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* ---- 🟡 FOLLOW-UP ---- */}
+              {outcomeKind(acOutcome) === 'follow-up' && (
+                <>
+                  <div className="form-section-title">The follow-up</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="ac-fureason" className="form-label form-label-required">Reason for Follow-Up</label>
+                      <select id="ac-fureason" value={acFollowupReason} required
+                        onChange={function(e) { setAcFollowupReason(e.target.value); }} className="input-field">
+                        <option value="">What they said</option>
+                        {FOLLOWUP_REASONS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="ac-fudate" className="form-label form-label-required">Follow-Up Date</label>
+                      <input id="ac-fudate" type="date" value={acFollowupDate} required
+                        onChange={function(e) { setAcFollowupDate(e.target.value); }} className="input-field" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ---- 🔴 LOST ---- */}
+              {outcomeKind(acOutcome) === 'lost' && (
+                <div>
+                  <label htmlFor="ac-lost" className="form-label form-label-required">Reason Lost</label>
+                  <select id="ac-lost" value={acLostReason} required
+                    onChange={function(e) { setAcLostReason(e.target.value); }} className="input-field">
+                    <option value="">Why it did not close</option>
+                    {LOST_REASONS.map(function(x) { return <option key={x} value={x}>{x}</option>; })}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-section-title">The record</div>
               <div>
-                <label htmlFor="ac-notes" className="form-label">Call Notes</label>
-                <textarea id="ac-notes" value={acNotes}
+                <label htmlFor="ac-notes" className="form-label form-label-required">Additional Notes</label>
+                <textarea id="ac-notes" value={acNotes} required
                   onChange={function(e) { setAcNotes(e.target.value); }}
-                  className="input-field" rows={5}
+                  className="input-field" rows={3}
                   placeholder="What they said, what they objected to, what you promised." />
               </div>
-
-              <div className="form-section-title">The recording</div>
               <div>
                 <label htmlFor="ac-rec" className="form-label form-label-required">Link to the call recording</label>
-                <input id="ac-rec" type="url" value={acRecording}
+                <input id="ac-rec" type="url" value={acRecording} required
                   onChange={function(e) { setAcRecording(e.target.value); }}
-                  className="input-field" required
+                  className="input-field"
                   placeholder="https://fathom.video/share/… or Zoom, Grain, Drive…" />
                 <p className="sub-note">
-                  Required. Paste the share link from wherever the call was recorded — this is what makes
-                  the report auditable, so it cannot be filed without one.
+                  Required. Paste the share link from wherever the call was recorded — this is what
+                  makes the report auditable, so it cannot be filed without one.
                 </p>
               </div>
 
               <button type="submit" disabled={submitting}
                 className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-4 h-4" />}
-                {submitting ? 'Submitting...' : 'Submit After-Call Report'}
+                {submitting ? 'Submitting...'
+                  : outcomeKind(acOutcome) === 'closed' ? 'Submit & Close the Deal'
+                  : 'Submit End-of-Call Report'}
               </button>
               <WhatsAppStatus formType="after-call" />
             </form>

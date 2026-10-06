@@ -1,0 +1,186 @@
+
+==========================================================================
+##  SETTERS — BOOKED CALL REPORT
+==========================================================================
+
+--- PAGE: Slide 1 ---
+  • Setter's Name [required]   <SINGLE_OPTIONS>
+       key: contact.setters_name
+       options: ["💬 Awn", "💬 Victor", "📞 Heidi", "📞 Leah", "SHIELA"]
+  • Prospect Name [required]   <text>
+       key: lead_name
+       placeholder: Enter your first name
+  • Prospect Email [required]   <email>
+       key: lead_email
+       placeholder: @email.com
+  • Program/Service [required]   <SINGLE_OPTIONS>
+       key: contact.programservice
+       options: ["Funding Program", "Inner Circle", "Digital Program", "DFY Funnel", "DFY SKool Build", "ADS Management", "DFY Funding"]
+  • Booking Source [required]   <SINGLE_OPTIONS>
+       key: contact.booking_source
+       options: ["DM", "Phone", "Free Skool", "Paid Skool", "Other"]
+  • Assigned Closer: [required]   <SINGLE_OPTIONS>
+       key: contact.closers_name
+       options: ["Ernest", "Jarissa", "Shorty", "Isacaar"]
+  • Schedule Date [required]   <DATE>
+       key: contact.schedule_date__time
+       placeholder: MM-DD-YYYY
+  • Lead Temperature [required]   <SINGLE_OPTIONS>
+       key: contact.lead_temperature
+       options: ["Hot", "Warm", "Cold"]
+  • Main Goal / What do they need help with? [required]   <TEXT>
+       key: contact.main_goal__what_do_they_need_help_with
+  • Important Notes for the Closer [required]   <LARGE_TEXT>
+       key: contact.important_notes_for_the_closer
+
+--- CONDITIONAL LOGIC ---
+  {"conditionalLogic": [{"conditionalOperation": "then", "conditions": [{"inputValue": "No", "selectedField": "did_you_make_an_offer?", "selectedOperation": "isEqualTo"}], "outcome": {"hideType": "Hide", "type": "showHideFields", "value": "cash_collected"}}, {"conditionalOperation": "then", "conditions": [{"inputValue": "NO", "selectedField": "did_you_make_an_offer?", "selectedOperation": "isEqualTo"}], "outcome": {"hideType": "Hide", "type": "showHideFields", "value": "payment_status"}}, {"conditionalOperation": null, "conditions": null, "outcome": null}]}
+  {"conditions": [{"inputValue": "No", "selectedField": "did_you_make_an_offer?", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "NO", "selectedField": "did_you_make_an_offer?", "selectedOperation": "isEqualTo"}]}
+
+==========================================================================
+##  SETTERS — END-OF-DAY REPORT
+==========================================================================
+
+--- PAGE: Slide 1 ---
+  • Setter's Name [required]   <SINGLE_OPTIONS>
+       key: contact.setters_name
+       options: ["💬 Awn", "💬 Victor", "📞 Heidi", "📞 Leah", "SHIELA"]
+  • Setter Email [required]   <email>
+       key: setter_email
+       placeholder: your@email.com
+  • Date Today [required]   <DATE>
+       key: contact.date_today
+       placeholder: MM-DD-YYYY
+  • Setter Type [required]   <SINGLE_OPTIONS>
+       key: contact.setter_type
+       options: ["DM Setter", "Phone Setter"]
+
+--- PAGE: DM SETTER ---
+  • Total New DMs / Conversations Started [required]   <NUMERICAL>
+       key: contact.total_new_dms__conversations_started
+  • Total Follow-Ups Sent [required]   <NUMERICAL>
+       key: contact.total_followups_sent
+  • Total Replies / Conversations Had [required]   <NUMERICAL>
+       key: contact.total_replies__conversations_had
+  • Main Objection / Reason People Didn’t Book [required]   <MULTIPLE_OPTIONS>
+       key: contact.main_objection_heard_today
+       options: ["No Response", "Not Interested", "Price / Financial Concern", "Not Ready / Timing", "Needs More Information", "Already Working With Someone", "Other"]
+
+--- PAGE: PHONE SETTER ---
+  • Lead Source / List Worked [required]   <SINGLE_OPTIONS>
+       key: contact.lead_source__list_worked
+       options: ["Free Skool", "Paid Skool", "Other"]
+  • Total Calls Made [required]   <NUMERICAL>
+       key: contact.total_calls_made
+  • Total People Reached / Conversations Had [required]   <NUMERICAL>
+       key: contact.total_people_reached__conversations_had
+  • Total Follow-Ups Made [required]   <NUMERICAL>
+       key: contact.total_followups_made
+  • Main Objection / Reason People Didn’t Book [required]   <SINGLE_OPTIONS>
+       key: contact.main_objection__reason_people_didnt_book
+       options: ["No Answer", "Not Interested", "Price / Financial Concern", "Not Ready / Timing", "Needs More Information", "Already Working With Someone", "Other"]
+
+--- PAGE: Slide 4 ---
+  • Total Calls Booked [required]   <NUMERICAL>
+       key: contact.total_calls_booked
+  • Any important notes / issues from today?   <LARGE_TEXT>
+       key: contact.any_important_notes__issues_from_today
+
+--- CONDITIONAL LOGIC ---
+  {"conditionalLogic": [{"conditionalOperation": "then", "conditions": [{"inputValue": "DM Setter", "selectedField": "setter_type", "selectedOperation": "isEqualTo"}], "outcome": {"jumpTarget": "1791228719306-1", "jumpTargetType": "slide", "type": "jumpTo", "value": ""}}, {"conditionalOperation": "then", "conditions": [{"inputValue": "Phone Setter", "selectedField": "setter_type", "selectedOperation": "isEqualTo"}], "outcome": {"jumpTarget": "1791228869699-2", "jumpTargetType": "slide", "type": "jumpTo", "value": ""}}, {"conditionalOperation": "then", "conditions": [{"inputValue": null, "selecte
+  {"conditions": [{"inputValue": "DM Setter", "selectedField": "setter_type", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "Phone Setter", "selectedField": "setter_type", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": null, "selectedField": "1791228719306-1", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": null, "selectedField": "1791228869699-2", "selectedOperation": "isEqualTo"}]}
+
+==========================================================================
+##  CLOSERS — END-OF-CALL REPORT
+==========================================================================
+
+--- PAGE: Slide 1 ---
+  • Closer's Name [required]   <SINGLE_OPTIONS>
+       key: contact.closers_name
+       options: ["Ernest", "Jarissa", "Shorty", "Isacaar"]
+  • Prospect Name [required]   <text>
+       key: prospect_name
+       placeholder: Enter prospect's full name
+  • Prospect Email [required]   <email>
+       key: prospect_email
+       placeholder: prospect-email@email.com
+  • Program/Service [required]   <SINGLE_OPTIONS>
+       key: contact.programservice
+       options: ["Funding Program", "Inner Circle", "Digital Program", "DFY Funnel", "DFY SKool Build", "ADS Management", "DFY Funding"]
+  • Call Outcome [required]   <SINGLE_OPTIONS>
+       key: contact.call_outcome
+       options: ["🟢 Closed", "🟡 Follow-Up", "🔴 Lost"]
+
+--- PAGE: 🟢 IF CLOSED ---
+  • Program Duration [required]   <SINGLE_OPTIONS>
+       key: contact.program_duration
+       options: ["1 Month", "3 Months", "6 Months", "12 Months", "Other / N/A"]
+  • Total Deal Value [required]   <MONETORY>
+       key: contact.total_deal_value
+  • Cash Collected   <MONETORY>
+       key: contact.cash_collected
+  • Payment Platform Used [required]   <SINGLE_OPTIONS>
+       key: contact.payment_platform_used
+       options: ["Stripe", "Whop", "Wire Transfer", "PayPal", "Zelle", "Cash App", "Other"]
+  • <p><span style="font-size: 16px; font-family: verdana" data-font-family="verdana"><strong>Payment / Cardholder Information</strong></span></p>   <h1>
+       placeholder: header
+  • Did the prospect use their own payment method/card? [required]   <SINGLE_OPTIONS>
+       key: contact.did_the_prospect_use_their_own_payment_methodcard
+       options: ["Yes", "No"]
+  • Name of Person Who Paid / Cardholder Name [required]   <TEXT>
+       key: contact.name_of_person_who_paid__cardholder_name
+  • Email of Person Who Paid / Cardholder [required]   <TEXT>
+       key: contact.email_of_person_who_paid__cardholder
+  • Payment Type [required]   <SINGLE_OPTIONS>
+       key: contact.payment_type
+       options: ["Paid in Full", "Payment Plan", "Custom"]
+
+--- PAGE: If PAYMENT PLAN or CUSTOM ---
+  • Payment Structure [required]   <TEXT>
+       key: contact.payment_structure
+       help: Example: $1,000 today + 5 monthly payments of $500
+  • Payment Frequency [required]   <SINGLE_OPTIONS>
+       key: contact.payment_frequency
+       options: ["Weekly", "Biweekly / Every 2 Weeks", "Monthly", "Custom"]
+  • Next Payment Date [required]   <DATE>
+       key: contact.next_payment_date
+       placeholder: MM-DD-YYYY
+  • Next Payment Amount [required]   <MONETORY>
+       key: contact.next_payment_amount
+  • Number of Remaining Payments [required]   <NUMERICAL>
+       key: contact.number_of_remaining_payments
+
+--- PAGE: 🟡 IF FOLLOW-UP ---
+  • Reason for Follow-Up [required]   <SINGLE_OPTIONS>
+       key: contact.reason_for_followup
+       options: ["Needs to Think About It", "Needs to Speak With Spouse / Partner", "Payment / Financial Concern", "Waiting for Money / Payday", "Needs More Information", "Not Ready Yet", "Follow-Up Call Required", "Other"]
+  • Follow-Up Date [required]   <DATE>
+       key: contact.followup_date
+       placeholder: MM-DD-YYYY
+
+--- PAGE: 🔴 IF LOST ---
+  • Reason Lost [required]   <SINGLE_OPTIONS>
+       key: contact.reason_lost
+       options: ["Price / Can’t Afford", "Not Qualified", "Not Ready", "Bad Timing", "Spouse / Partner", "Doesn’t See the Value", "Not Interested", "Chose Another Solution", "Other"]
+
+--- PAGE: NOTES ---
+  • Additional Notes [required]   <TEXT>
+       key: contact.additional_notes
+
+--- CONDITIONAL LOGIC ---
+  {"conditionalLogic": [{"conditionalOperation": "then", "conditions": [{"inputValue": "Yes", "selectedField": "did_the_prospect_use_their_own_payment_method/card?", "selectedOperation": "isEqualTo"}], "outcome": {"hideType": "Hide", "type": "showHideFields", "value": "email_of_person_who_paid_/_cardholder"}}, {"conditionalOperation": "then", "conditions": [{"inputValue": "Yes", "selectedField": "did_the_prospect_use_their_own_payment_method/card?", "selectedOperation": "isEqualTo"}], "outcome": {"hideType": "Hide", "type": "showHideFields", "value": "name_of_person_who_paid_/_cardholder_name"}}
+  {"conditions": [{"inputValue": "Yes", "selectedField": "did_the_prospect_use_their_own_payment_method/card?", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "Yes", "selectedField": "did_the_prospect_use_their_own_payment_method/card?", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "🟢 Closed", "selectedField": "call_outcome", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "🟡 Follow-Up", "selectedField": "call_outcome", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "🔴 Lost", "selectedField": "call_outcome", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "Payment Plan", "selectedField": "payment_type", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": null, "selectedField": "1791234155014-5", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "Custom", "selectedField": "payment_type", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": null, "selectedField": "1791233792985-2", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": null, "selectedField": "1791233816980-3", "selectedOperation": "isEqualTo"}]}
+  {"conditions": [{"inputValue": "Paid in Full", "selectedField": "payment_type", "selectedOperation": "isEqualTo"}]}

@@ -343,6 +343,12 @@ var OFFER_META = {
   'i2i-digital':      { label: 'Digital Program', subtitle: 'I2I',      color: '#8a8a8a' },
   'i2i-inner-circle': { label: 'Inner Circle',    subtitle: 'I2I',      color: '#6b6b6b' },
   'partner':          { label: 'Partner',         subtitle: 'External', color: '#525252' },
+  // The done-for-you offers the floor's own forms list. Added rather than folded
+  // into i2i-digital: they are sold at different prices by different people, and
+  // a board that cannot tell them apart cannot tell anyone what is working.
+  'dfy-funnel':       { label: 'DFY Funnel',      subtitle: 'DFY',      color: '#8a8a8a' },
+  'dfy-skool':        { label: 'DFY Skool Build', subtitle: 'DFY',      color: '#7a7a7a' },
+  'ads':              { label: 'ADS Management',  subtitle: 'Retainer', color: '#6b6b6b' },
   'other':            { label: 'Other',           subtitle: '',         color: '#fafafa' },
 };
 
@@ -357,6 +363,16 @@ export function classifyOffer(program) {
   if (p.startsWith('i2i - inner')) return 'i2i-inner-circle';
   if (p.startsWith('i2i')) return 'i2i-digital'; // catch-all I2I
   if (p.startsWith('partner')) return 'partner';
+
+  // The names on the floor's own forms, which carry no "I2I - " prefix. These are
+  // what a submission from the internal forms now says, so they are matched before
+  // the legacy list rather than falling through to 'other' and vanishing off every
+  // offer breakdown.
+  if (p === 'funding program') return 'i2i-funding';
+  if (p === 'digital program') return 'i2i-digital';
+  if (p === 'dfy funnel') return 'dfy-funnel';
+  if (p === 'dfy skool build') return 'dfy-skool';
+  if (p === 'ads management') return 'ads';
 
   // Legacy names
   if (p === 'saas' || p === 'fund2grow' || p === 'saas (fund2grow)') return 'myfm';
