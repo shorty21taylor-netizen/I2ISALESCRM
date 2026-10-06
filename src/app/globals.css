@@ -5213,3 +5213,14 @@ html, body { overflow-x: clip; }
   background: rgba(var(--accent-rgb, 200,169,81), 0.14);
   color: var(--crm-text-bright); border-color: var(--crm-accent);
 }
+
+/* Shown in place of the CRM's own forms when the workspace files on a hosted one. */
+.sub-hosted {
+  margin: 0; text-align: center;
+  font-size: 12px; color: var(--crm-text-muted);
+}
+.sub-hosted-show {
+  border: 0; background: transparent; padding: 0; cursor: pointer;
+  font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--crm-accent); text-decoration: underline;
+}

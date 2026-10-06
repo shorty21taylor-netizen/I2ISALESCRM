@@ -159,12 +159,22 @@ export default function SubmitPage() {
   var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
   // The hosted forms this workspace files on. Empty for a workspace that files
   // only here, and the cards are then not rendered at all.
-  var f5 = useState([]), reportLinks = f5[0], setReportLinks = f5[1];
-  var f6 = useState(''), copiedReport = f6[0], setCopiedReport = f6[1];
+  var h1 = useState([]), reportLinks = h1[0], setReportLinks = h1[1];
+  var h2 = useState(''), copiedReport = h2[0], setCopiedReport = h2[1];
+  // A workspace that files on hosted forms does not need the CRM's own tabs in
+  // front of it. They are hidden rather than deleted: clearing the report-link
+  // settings brings them straight back, and a workspace that files here is
+  // untouched. Nothing on the floor is filed twice because only one set shows.
+  var h3 = useState(false), showInternal = h3[0], setShowInternal = h3[1];
+
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
   var f6 = useState(null), formsConfig = f6[0], setFormsConfig = f6[1];
   var f7 = useState(false), canShare = f7[0], setCanShare = f7[1];
+
+  // Below the state it reads, deliberately: `var` hoists the binding but not the
+  // useState assignment, so computing this above read an undefined list.
+  var hostedOnly = (reportLinks || []).length > 0 && !showInternal;
 
   // Read once on mount rather than at render: navigator is absent on the server.
   useEffect(function() {
@@ -891,7 +901,7 @@ export default function SubmitPage() {
             nobody was told about, so this is the one thing that has to be set up
             before a rep can file. It is now counted from the forms this product
             ships, not from rows in a table, so a brand new workspace is warned too. */}
-        {formsConfig && formsConfig.missingRoutes && formsConfig.missingRoutes.length > 0 && (
+        {!hostedOnly && formsConfig && formsConfig.missingRoutes && formsConfig.missingRoutes.length > 0 && (
           <div className="sub-warn">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>
@@ -947,6 +957,21 @@ export default function SubmitPage() {
           );
         })}
 
+        {/* The CRM's own forms, for a workspace that files here. A workspace whose
+            reports go to a hosted form sees the cards above instead, and this
+            whole block with them — one place to file, so nothing is filed twice. */}
+        {hostedOnly ? (
+          <p className="sub-hosted">
+            Reports are filed on the forms above.{' '}
+            <button type="button" className="sub-hosted-show"
+              onClick={function() { setShowInternal(true); }}>
+              File in the CRM instead
+            </button>
+          </p>
+        ) : null}
+
+        {!hostedOnly && (
+        <>
         {/* Tab Toggle */}
         <div className="flex items-center justify-center">
           <div className="glass-surface inline-flex rounded-xl p-1">
@@ -1781,7 +1806,8 @@ export default function SubmitPage() {
           </div>
         )}
 
-        {/* ===== DM SETTER END-OF-DAY ===== */}
+        </>
+        )}
         </div>
 
 
