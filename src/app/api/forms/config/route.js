@@ -4,7 +4,7 @@ import { initStore } from '@/lib/store';
 import { saveAppConfig, loadAppConfig } from '@/lib/db';
 import { resolveAccess, effectiveReadWorkspace, OWNER_EMAIL } from '@/lib/access';
 import { getIngestKey } from '@/lib/ingest-auth';
-import { listForms, bookingLinkFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
+import { listForms, bookingLinkFor, reportLinksFor, formsMissingRoutes, EMPTY_FORMS_MESSAGE } from '@/lib/workspace-config';
 
 export var dynamic = 'force-dynamic';
 
@@ -48,6 +48,8 @@ export async function GET(req) {
 
     var forms = await listForms(workspaceId);
     var booking = await bookingLinkFor(workspaceId);
+    // The hosted forms this workspace files on, if it files anywhere but here.
+    var reportLinks = await reportLinksFor(workspaceId);
     var key = await getIngestKey();
     var cfg = (await loadAppConfig('forms')) || {};
     var owner = await isOwner(req);
@@ -61,6 +63,7 @@ export async function GET(req) {
       // Null means there is no booking link for this workspace, and the card is
       // not rendered. It is never another workspace's calendar.
       bookingLink: booking,
+      reportLinks: reportLinks,
       emptyMessage: EMPTY_FORMS_MESSAGE,
       canSetUp: !!access.canSeeTeam,
       // Live forms that would refuse a submission, so the page can warn the

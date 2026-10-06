@@ -157,6 +157,10 @@ export default function SubmitPage() {
   // The hosted (n8n) forms are the default way to submit. The built-in forms below
   // stay available as a fallback for anyone who is already inside the CRM.
   var f4 = useState(null), bookingLink = f4[0], setBookingLink = f4[1];
+  // The hosted forms this workspace files on. Empty for a workspace that files
+  // only here, and the cards are then not rendered at all.
+  var f5 = useState([]), reportLinks = f5[0], setReportLinks = f5[1];
+  var f6 = useState(''), copiedReport = f6[0], setCopiedReport = f6[1];
   var f5 = useState(false), copiedLink = f5[0], setCopiedLink = f5[1];
 
   var f6 = useState(null), formsConfig = f6[0], setFormsConfig = f6[1];
@@ -178,8 +182,9 @@ export default function SubmitPage() {
         setFormsConfig(d);
         // Null is a real answer: this workspace has no booking link, so no card.
         setBookingLink(d.bookingLink || null);
+        setReportLinks(d.reportLinks || []);
       })
-      .catch(function() { setFormsConfig({ forms: [], bookingLink: null }); });
+      .catch(function() { setFormsConfig({ forms: [], bookingLink: null }); setReportLinks([]); });
   }, [workspaceId]);
 
   // Book a Call form
@@ -472,6 +477,19 @@ export default function SubmitPage() {
   // On a phone this is the native share sheet, so a setter can push the calendar
   // straight into WhatsApp or iMessage instead of copying, leaving the app and
   // pasting. Everywhere else it is the clipboard, as before.
+  function shareReport(link) {
+    if (!link || !link.url) return;
+    if (canShare) {
+      navigator.share({ title: link.label, url: link.url }).catch(function() {});
+      return;
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(link.url);
+      setCopiedReport(link.key);
+      setTimeout(function() { setCopiedReport(''); }, 2000);
+    }
+  }
+
   function copyBookingLink() {
     if (!bookingLink || !bookingLink.url) return;
     if (canShare) {
@@ -891,6 +909,43 @@ export default function SubmitPage() {
             WhatsApp message goes out from the server, and nothing outside this
             codebase has to be running for a rep to log a deal. */}
         <div className="space-y-6">
+
+        {/* The forms this floor fills in somewhere else. Rendered above the tabs
+            because for a workspace that uses them these ARE the forms — the tabs
+            below are the same reports filed into the CRM instead. */}
+        {reportLinks.map(function(link) {
+          return (
+            <div key={link.key} className="glass-card book-card p-5 flex flex-col md:flex-row md:items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(var(--accent-rgb),0.12)' }}>
+                <FileText className="w-5 h-5 text-crm-accent" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-display font-semibold text-crm-text-bright">{link.label}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(var(--accent-rgb),0.10)', color: 'var(--crm-text-muted)' }}>
+                    GoHighLevel
+                  </span>
+                </div>
+                <div className="text-xs text-crm-muted mt-1">{link.blurb}</div>
+                <div className="book-url text-[11px] font-mono text-crm-muted mt-1.5 truncate md:truncate">{link.url}</div>
+              </div>
+              <div className="book-actions flex items-center gap-2 flex-shrink-0">
+                <button type="button" onClick={function() { shareReport(link); }}
+                  className="btn-ghost flex items-center gap-2 text-xs">
+                  {copiedReport === link.key ? <Check className="w-3.5 h-3.5 text-crm-positive" />
+                    : canShare ? <Share2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedReport === link.key ? 'Copied' : (canShare ? 'Share link' : 'Copy link')}
+                </button>
+                <a href={link.url} target="_blank" rel="noopener noreferrer"
+                  className="btn-primary flex items-center gap-2 text-xs">
+                  <ExternalLink className="w-3.5 h-3.5" /> Open the form
+                </a>
+              </div>
+            </div>
+          );
+        })}
 
         {/* Tab Toggle */}
         <div className="flex items-center justify-center">

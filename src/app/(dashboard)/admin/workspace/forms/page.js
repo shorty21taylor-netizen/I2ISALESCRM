@@ -358,6 +358,14 @@ export default function WorkspaceFormsPage() {
           <code className="aik-code">gohighlevel / round_robin_booking_url</code>. Any other
           provider is a label and a value — no new field needs building.
         </p>
+        <p className="wsa-sub">
+          Hosted report forms get a card at the top of Submit when you set
+          <code className="aik-code">gohighlevel / closer_report_url</code> and
+          <code className="aik-code">gohighlevel / setter_report_url</code>. Add
+          <code className="aik-code">_label</code> or <code className="aik-code">_blurb</code>
+          on the same prefix to change what the card says. A workspace that sets
+          neither gets no cards — never another company&apos;s form.
+        </p>
 
         <div className="wsa-list">
           {(data.integrations || []).map(function(it) {

@@ -320,6 +320,49 @@ export async function bookingLinkFor(workspaceId) {
   };
 }
 
+// The hosted report forms a floor fills in somewhere other than here.
+//
+// Same rule as the booking link above: absent means the card is not rendered at
+// all — never rendered empty, and never rendered with another company's form in
+// it. Each workspace sets its own URLs, so nothing is hardcoded to one client.
+//
+// Set them in Workspace → Forms & Routing as gohighlevel / <key>:
+//   closer_report_url   (+ closer_report_label, closer_report_blurb)
+//   setter_report_url   (+ setter_report_label, setter_report_blurb)
+var REPORT_LINKS = [
+  {
+    key: 'closer_report',
+    label: 'Closers — End-of-Call Report',
+    blurb: 'Closers — fill this in after every call.',
+    audience: 'closer',
+  },
+  {
+    key: 'setter_report',
+    label: 'Setters — Booked Call & End-of-Day',
+    blurb: 'Setters — book a call onto a closer, and file your end-of-day here.',
+    audience: 'setter',
+  },
+];
+
+export async function reportLinksFor(workspaceId) {
+  var out = [];
+  for (var i = 0; i < REPORT_LINKS.length; i++) {
+    var def = REPORT_LINKS[i];
+    var url = await getIntegration(workspaceId, 'gohighlevel', def.key + '_url');
+    if (!url) continue;
+    var label = await getIntegration(workspaceId, 'gohighlevel', def.key + '_label');
+    var blurb = await getIntegration(workspaceId, 'gohighlevel', def.key + '_blurb');
+    out.push({
+      key: def.key,
+      url: url,
+      label: label || def.label,
+      blurb: blurb || def.blurb,
+      audience: def.audience,
+    });
+  }
+  return out;
+}
+
 // ---- routes ----
 
 export async function listRoutes(workspaceId) {
