@@ -572,25 +572,43 @@ function computeOverviewForRange(startDate, endDate, workspaceId) {
   var outboundRevenue = totalRevenue - inboundRevenue;
 
   // PER-OFFER BREAKDOWN
-  var offerBreakdown = {
-    'myfm':             { key: 'myfm',             label: 'MYFM',            subtitle: 'Coaching', booked: 0, closes: 0, revenue: 0, color: '#fafafa' },
-    'i2i-skool':        { key: 'i2i-skool',        label: 'Skool Sales',     subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#d4d4d4' },
-    'i2i-funding':      { key: 'i2i-funding',      label: 'Funding Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#a3a3a3' },
-    'i2i-digital':      { key: 'i2i-digital',      label: 'Digital Program', subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#8a8a8a' },
-    'i2i-inner-circle': { key: 'i2i-inner-circle', label: 'Inner Circle',    subtitle: 'I2I',      booked: 0, closes: 0, revenue: 0, color: '#6b6b6b' },
-    'partner':          { key: 'partner',          label: 'Partner',         subtitle: 'External', booked: 0, closes: 0, revenue: 0, color: '#525252' },
-    'other':            { key: 'other',            label: 'Other',           subtitle: '',         booked: 0, closes: 0, revenue: 0, color: '#fafafa' },
-  };
+  //
+  // Built from OFFER_META rather than written out again. The two lists were
+  // separate, and the day three offers were added to classifyOffer and not to
+  // this copy, classifyOffer started returning keys with no row here —
+  // `offerBreakdown[key].booked++` threw on the first DFY or ADS record, and
+  // because recalcOverview() re-walks every booked call on every write, one such
+  // record then broke every subsequent write AND store init, which is to say
+  // sign-in. Deriving it is what stops that happening again.
+  var offerBreakdown = {};
+  Object.keys(OFFER_META).forEach(function(key) {
+    var meta = OFFER_META[key];
+    offerBreakdown[key] = {
+      key: key,
+      label: meta.label,
+      subtitle: meta.subtitle,
+      booked: 0, closes: 0, revenue: 0,
+      color: meta.color,
+    };
+  });
+
+  // And a belt as well as braces: an offer key with no row is counted under
+  // 'other' rather than throwing. A figure in the wrong bucket is a reporting
+  // bug somebody can see and fix; a throw in here takes the whole product down.
+  function bucket(program) {
+    var key = classifyOffer(program);
+    return offerBreakdown[key] || offerBreakdown.other;
+  }
 
   rangeBooked.forEach(function(b) {
-    offerBreakdown[classifyOffer(b.program)].booked++;
+    bucket(b.program).booked++;
   });
 
   rangeDeals.forEach(function(d) {
-    var key = classifyOffer(d.program);
+    var row = bucket(d.program);
     var cash = parseFloat(d.cashCollected) || parseFloat(d.dealValue) || 0;
-    offerBreakdown[key].closes++;
-    offerBreakdown[key].revenue += cash;
+    row.closes++;
+    row.revenue += cash;
   });
 
   return {
