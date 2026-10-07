@@ -4938,6 +4938,65 @@ html, body { overflow-x: clip; }
 .cm-status-pick:disabled { opacity: 0.5; cursor: wait; }
 .cm-status-pick option { color: var(--crm-text); background: var(--option-bg, var(--crm-surface)); }
 
+/* ---- the manual commission ledger ---- */
+/* A sale the CRM never saw. The invitation sits under the logged table rather
+   than above the closed deals, so the page still opens on what the floor filed. */
+.cm-log-cta {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 16px 20px; border-radius: var(--r-card);
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border);
+}
+.cm-log-cta > div { flex: 1; min-width: 240px; }
+.cm-log-cta-t {
+  margin: 0 0 3px; font-family: var(--font-display); font-size: 13.5px;
+  font-weight: 600; color: var(--crm-text-bright);
+}
+.cm-log-open { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.cm-log-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px; border: 0; cursor: pointer;
+  background: none; color: var(--crm-text-muted); transition: color 0.15s ease, background 0.15s ease;
+}
+.cm-log-close:hover { color: var(--crm-text-bright); background: var(--glass-surface-hover); }
+.cm-log-err {
+  margin: 0; padding: 9px 13px; border-radius: 10px;
+  font-size: 12.5px; color: var(--crm-negative);
+  background: rgba(var(--negative-rgb),0.10); border: 1px solid rgba(var(--negative-rgb),0.22);
+}
+
+/* Which source a row came from, on the row. A ledger whose origins are not
+   visible is how two sources of truth become one wrong number. */
+.cm-src {
+  display: inline-flex; align-items: center; gap: 3px; margin-left: 7px;
+  padding: 1px 7px; border-radius: var(--r-pill);
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--crm-text-muted); background: var(--glass-surface-bg);
+  border: 1px solid var(--glass-surface-border);
+  vertical-align: middle;
+}
+.cm-del {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px; border: 0; cursor: pointer;
+  background: none; color: var(--crm-text-muted); transition: color 0.15s ease, background 0.15s ease;
+}
+.cm-del:hover { color: var(--crm-negative); background: rgba(var(--negative-rgb),0.10); }
+.cm-del:disabled { opacity: 0.4; cursor: wait; }
+
+/* The overlap, named rather than hidden. Both rows stay on the page: a rep with
+   two genuine same-day sales to the same name would otherwise watch one vanish. */
+.cm-dupe {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 17px; border-radius: var(--r-card);
+  background: rgba(var(--warning-rgb),0.08);
+  border: 1px solid rgba(var(--warning-rgb),0.22);
+}
+.cm-dupe-i { flex: none; margin-top: 1px; color: var(--crm-warning); }
+.cm-dupe-t {
+  margin: 0 0 2px; font-family: var(--font-display); font-size: 13px;
+  font-weight: 600; color: var(--crm-warning);
+}
+
 /* ---- the three that celebrate filing, not performance ---- */
 /* Quieter than the two that score, on purpose: a smaller stage, no rain, and a
    caption that names the act rather than the result. */

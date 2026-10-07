@@ -59,6 +59,12 @@ export async function initDatabase() {
     await p.query("CREATE TABLE IF NOT EXISTS skool_leads (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
     await p.query('CREATE INDEX IF NOT EXISTS idx_skool_created ON skool_leads (created_at DESC)').catch(function() {});
 
+    // The manual commission ledger: sales a rep logs themselves, which the CRM
+    // may never see. Additive like every other table here, and soft-deleted, so
+    // a row a rep removes is recoverable.
+    await p.query("CREATE TABLE IF NOT EXISTS commission_entries (id TEXT PRIMARY KEY, data JSONB NOT NULL, workspace_id TEXT DEFAULT 'default', created_at TIMESTAMP DEFAULT NOW())").catch(function() {});
+    await p.query('CREATE INDEX IF NOT EXISTS idx_commission_created ON commission_entries (created_at DESC)').catch(function() {});
+
     // The setter and closer pipelines. ONE table: a prospect-appointment is a single
     // row, and the two boards are two role-scoped renderings of it. Two tables would
     // mean two sources of truth about whether a call showed.
@@ -162,7 +168,7 @@ export async function initDatabase() {
 
     // Deletes are soft: the row stays in Postgres with deleted_at stamped, so a
     // mis-click on live sales data is recoverable with one UPDATE.
-    var softDeleteTables = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads'];
+    var softDeleteTables = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads', 'commission_entries'];
     for (var d = 0; d < softDeleteTables.length; d++) {
       await p.query('ALTER TABLE ' + softDeleteTables[d] + ' ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP').catch(function() {});
     }
@@ -209,6 +215,7 @@ export async function loadFromDatabase() {
     var ml = await p.query('SELECT data, workspace_id FROM message_log ORDER BY created_at DESC LIMIT 300').catch(function() { return { rows: [] }; });
     var ac = await p.query('SELECT data, workspace_id FROM after_call_reports WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500').catch(function() { return { rows: [] }; });
     var sk = await p.query('SELECT data, workspace_id FROM skool_leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1000').catch(function() { return { rows: [] }; });
+    var ce = await p.query('SELECT data, workspace_id FROM commission_entries WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 2000').catch(function() { return { rows: [] }; });
     var pr = await p.query('SELECT data, workspace_id, ghl_appointment_id FROM pipeline_records WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 2000').catch(function() { return { rows: [] }; });
     var pe = await p.query('SELECT record_id, data FROM pipeline_events ORDER BY created_at ASC LIMIT 10000').catch(function() { return { rows: [] }; });
     var ra = await p.query('SELECT email, award_id, data FROM rep_awards').catch(function() { return { rows: [] }; });
@@ -239,6 +246,7 @@ export async function loadFromDatabase() {
       messageLog: (ml && ml.rows ? ml.rows : []).map(withWs),
       afterCallReports: (ac && ac.rows ? ac.rows : []).map(withWs),
       skoolLeads: (sk && sk.rows ? sk.rows : []).map(withWs),
+      commissionEntries: (ce && ce.rows ? ce.rows : []).map(withWs),
       pipelineRecords: (pr && pr.rows ? pr.rows : []).map(function(r) {
         var d = withWs(r);
         // The column is authoritative for the dedupe key, same as workspace_id.
@@ -503,7 +511,7 @@ export async function saveCustomMessage(entry) {
 // Soft delete. The row is retained and can be brought back with:
 //   UPDATE <table> SET deleted_at = NULL WHERE id = '<id>';
 export async function softDeleteRecord(table, id) {
-  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads', 'pipeline_records'];
+  var ALLOWED = ['booked_calls', 'closed_deals', 'eod_reports', 'after_call_reports', 'skool_leads', 'pipeline_records', 'commission_entries'];
   if (ALLOWED.indexOf(table) === -1) throw new Error('Unknown table: ' + table);
   return query('UPDATE ' + table + ' SET deleted_at = NOW() WHERE id = $1', [id]);
 }
@@ -545,6 +553,13 @@ export async function findPipelineByAppointment(ghlAppointmentId) {
 export async function saveSkoolLead(entry) {
   return query(
     'INSERT INTO skool_leads (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3',
+    [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']
+  );
+}
+
+export async function saveCommissionEntry(entry) {
+  return query(
+    'INSERT INTO commission_entries (id, data, workspace_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET data = $2, workspace_id = $3',
     [entry.id, JSON.stringify(entry), entry.workspaceId || 'default']
   );
 }

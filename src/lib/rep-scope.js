@@ -5,7 +5,7 @@
 // rep dashboard uses, so a rep's Closed Deals list and their My Dashboard totals
 // can never disagree about which deals are theirs.
 import { repOnlyFilter, resolveAccess } from '@/lib/access';
-import { getCloserProfile } from '@/lib/store';
+import { getCloserProfile, getUserWorkspace } from '@/lib/store';
 import { getUser } from '@/lib/users';
 import { repIdentity } from '@/lib/rep-stats';
 
@@ -29,7 +29,27 @@ export async function repScope(req) {
   var email = await repOnlyFilter(req);
   if (!email) return null;
   var account = await getUser(email).catch(function() { return null; });
-  var identity = repIdentity(getCloserProfile(email), email, account && account.name);
+
+  // The name records are filed under. An app_users row is not the only place it
+  // lives: a rep added from Team & Permissions has a roster row carrying their
+  // name and may have no app_users row at all. Without this fallback their
+  // identity falls back to the local part of their email — "rita" rather than
+  // "Rita Rep" — so every record actually naming them matches nothing, and their
+  // Booked Calls, My Dashboard and commission ledger all come back empty while
+  // the records sit there owned by nobody they can reach.
+  //
+  // pipelineViewer() has done this since the pipeline shipped. This is the same
+  // fallback, so one rep cannot be two different people to two different boards.
+  var memberName = '';
+  if (!account || !account.name) {
+    var membership = await getUserWorkspace(email).catch(function() { return null; });
+    memberName = (membership && membership.user && membership.user.name) || '';
+  }
+  var identity = repIdentity(
+    getCloserProfile(email),
+    email,
+    (account && account.name) || memberName
+  );
   return {
     email: email,
     name: identity.name,

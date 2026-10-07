@@ -90,10 +90,13 @@ email and the rep's name; matching on either would hand it to both of them and c
 every figure twice. `repIdentity()` in `src/lib/rep-stats.js` is the one
 implementation — use it, do not write another.
 
-Note a real gap: a rep added through Team & Permissions gets a `workspace_users` row
-but not always an `app_users` row. `pipelineViewer()` falls back to the roster name;
-`src/lib/rep-scope.js` does not yet, so those reps can see an empty Booked Calls or
-My Dashboard.
+A rep added through Team & Permissions gets a `workspace_users` row but not always an
+`app_users` row, so their identity has to fall back to the roster name — without it,
+it falls back to the local part of their email ("rita", not "Rita Rep") and every
+record naming them matches nothing. All three places that build a rep identity now do
+this: `pipelineViewer()`, `repScope()` and `/api/me`. **Any new one must too**, or
+that rep gets an empty Booked Calls, My Dashboard or commission ledger while their
+records sit there owned by nobody.
 
 ## Dashboard figures
 

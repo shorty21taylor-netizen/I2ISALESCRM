@@ -7,7 +7,7 @@ import { eodRole } from '@/lib/eod-role';
 import { DEFAULT_STAGE, isStage, isCommunity, money } from '@/lib/skool';
 import { DEFAULT_STAGE as PIPE_DEFAULT_STAGE, isStage as isPipeStage, money as pipeMoney } from '@/lib/pipeline';
 import { dedupeDeals, computeSetterBoard, isSelfSet } from '@/lib/dedupe-deals';
-import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, savePipelineRecord, savePipelineEvent, findPipelineByAppointment, softDeleteRecord,
+import { initDatabase, loadFromDatabase, saveBookedCall, saveClosedDeal, saveEODReport, saveCloserProfile, saveCommissionRate, updateDealInDB, saveMessageLogEntry, saveAfterCallReport, saveSkoolLead, saveCommissionEntry, savePipelineRecord, savePipelineEvent, findPipelineByAppointment, softDeleteRecord,
   saveAiosConversation, saveAiosMessage, softDeleteAiosConversation, saveAiosUsage,
   saveAuthAttempt, loadAuthAttempts,
   saveOperatorConfig, loadOperatorConfig,
@@ -35,6 +35,7 @@ var store = {
   eodReports: [],
   afterCallReports: [],
   skoolLeads: [],
+  commissionEntries: [],
   pipelineRecords: [],
   pipelineEvents: [],
   messageLog: [],
@@ -101,6 +102,7 @@ export async function initStore() {
         store.eodReports = data.eodReports || [];
         store.afterCallReports = data.afterCallReports || [];
         store.skoolLeads = data.skoolLeads || [];
+        store.commissionEntries = data.commissionEntries || [];
         store.pipelineRecords = data.pipelineRecords || [];
         store.pipelineEvents = data.pipelineEvents || [];
         store.messageLog = data.messageLog || [];
@@ -1693,14 +1695,20 @@ export function getAllCommissions(workspaceId) {
   scoped(store.closedDeals, workspaceId).forEach(function(d) {
     if (d.closer) closerNames[d.closer] = true;
   });
+  // A rep whose only sales are hand-logged still has commission owed. Listing
+  // only the names on closed deals left them off the manager's view entirely.
+  scoped(store.commissionEntries, workspaceId).forEach(function(e) {
+    if (e.closer) closerNames[e.closer] = true;
+  });
 
   return Object.keys(closerNames).map(function(name) {
     return {
       closerName: name,
-      data: getCommissionsForCloser(name, workspaceId),
+      data: getCommissionLedger(name, workspaceId),
     };
   }).sort(function(a, b) {
-    return b.data.summary.totalCommission - a.data.summary.totalCommission;
+    return (b.data.summary.totalCommission + b.data.loggedSummary.totalCommission)
+      - (a.data.summary.totalCommission + a.data.loggedSummary.totalCommission);
   });
 }
 
@@ -1713,6 +1721,244 @@ export function updateCommissionStatus(dealId, status) {
     }
   }
   return null;
+}
+
+// ============================================
+// THE MANUAL COMMISSION LEDGER
+// ============================================
+//
+// A rep's own record of what they are owed. It exists because the CRM does not see
+// every sale: a renewal, a deal closed off a call that was never filed, an upsell
+// taken in the DMs. Rather than teach the closed-deal pipeline to accept those —
+// which would move the floor's revenue numbers — a logged sale is its own row,
+// kept beside the derived ones and clearly marked.
+//
+// IT IS NEVER ADDED TO THE DERIVED DEALS. Commission from closed deals and
+// commission from logged sales are subtotalled separately and a row that looks like
+// it was filed twice is flagged for the rep to resolve, because a figure somebody
+// is paid from must not quietly double.
+
+var COMMISSION_STATUSES = ['pending', 'approved', 'paid'];
+
+function commissionStatusOf(v) {
+  var s = String(v || '').trim().toLowerCase();
+  return COMMISSION_STATUSES.indexOf(s) === -1 ? 'pending' : s;
+}
+
+function commissionNumber(v) {
+  var n = parseFloat(String(v === null || v === undefined ? '' : v).replace(/[$,\s]/g, ''));
+  return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+}
+
+// A rate may arrive as 0.15 or as 15. Anything above 1 is read as a percentage,
+// because nobody is on a 1500% split and somebody will type 15.
+function commissionRateOf(v, fallback) {
+  var n = parseFloat(String(v === null || v === undefined ? '' : v).replace(/[%\s]/g, ''));
+  if (!isFinite(n) || n <= 0) return fallback;
+  if (n > 1) n = n / 100;
+  return n > 1 ? fallback : Math.round(n * 10000) / 10000;
+}
+
+function commissionFields(data, existing) {
+  var out = {};
+  function str(key, max) {
+    if (data[key] === undefined) return;
+    out[key] = String(data[key] || '').trim().slice(0, max || 200);
+  }
+  str('closer');
+  str('closerEmail');
+  str('leadName');
+  str('program');
+  str('paymentProcessor');
+  str('notes', 1000);
+
+  if (data.cashCollected !== undefined) out.cashCollected = commissionNumber(data.cashCollected);
+  if (data.dealValue !== undefined) out.dealValue = commissionNumber(data.dealValue);
+  if (data.status !== undefined) out.status = commissionStatusOf(data.status);
+
+  // The day the sale belongs to is the team's day, not the server's — a sale
+  // logged at 9pm Pacific belongs to that day, same as everything else here.
+  if (data.day !== undefined) {
+    var day = String(data.day || '').trim();
+    out.day = /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : todayInReportTimezone();
+  }
+
+  var base = Object.assign({}, existing || {}, out);
+  var fallbackRate = getCloserCommissionRate(base.closer) || 0.10;
+  if (data.commissionRate !== undefined || !existing) {
+    out.commissionRate = commissionRateOf(data.commissionRate, fallbackRate);
+  }
+  var rate = out.commissionRate !== undefined ? out.commissionRate : base.commissionRate;
+
+  // An explicitly typed amount wins. A rep on a tiered or flat-fee split knows
+  // what they are owed better than a single stored rate does; the rate is only
+  // used to fill the figure in when they did not say.
+  if (data.commissionAmount !== undefined && commissionNumber(data.commissionAmount) > 0) {
+    out.commissionAmount = commissionNumber(data.commissionAmount);
+  } else if (data.commissionAmount !== undefined || data.cashCollected !== undefined || !existing) {
+    var cash = out.cashCollected !== undefined ? out.cashCollected : (base.cashCollected || 0);
+    out.commissionAmount = Math.round(cash * (rate || 0) * 100) / 100;
+  }
+
+  return out;
+}
+
+export function addCommissionEntry(data) {
+  var body = data || {};
+  var entry = Object.assign({
+    id: 'comm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+  }, commissionFields(body, null));
+
+  if (!entry.closer) return { error: 'A commission entry needs the name of the rep it belongs to' };
+  if (!entry.day) entry.day = todayInReportTimezone();
+  if (!entry.status) entry.status = 'pending';
+
+  // Fail closed on the workspace, like every other write: the resolver decides,
+  // never the payload.
+  entry.workspaceId = resolveWriteWorkspace(body.workspaceId);
+  entry.source = 'manual';
+  entry.createdAt = new Date().toISOString();
+  entry.updatedAt = entry.createdAt;
+  entry.submittedAt = entry.createdAt;
+
+  store.commissionEntries.unshift(entry);
+  if (store.commissionEntries.length > 2000) store.commissionEntries = store.commissionEntries.slice(0, 2000);
+  saveCommissionEntry(entry).catch(function(e) { console.error('[DB] Save commission entry error:', e.message); });
+  return { entry: entry };
+}
+
+export function updateCommissionEntry(id, data) {
+  var entry = null;
+  for (var i = 0; i < store.commissionEntries.length; i++) {
+    if (store.commissionEntries[i] && store.commissionEntries[i].id === id) { entry = store.commissionEntries[i]; break; }
+  }
+  if (!entry) return { error: 'No commission entry with id ' + id };
+
+  var fields = commissionFields(data || {}, entry);
+  // The workspace a row already lives in is never editable. Moving a paid-out
+  // commission into another company's books is not an edit anybody needs.
+  delete fields.workspaceId;
+  Object.keys(fields).forEach(function(k) { entry[k] = fields[k]; });
+  entry.updatedAt = new Date().toISOString();
+
+  saveCommissionEntry(entry).catch(function(e) { console.error('[DB] Update commission entry error:', e.message); });
+  return { entry: entry };
+}
+
+export function getCommissionEntries(workspaceId, closerName) {
+  var rows = scoped(store.commissionEntries, workspaceId);
+  if (closerName) {
+    rows = rows.filter(function(r) {
+      return r.closer && r.closer.toLowerCase() === String(closerName).toLowerCase();
+    });
+  }
+  return rows;
+}
+
+// Shaped like a derived commission row so one table can render both. The source
+// field is what tells them apart, and it is not optional — a row nobody can tell
+// the origin of is how two sources of truth become one wrong number.
+function commissionRowOf(entry) {
+  var day = entry.day || toReportDay(entry.createdAt);
+  return {
+    id: entry.id,
+    leadName: entry.leadName || '',
+    dealValue: entry.cashCollected || 0,
+    contractValue: entry.dealValue || 0,
+    commissionRate: entry.commissionRate || 0,
+    commissionAmount: entry.commissionAmount || 0,
+    paymentProcessor: entry.paymentProcessor || '',
+    program: entry.program || '',
+    status: entry.status || 'pending',
+    notes: entry.notes || '',
+    closedAt: entry.submittedAt || entry.createdAt,
+    day: day,
+    month: String(day).slice(0, 7),
+    source: 'manual',
+  };
+}
+
+// Two rows for the same lead on the same day are almost certainly the same sale
+// logged twice — once by the closed-deal form, once by hand. We flag them and
+// leave both visible. Hiding one silently would mean a rep whose two genuine
+// same-day sales to the same name vanished, and they would never know which
+// figure they were paid from.
+function commissionDuplicates(derived, manual) {
+  var seen = {};
+  derived.forEach(function(r) {
+    var key = String(r.leadName || '').trim().toLowerCase() + '|' + r.day;
+    if (key.charAt(0) !== '|') seen[key] = r;
+  });
+  var out = [];
+  manual.forEach(function(r) {
+    var key = String(r.leadName || '').trim().toLowerCase() + '|' + r.day;
+    if (key.charAt(0) === '|') return;
+    if (seen[key]) {
+      out.push({
+        leadName: r.leadName,
+        day: r.day,
+        loggedId: r.id,
+        dealId: seen[key].id,
+        loggedAmount: r.commissionAmount,
+        dealAmount: seen[key].commissionAmount,
+      });
+    }
+  });
+  return out;
+}
+
+// The commissions page's one read: the derived deals, the logged sales, each
+// subtotalled on its own, and the overlap named.
+export function getCommissionLedger(closerName, workspaceId, month) {
+  var derivedView = getCommissionsForCloser(closerName, workspaceId, month);
+  var allManual = getCommissionEntries(workspaceId, closerName).map(commissionRowOf);
+  var shownManual = month
+    ? allManual.filter(function(r) { return r.month === month; })
+    : allManual;
+
+  function total(rows, status) {
+    return Math.round(rows.filter(function(r) {
+      return !status || r.status === status;
+    }).reduce(function(s, r) { return s + (r.commissionAmount || 0); }, 0) * 100) / 100;
+  }
+
+  var months = {};
+  allManual.forEach(function(r) {
+    if (!months[r.month]) months[r.month] = { month: r.month, deals: 0, revenue: 0, commission: 0 };
+    months[r.month].deals++;
+    months[r.month].revenue += r.dealValue;
+    months[r.month].commission += r.commissionAmount;
+  });
+
+  return {
+    month: derivedView.month,
+    closerName: closerName || '',
+    deals: derivedView.deals,
+    summary: derivedView.summary,
+    lifetime: derivedView.lifetime,
+    monthlyBreakdown: derivedView.monthlyBreakdown,
+    logged: shownManual,
+    loggedSummary: {
+      totalDeals: shownManual.length,
+      totalRevenue: Math.round(shownManual.reduce(function(s, r) { return s + (r.dealValue || 0); }, 0) * 100) / 100,
+      totalCommission: total(shownManual),
+      pendingCommission: total(shownManual, 'pending'),
+      approvedCommission: total(shownManual, 'approved'),
+      paidCommission: total(shownManual, 'paid'),
+    },
+    loggedLifetime: {
+      totalDeals: allManual.length,
+      totalRevenue: Math.round(allManual.reduce(function(s, r) { return s + (r.dealValue || 0); }, 0) * 100) / 100,
+      totalCommission: total(allManual),
+      pendingCommission: total(allManual, 'pending'),
+      approvedCommission: total(allManual, 'approved'),
+      paidCommission: total(allManual, 'paid'),
+    },
+    loggedMonthlyBreakdown: Object.values(months).sort(function(a, b) {
+      return b.month.localeCompare(a.month);
+    }),
+    duplicates: commissionDuplicates(derivedView.deals, shownManual),
+  };
 }
 
 // ============================================
@@ -2474,6 +2720,7 @@ var DELETE_TARGETS = {
   'eod-report': { list: 'eodReports', table: 'eod_reports', label: 'EOD report' },
   'after-call': { list: 'afterCallReports', table: 'after_call_reports', label: 'after-call report' },
   'skool-lead': { list: 'skoolLeads', table: 'skool_leads', label: 'Skool lead' },
+  'commission-entry': { list: 'commissionEntries', table: 'commission_entries', label: 'commission entry' },
   'pipeline': { list: 'pipelineRecords', table: 'pipeline_records', label: 'pipeline record' },
 };
 

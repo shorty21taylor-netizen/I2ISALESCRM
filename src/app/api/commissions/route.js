@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { effectiveReadWorkspace, resolveAccess } from '@/lib/access';
 import { repScope } from '@/lib/rep-scope';
-import { getCommissionsForCloser, getAllCommissions, getAllCommissionRates, initStore, getAllCloserProfiles, getWorkspaceUserList, getDisplayNameState } from '@/lib/store';
+import { getCommissionLedger, getAllCommissions, getAllCommissionRates, initStore, getAllCloserProfiles, getWorkspaceUserList, getDisplayNameState } from '@/lib/store';
 import { todayInReportTimezone } from '@/lib/report-date';
 
 export var dynamic = 'force-dynamic';
@@ -63,7 +63,7 @@ export async function GET(req) {
       // Defaults to the month the team is standing in, not the server's.
       var month = url.searchParams.get('month') || todayInReportTimezone().slice(0, 7);
       if (month === 'all') month = '';
-      var data = getCommissionsForCloser(closerName, workspaceId, month);
+      var data = getCommissionLedger(closerName, workspaceId, month);
       return NextResponse.json({
         success: true,
         closerName: closerName,
@@ -72,6 +72,15 @@ export async function GET(req) {
         summary: data.summary,
         lifetime: data.lifetime,
         monthlyBreakdown: data.monthlyBreakdown,
+        // The hand-logged ledger rides alongside, subtotalled on its own. It is
+        // deliberately not folded into summary: commission from closed deals and
+        // commission somebody typed in are two sources, and a figure a person is
+        // paid from must never silently double.
+        logged: data.logged,
+        loggedSummary: data.loggedSummary,
+        loggedLifetime: data.loggedLifetime,
+        loggedMonthlyBreakdown: data.loggedMonthlyBreakdown,
+        duplicates: data.duplicates,
       });
     }
 
@@ -80,6 +89,8 @@ export async function GET(req) {
     return NextResponse.json({
       success: true, closerName: '', month: '', deals: [],
       summary: getEmptyLikeSummary(), lifetime: getEmptyLikeSummary(), monthlyBreakdown: [],
+      logged: [], loggedSummary: getEmptyLikeSummary(), loggedLifetime: getEmptyLikeSummary(),
+      loggedMonthlyBreakdown: [], duplicates: [],
     });
   } catch (e) {
     console.error('[Commissions API Error]', e);

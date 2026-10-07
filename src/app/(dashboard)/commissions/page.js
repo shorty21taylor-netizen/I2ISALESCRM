@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, Percent, Users, CreditCard, Trash2, AlertTriangle, PenLine } from 'lucide-react';
 import { useWorkspace, withWorkspace, apiFetch, useAccess } from '@/lib/workspace-client';
 import { getUser } from '@/lib/auth';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import { todayInReportTimezone } from '@/lib/report-date';
 import EmptyState from '@/components/EmptyState';
+import CommissionLogger from '@/components/CommissionLogger';
 
 var statusBadge = {
   pending: 'bg-crm-warning/10 text-crm-warning border border-crm-warning/20',
@@ -88,6 +89,36 @@ export default function CommissionsPage() {
       .catch(function() { setStatusBusy(''); });
   }
 
+  // A hand-logged row is not a closed deal, so it does not go through
+  // /api/commissions/status — that endpoint edits the deal record. Its own
+  // endpoint owns it, and only a manager is allowed to move its status.
+  function handleLoggedStatus(id, newStatus) {
+    setStatusBusy(id);
+    apiFetch(withWorkspace('/api/commissions/log', workspaceId), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, status: newStatus }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function() { setStatusBusy(''); refreshCommissions(); })
+      .catch(function() { setStatusBusy(''); });
+  }
+
+  // Soft, like every delete here — the row keeps its data in Postgres with
+  // deleted_at stamped, so a mis-click on a figure somebody is paid from is
+  // recoverable. Confirmed first all the same.
+  function handleLoggedDelete(row) {
+    if (typeof window !== 'undefined'
+      && !window.confirm('Remove the logged sale to ' + (row.leadName || 'this lead') + '?')) return;
+    setStatusBusy(row.id);
+    apiFetch(withWorkspace('/api/commissions/log?id=' + encodeURIComponent(row.id), workspaceId), {
+      method: 'DELETE',
+    })
+      .then(function(r) { return r.json(); })
+      .then(function() { setStatusBusy(''); refreshCommissions(); })
+      .catch(function() { setStatusBusy(''); });
+  }
+
   // Everything still owed on the month being looked at, settled in one go.
   function markMonthPaid(rows) {
     var owing = (rows || []).filter(function(d) { return d.status !== 'paid'; });
@@ -151,7 +182,7 @@ export default function CommissionsPage() {
         <div className="flex items-center justify-between px-8 h-16">
           <div>
             <h1 className="font-display font-bold text-crm-text-bright text-lg tracking-tight">Commissions</h1>
-            <p className="text-xs text-crm-muted font-mono">{user ? user.name + ' \u2014 earnings from closed deals' : 'Your earnings from closed deals'}</p>
+            <p className="text-xs text-crm-muted font-mono">{user ? user.name + ' \u2014 closed deals and the sales you log yourself' : 'Closed deals and the sales you log yourself'}</p>
           </div>
           <div className="glass-surface inline-flex rounded-xl p-1">
             <button onClick={function() { setView('personal'); }} className={view === 'personal' ? 'px-4 py-1.5 rounded-lg text-sm font-display font-semibold bg-crm-accent/15 text-crm-accent transition-all duration-300' : 'px-4 py-1.5 rounded-lg text-sm font-display font-medium text-crm-muted hover:text-crm-text transition-all duration-300'}>
@@ -165,31 +196,83 @@ export default function CommissionsPage() {
       </header>
 
       <div className="px-8 py-6 space-y-6">
-        {view === 'personal' ? renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate, markMonthPaid, canSettle, statusBusy) : renderTeamView(allData, handleBulkStatusUpdate)}
+        {view === 'personal' ? renderPersonalView({
+          summary: summary, lifetime: lifetime, deals: deals, monthlyBreakdown: monthlyBreakdown,
+          logged: commData ? commData.logged || [] : [],
+          loggedSummary: commData ? commData.loggedSummary : null,
+          loggedLifetime: commData ? commData.loggedLifetime : null,
+          loggedMonthlyBreakdown: commData ? commData.loggedMonthlyBreakdown || [] : [],
+          duplicates: commData ? commData.duplicates || [] : [],
+          month: month, setMonth: setMonth,
+          handleStatusUpdate: handleStatusUpdate, markMonthPaid: markMonthPaid,
+          handleLoggedStatus: handleLoggedStatus, handleLoggedDelete: handleLoggedDelete,
+          canSettle: canSettle, statusBusy: statusBusy,
+          workspaceId: workspaceId, userName: user ? user.name : '',
+          onLogged: refreshCommissions,
+        }) : renderTeamView(allData, handleBulkStatusUpdate)}
       </div>
     </div>
   );
 }
 
-function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, setMonth, handleStatusUpdate, markMonthPaid, canSettle, statusBusy) {
+function renderPersonalView(p) {
+  var summary = p.summary, lifetime = p.lifetime, deals = p.deals;
+  var monthlyBreakdown = p.monthlyBreakdown, month = p.month, setMonth = p.setMonth;
+  var canSettle = p.canSettle, statusBusy = p.statusBusy;
+  var logged = p.logged || [], loggedSummary = p.loggedSummary, loggedLifetime = p.loggedLifetime;
+  var duplicates = p.duplicates || [];
+
+  // One history, both sources. Showing closed deals alone here meant the month
+  // rows added up to a different figure than the headline above them, and the
+  // picker hid any month whose only sales were logged by hand.
+  var historyBy = {};
+  function foldMonth(m, from) {
+    if (!m || !m.month || m.month === 'unknown') return;
+    if (!historyBy[m.month]) {
+      historyBy[m.month] = { month: m.month, deals: 0, logged: 0, revenue: 0, commission: 0 };
+    }
+    historyBy[m.month][from] += m.deals || 0;
+    historyBy[m.month].revenue += m.revenue || 0;
+    historyBy[m.month].commission += m.commission || 0;
+  }
+  (monthlyBreakdown || []).forEach(function(m) { foldMonth(m, 'deals'); });
+  (p.loggedMonthlyBreakdown || []).forEach(function(m) { foldMonth(m, 'logged'); });
+  var history = Object.keys(historyBy).sort().reverse().map(function(k) { return historyBy[k]; });
+
+  var logger = (
+    <CommissionLogger
+      workspaceId={p.workspaceId}
+      defaultRate={summary ? summary.commissionRate : 0}
+      canFileForOthers={canSettle}
+      myName={p.userName}
+      onLogged={p.onLogged}
+    />
+  );
+
   // Nothing loaded yet, or nothing ever earned. Without this the figures below
   // read straight off a null summary and the page renders blank.
   if (!summary) {
     return <p className="cl-hint p-8 text-center">Loading your commissions…</p>;
   }
-  if (!lifetime || lifetime.totalDeals === 0) {
+  // No closed deals AND nothing logged by hand. The gate used to look at closed
+  // deals alone, so a rep whose sales are all hand-logged hit the empty state and
+  // could not reach the thing that would fill it.
+  if ((!lifetime || lifetime.totalDeals === 0)
+    && (!loggedLifetime || loggedLifetime.totalDeals === 0)) {
     return (
-      <div className="glass-card no-lift overflow-hidden">
-        <EmptyState icon={CreditCard} title="No commissions yet"
-          subtitle="Close your first deal and it appears here with what it earned you." />
-      </div>
+      <>
+        <div className="glass-card no-lift overflow-hidden">
+          <EmptyState icon={CreditCard} title="No commissions yet"
+            subtitle="Close your first deal and it appears here with what it earned you. A sale the CRM never saw — a renewal, an upsell — you can log by hand." />
+        </div>
+        {logger}
+      </>
     );
   }
 
   // Every month this rep has ever earned in, plus the one being viewed even when
   // it is empty — so the picker never hides the month somebody is standing in.
-  var monthKeys = (monthlyBreakdown || []).map(function(m) { return m.month; })
-    .filter(function(m) { return m && m !== 'unknown'; });
+  var monthKeys = history.map(function(m) { return m.month; });
   if (monthKeys.indexOf(month) === -1) monthKeys = [month].concat(monthKeys);
   monthKeys = monthKeys.sort().reverse().slice(0, 13);
 
@@ -207,6 +290,9 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
     </div>
   );
 
+  var loggedTotal = loggedSummary ? loggedSummary.totalCommission : 0;
+  var loggedOwed = loggedSummary ? loggedSummary.pendingCommission : 0;
+
   return (
     <>
       {picker}
@@ -215,32 +301,58 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
       <div className="dh-band">
         <div className="dh-main">
           <p className="dh-l">Earned in {formatMonth(month)}</p>
-          <p className="dh-fig mt-2">{formatCurrency(summary.totalCommission)}</p>
+          <p className="dh-fig mt-2">{formatCurrency(summary.totalCommission + loggedTotal)}</p>
           <p className="dh-sub">
-            {summary.totalDeals} deal{summary.totalDeals === 1 ? '' : 's'} closed
-            {' · '}{formatCurrency(summary.totalRevenue)} collected
+            {formatCurrency(summary.totalCommission)} from {summary.totalDeals} closed deal{summary.totalDeals === 1 ? '' : 's'}
+            {loggedTotal > 0
+              ? ' · ' + formatCurrency(loggedTotal) + ' logged by hand'
+              : ''}
             {' · '}{(summary.commissionRate * 100).toFixed(0)}% rate
           </p>
         </div>
         <div className="dh-side">
           <div>
             <p className="dh-l">Still owed</p>
-            <p className="dh-sec-fig" style={{ color: summary.pendingCommission > 0 ? 'var(--crm-warning)' : 'var(--crm-text-bright)' }}>
-              {formatCurrency(summary.pendingCommission)}
+            <p className="dh-sec-fig" style={{ color: (summary.pendingCommission + loggedOwed) > 0 ? 'var(--crm-warning)' : 'var(--crm-text-bright)' }}>
+              {formatCurrency(summary.pendingCommission + loggedOwed)}
             </p>
             <p className="dh-sub" style={{ marginTop: '4px' }}>
-              {formatCurrency(summary.paidCommission)} paid out
+              {formatCurrency(summary.paidCommission + (loggedSummary ? loggedSummary.paidCommission : 0))} paid out
             </p>
           </div>
           <div>
             <p className="dh-l">Earned all time</p>
-            <p className="dh-sec-fig">{formatCurrency(lifetime ? lifetime.totalCommission : 0)}</p>
+            <p className="dh-sec-fig">
+              {formatCurrency((lifetime ? lifetime.totalCommission : 0)
+                + (loggedLifetime ? loggedLifetime.totalCommission : 0))}
+            </p>
             <p className="dh-sub" style={{ marginTop: '4px' }}>
-              across {lifetime ? lifetime.totalDeals : 0} deal{(lifetime && lifetime.totalDeals === 1) ? '' : 's'}
+              across {(lifetime ? lifetime.totalDeals : 0) + (loggedLifetime ? loggedLifetime.totalDeals : 0)} sale{((lifetime ? lifetime.totalDeals : 0) + (loggedLifetime ? loggedLifetime.totalDeals : 0)) === 1 ? '' : 's'}
             </p>
           </div>
         </div>
       </div>
+
+      {/* A logged sale and a closed deal naming the same lead on the same day is
+          almost certainly one sale recorded twice. Both stay on the page: hiding
+          one would mean a rep whose two genuine same-day sales to the same name
+          disappeared, and no way to tell which figure they were paid from. */}
+      {duplicates.length > 0 ? (
+        <div className="cm-dupe">
+          <AlertTriangle className="w-4 h-4 cm-dupe-i" />
+          <div>
+            <p className="cm-dupe-t">
+              {duplicates.length === 1 ? 'One logged sale looks like a deal you already filed' : duplicates.length + ' logged sales look like deals you already filed'}
+            </p>
+            <p className="cl-hint">
+              Both are counted in the figures above. Remove the logged row if it is the
+              same sale — {duplicates.map(function(d) {
+                return (d.leadName || 'Unnamed') + ' on ' + new Date(d.day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }).join(', ')}.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="td-section">
         <div className="td-section-h">
@@ -248,7 +360,7 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
           <span className="td-section-rule" />
           {canSettle && summary.totalCommission > summary.paidCommission ? (
             <button className="an-chip" disabled={statusBusy === 'all'}
-              onClick={function() { markMonthPaid(deals); }}>
+              onClick={function() { p.markMonthPaid(deals); }}>
               <CheckCircle className="w-3 h-3" />
               {statusBusy === 'all' ? 'Marking…' : 'Mark the month paid'}
             </button>
@@ -296,7 +408,7 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
                             value={deal.status || 'pending'}
                             disabled={statusBusy === deal.id || statusBusy === 'all'}
                             aria-label={'Commission status for ' + (deal.leadName || 'this deal')}
-                            onChange={function(e) { handleStatusUpdate(deal.id, e.target.value); }}
+                            onChange={function(e) { p.handleStatusUpdate(deal.id, e.target.value); }}
                           >
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
@@ -328,20 +440,118 @@ function renderPersonalView(summary, lifetime, deals, monthlyBreakdown, month, s
         )}
       </div>
 
-      {monthlyBreakdown && monthlyBreakdown.length > 0 ? (
+      {/* The hand-logged ledger. Its own section and its own subtotal, never
+          folded into the table above: two sources for one figure somebody is paid
+          from is how a commission run quietly doubles. */}
+      <div className="td-section">
+        <div className="td-section-h">
+          <h3 className="td-section-t">Logged by hand</h3>
+          <span className="td-section-rule" />
+          <span className="section-tag">{logged.length} {logged.length === 1 ? 'sale' : 'sales'}</span>
+        </div>
+
+        {logged.length === 0 ? null : (
+          <div className="glass-card eodt-wrap">
+            <table className="eodt cm-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Lead</th>
+                  <th scope="col">Program</th>
+                  <th scope="col">Collected</th>
+                  <th scope="col">Commission</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span className="sr-only">Remove</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {logged.map(function(row) {
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.day
+                        ? new Date(row.day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        : '—'}</td>
+                      <th scope="row" className="cm-lead">
+                        {row.leadName || 'Unnamed'}
+                        <span className="cm-src" title="Logged by hand, not from a closed deal">
+                          <PenLine className="w-3 h-3" /> logged
+                        </span>
+                      </th>
+                      <td>{row.program || '—'}</td>
+                      <td>{formatCurrency(row.dealValue)}</td>
+                      <td className="cm-earned">{formatCurrency(row.commissionAmount)}</td>
+                      <td>
+                        {canSettle ? (
+                          <select
+                            className={'cm-status cm-status-pick ' + (row.status || 'pending')}
+                            value={row.status || 'pending'}
+                            disabled={statusBusy === row.id}
+                            aria-label={'Commission status for the logged sale to ' + (row.leadName || 'this lead')}
+                            onChange={function(e) { p.handleLoggedStatus(row.id, e.target.value); }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="paid">Paid</option>
+                          </select>
+                        ) : (
+                          <span className={'cm-status ' + (row.status || 'pending')}>
+                            {row.status === 'paid' ? <CheckCircle className="w-3 h-3" /> : null}
+                            {row.status || 'pending'}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {/* A paid-out row stays put. Removing the record of a
+                            commission somebody has already been paid is not an
+                            edit anybody needs. */}
+                        {row.status === 'paid' ? null : (
+                          <button type="button" className="cm-del"
+                            disabled={statusBusy === row.id}
+                            aria-label={'Remove the logged sale to ' + (row.leadName || 'this lead')}
+                            onClick={function() { p.handleLoggedDelete(row); }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td />
+                  <td />
+                  <td>{formatCurrency(loggedSummary ? loggedSummary.totalRevenue : 0)}</td>
+                  <td>{formatCurrency(loggedTotal)}</td>
+                  <td />
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {logger}
+      </div>
+
+      {history.length > 0 ? (
         <div className="td-section">
           <div className="td-section-h">
             <h3 className="td-section-t">Every month</h3>
             <span className="td-section-rule" />
           </div>
           <div className="glass-card no-lift cm-history">
-            {monthlyBreakdown.map(function(m) {
+            {history.map(function(m) {
+              var n = m.deals + m.logged;
               return (
                 <button key={m.month} type="button"
                   className={'cm-hist-row' + (m.month === month ? ' on' : '')}
                   onClick={function() { setMonth(m.month); }}>
                   <span className="cm-hist-m">{formatMonth(m.month)}</span>
-                  <span className="cm-hist-n">{m.deals} {m.deals === 1 ? 'deal' : 'deals'}</span>
+                  <span className="cm-hist-n">
+                    {n} {n === 1 ? 'sale' : 'sales'}{m.logged > 0 ? ' · ' + m.logged + ' logged' : ''}
+                  </span>
                   <span className="cm-hist-r">{formatCurrency(m.revenue)}</span>
                   <span className="cm-hist-c">{formatCurrency(m.commission)}</span>
                 </button>
@@ -363,10 +573,20 @@ function renderTeamView(allData, handleBulkStatusUpdate) {
     );
   }
 
-  var teamRevenue = allData.closers.reduce(function(s, c) { return s + c.data.summary.totalRevenue; }, 0);
-  var teamCommission = allData.closers.reduce(function(s, c) { return s + c.data.summary.totalCommission; }, 0);
-  var teamPending = allData.closers.reduce(function(s, c) { return s + c.data.summary.pendingCommission; }, 0);
-  var teamPaid = allData.closers.reduce(function(s, c) { return s + c.data.summary.paidCommission; }, 0);
+  // Every tile here is what the workspace owes, so it is closed deals plus the
+  // hand-logged ledger. A rep whose sales were all logged by hand is owed just as
+  // much as one whose deals came off a call, and leaving them out of the payout
+  // figures is how somebody gets missed on a commission run.
+  function teamTotal(key) {
+    return allData.closers.reduce(function(sum, c) {
+      var logged = c.data.loggedSummary || {};
+      return sum + (c.data.summary[key] || 0) + (logged[key] || 0);
+    }, 0);
+  }
+  var teamRevenue = teamTotal('totalRevenue');
+  var teamCommission = teamTotal('totalCommission');
+  var teamPending = teamTotal('pendingCommission');
+  var teamPaid = teamTotal('paidCommission');
 
   return (
     <>
@@ -419,6 +639,7 @@ function renderTeamView(allData, handleBulkStatusUpdate) {
             var rank = idx + 1;
             var isTop = rank === 1;
             var s = c.data.summary;
+            var lg = c.data.loggedSummary || { totalDeals: 0, totalRevenue: 0, totalCommission: 0, pendingCommission: 0, paidCommission: 0 };
             return (
               <div key={c.closerName} className={'flex items-center gap-3 p-3 rounded-xl transition-all duration-300 hover:bg-white/[0.03] ' + (isTop ? 'leaderboard-row-1 rounded-xl' : '')}>
                 <div className={'rank-circle ' + (isTop ? 'rank-1' : 'rank-default')}>
@@ -431,25 +652,26 @@ function renderTeamView(allData, handleBulkStatusUpdate) {
                   <div className="font-medium text-crm-text-bright text-sm truncate">{c.closerName}</div>
                   <div className="flex items-center gap-3 text-xs text-crm-muted font-mono mt-0.5">
                     <span>{s.totalDeals} deals</span>
+                    {lg.totalDeals > 0 ? <span>+{lg.totalDeals} logged</span> : null}
                     <span>{(s.commissionRate * 100).toFixed(0)}% rate</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-right">
                   <div>
                     <div className="text-xs text-crm-muted font-mono">Revenue</div>
-                    <div className="text-sm font-mono text-crm-text-bright">{formatCurrency(s.totalRevenue)}</div>
+                    <div className="text-sm font-mono text-crm-text-bright">{formatCurrency(s.totalRevenue + lg.totalRevenue)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-crm-muted font-mono">Earned</div>
-                    <div className="text-sm font-mono metric-positive font-bold">{formatCurrency(s.totalCommission)}</div>
+                    <div className="text-sm font-mono metric-positive font-bold">{formatCurrency(s.totalCommission + lg.totalCommission)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-crm-muted font-mono">Pending</div>
-                    <div className="text-sm font-mono text-crm-warning">{formatCurrency(s.pendingCommission)}</div>
+                    <div className="text-sm font-mono text-crm-warning">{formatCurrency(s.pendingCommission + lg.pendingCommission)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-crm-muted font-mono">Paid</div>
-                    <div className="text-sm font-mono text-crm-positive">{formatCurrency(s.paidCommission)}</div>
+                    <div className="text-sm font-mono text-crm-positive">{formatCurrency(s.paidCommission + lg.paidCommission)}</div>
                   </div>
                 </div>
               </div>

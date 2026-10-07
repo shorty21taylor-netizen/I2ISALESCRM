@@ -108,7 +108,16 @@ export async function GET(req) {
     // so the browser's own record of who is signed in is the last resort — used
     // only when looking at your own page, never when a manager opens someone else's.
     var signedInHint = (!viewingSomeoneElse && url.searchParams.get('name')) || '';
-    var identity = repIdentity(profile, email, (account && account.name) || signedInHint);
+    // The roster row, read before the identity rather than after it. A rep added
+    // from Team & Permissions has their name here and often no app_users row at
+    // all; without it their identity falls back to the local part of their email
+    // — "rita" rather than "Rita Rep" — and this whole page, their commission
+    // figure included, comes back zero while every record naming them sits there.
+    // Same fallback pipelineViewer() and repScope() use, so one rep is not two
+    // different people on two different screens.
+    var membership = await getUserWorkspace(email).catch(function() { return null; });
+    var rosterName = (membership && membership.user && membership.user.name) || '';
+    var identity = repIdentity(profile, email, (account && account.name) || rosterName || signedInHint);
     var deals = mine(store.closedDeals);
     var deduped = dedupeDeals(deals).deals;
 
@@ -136,7 +145,6 @@ export async function GET(req) {
     var myEods = mine(store.eodReports).filter(function(e) {
       return identity.owns(e, 'closerEmail', 'salesRep');
     });
-    var membership = await getUserWorkspace(email).catch(function() { return null; });
     var rosterRole = (membership && membership.role) || '';
     var kpiRole = kpiSetFor(rosterRole) && String(rosterRole || '').toLowerCase();
     if (!kpiRole || !['closer', 'setter', 'dm-setter'].includes(kpiRole)) {
@@ -191,7 +199,7 @@ export async function GET(req) {
         onboarded: !!(profile && profile.onboardedAt),
         // True when the only name we have came off a closer profile, which is
         // created by whichever form first carried this email and is often wrong.
-        nameIsGuessed: !(profile && profile.displayName) && !(account && account.name),
+        nameIsGuessed: !(profile && profile.displayName) && !(account && account.name) && !rosterName,
         joinedAt: (profile && profile.registeredAt) || '',
       },
       // What the banner falls back to before anyone uploads one: the workspace's
